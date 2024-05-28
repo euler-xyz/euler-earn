@@ -47,7 +47,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     ESRSlot internal esrSlot;
 
     /// @dev Total amount of _asset deposited into FourSixTwoSixAgg contract
-    uint256 public totalAssetsDeposited;
+    uint256 public totalAssetsDeposited; // @review: this should rather be internal not to be misleading
     /// @dev Total amount of _asset deposited across all strategies.
     uint256 public totalAllocated;
     /// @dev Total amount of allocation points across all strategies including the cash reserve.
@@ -107,14 +107,17 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
         address _asset,
         string memory _name,
         string memory _symbol,
-        uint256 _initialCashAllocationPoints,
+        uint256 _initialCashAllocationPoints, // @review: should be uint120 or checked if it's <= type(uint120).max
         address[] memory _initialStrategies,
-        uint256[] memory _initialStrategiesAllocationPoints
+        uint256[] memory _initialStrategiesAllocationPoints // @review: should be array of uint120 or checked if each element is <= type(uint120).max
     ) BalanceForwarder(_balanceTracker) EVCUtil(address(_evc)) ERC4626(IERC20(_asset)) ERC20(_name, _symbol) {
         esrSlot.locked = REENTRANCYLOCK__UNLOCKED;
 
         if (_initialStrategies.length != _initialStrategiesAllocationPoints.length) revert ArrayLengthMismatch();
         if (_initialCashAllocationPoints == 0) revert InitialAllocationPointsZero();
+
+        // @review: why don't we simplify the inteface here? the cash strategy can be passed in the arrays, no need for additional
+        // _initialCashAllocationPoints parameter and special handling
 
         strategies[address(0)] =
             Strategy({allocated: 0, allocationPoints: uint120(_initialCashAllocationPoints), active: true});
@@ -124,6 +127,10 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
         for (uint256 i; i < _initialStrategies.length; ++i) {
             strategies[_initialStrategies[i]] =
                 Strategy({allocated: 0, allocationPoints: uint120(_initialStrategiesAllocationPoints[i]), active: true});
+
+            // @review: shall we check that the strategy is an ERC4626 vault same as we do in addStrategy?
+            // @review: shouldn't we add the strategy to the withdrawal queue?
+            // @review: we should prevent strategy duplicates, otherwise the accounting might get messed up
 
             _totalAllocationPoints += _initialStrategiesAllocationPoints[i];
         }
@@ -166,6 +173,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
         for (uint256 i; i < _strategies.length; ++i) {
             _rebalance(_strategies[i]);
         }
+        // @review: wouldn't it be better to gulp just once here rather than on every rebalance?
     }
 
     /// @notice Harvest positive yield.
@@ -187,7 +195,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     /// @dev Can only be called by an address that have the ALLOCATION_ADJUSTER_ROLE
     /// @param strategy address of strategy
     /// @param newPoints new strategy's points
-    function adjustAllocationPoints(address strategy, uint256 newPoints)
+    function adjustAllocationPoints(address strategy, uint256 newPoints) // @review: should be uint120 or checked if it's <= type(uint120).max
         external
         nonReentrant
         onlyRole(ALLOCATION_ADJUSTER_ROLE)
@@ -227,7 +235,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     /// @dev Can only be called by an address that have STRATEGY_ADDER_ROLE.
     /// @param strategy Address of the strategy
     /// @param allocationPoints Strategy's allocation points
-    function addStrategy(address strategy, uint256 allocationPoints)
+    function addStrategy(address strategy, uint256 allocationPoints) // @review: should be uint120 or checked if it's <= type(uint120).max
         external
         nonReentrant
         onlyRole(STRATEGY_ADDER_ROLE)
@@ -251,6 +259,9 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     /// @dev Can only be called by an address that have the STRATEGY_REMOVER_ROLE
     /// @param strategy Address of the strategy
     function removeStrategy(address strategy) external nonReentrant onlyRole(STRATEGY_REMOVER_ROLE) {
+        // @review: protect against mistakenly removing cash strategy. if address(0) passed, withdrawalQueue will get popped anyways.
+        // it would be the best to wrap the withdrawalQueue removal in the if statement
+
         Strategy storage strategyStorage = strategies[strategy];
 
         if (!strategyStorage.active) {
@@ -267,7 +278,8 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
         for (uint256 i = 0; i < lastStrategyIndex; ++i) {
             if (withdrawalQueue[i] == strategy) {
                 withdrawalQueue[i] = withdrawalQueue[lastStrategyIndex];
-                withdrawalQueue[lastStrategyIndex] = strategy;
+                withdrawalQueue[lastStrategyIndex] = strategy; // @review: is this line needed?
+                // @review: break is missing here
             }
         }
 
@@ -302,6 +314,15 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     function interestAccrued() external view returns (uint256) {
         return interestAccruedFromCache(esrSlot);
     }
+
+    // @review: do we want to override _convertToShares and _convertToAssets to maintain 
+    // the same level of exchange rate manipulation protection as for other products?
+    // see: https://github.com/euler-xyz/euler-vault-kit/blob/master/src/Synths/EulerSavingsRate.sol#L177-L183
+
+    // @review: what about overriding max methods? might be needed in case shares of the aggregator are recognized
+    // as collateral
+
+    // @review: or even better, why don't we inherit from the ESR and only override withdraw and gulp?
 
     /// @notice Transfers a certain amount of tokens to a recipient.
     /// @param to The recipient of the transfer.
@@ -417,6 +438,10 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
         totalAssetsDeposited -= assets;
 
         uint256 assetsRetrieved = IERC20(asset()).balanceOf(address(this));
+
+        // @review: why don't check if the contract has enough assets to withdraw at this point?
+        // it would be at least one SLOAD less if no need to enter the loop
+
         uint256 numStrategies = withdrawalQueue.length;
         for (uint256 i; i < numStrategies; ++i) {
             if (assetsRetrieved >= assets) {
@@ -426,10 +451,11 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
             IERC4626 strategy = IERC4626(withdrawalQueue[i]);
 
             _harvest(address(strategy));
-            _gulp();
+            _gulp(); // @review: wouldn't it be more efficient to gulp just once after the loop?
 
             Strategy storage strategyStorage = strategies[address(strategy)];
 
+            // @review: seems like a maxWithdraw might be better suited here
             uint256 sharesBalance = strategy.balanceOf(address(this));
             uint256 underlyingBalance = strategy.convertToAssets(sharesBalance);
 
@@ -438,7 +464,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
 
             // Update allocated assets
             strategyStorage.allocated -= uint120(withdrawAmount);
-            totalAllocated -= withdrawAmount;
+            totalAllocated -= withdrawAmount; // @review: why not write to storage once after the loop?
 
             // update assetsRetrieved
             assetsRetrieved += withdrawAmount;
@@ -482,7 +508,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
 
         // Harvest profits, also gulps and updates interest
         _harvest(_strategy);
-        _gulp();
+        _gulp(); // @review: if _rebalance called in the loop, we'll gulp multiple times
 
         Strategy memory strategyData = strategies[_strategy];
 
@@ -540,6 +566,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
 
         if (strategyData.allocated == 0) return;
 
+        // @review: seems like a maxWithdraw might be better suited here
         uint256 sharesBalance = IERC4626(strategy).balanceOf(address(this));
         uint256 underlyingBalance = IERC4626(strategy).convertToAssets(sharesBalance);
 
@@ -553,6 +580,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
             // TODO possible performance fee
         } else {
             // TODO handle losses
+            // @review: maybe better to do nothing than revert? not sure
             revert NegativeYield();
         }
     }
@@ -562,10 +590,15 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     /// @param from Address sending the amount
     /// @param to Address receiving the amount
     function _afterTokenTransfer(address from, address to, uint256 /*amount*/ ) internal override {
+        // @review: will shares of this aggregator be used as collateral?
+        // if so, it might be worth to handle it the same way as we do in the EVK and forfeit recent rewards if in liquidation:
+        // https://github.com/euler-xyz/euler-vault-kit/blob/master/src/EVault/shared/BalanceUtils.sol#L57-L63
         if ((from != address(0)) && (isBalanceForwarderEnabled[from])) {
             balanceTracker.balanceTrackerHook(from, super.balanceOf(from), false);
         }
 
+        // @review: it seems that OZ allows self-transfers. if so, add check for to != from.
+        // if they're equal, the hook was already called above
         if ((to != address(0)) && (isBalanceForwarderEnabled[to])) {
             balanceTracker.balanceTrackerHook(to, super.balanceOf(to), false);
         }
@@ -576,7 +609,7 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     /// @return uint256 accrued interest
     function interestAccruedFromCache(ESRSlot memory esrSlotCache) internal view returns (uint256) {
         // If distribution ended, full amount is accrued
-        if (block.timestamp > esrSlotCache.interestSmearEnd) {
+        if (block.timestamp > esrSlotCache.interestSmearEnd) { // @review: wouldn't it be better with >= ?
             return esrSlotCache.interestLeft;
         }
 
@@ -597,6 +630,9 @@ contract FourSixTwoSixAgg is BalanceForwarder, EVCUtil, ERC4626, AccessControlEn
     ///      either msg.sender or the account authenticated by the EVC.
     /// @return The address of the message sender.
     function _msgSender() internal view override (Context, EVCUtil) returns (address) {
+        // @review: currently we're using _msgSender() also for access control. do we want the EVC operators and sub-accounts to
+        // to be used for access control? if not, we need to override _checkRole and apply additional checks i.e. as it's done here:
+        // https://github.com/euler-xyz/euler-vault-kit/blob/master/src/EVault/shared/EVCClient.sol#L62-L78
         return EVCUtil._msgSender();
     }
 }

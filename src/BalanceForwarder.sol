@@ -51,7 +51,7 @@ abstract contract BalanceForwarder is IBalanceForwarder {
         isBalanceForwarderEnabled[_sender] = true;
         IBalanceTracker(balanceTracker).balanceTrackerHook(_sender, _senderBalance, false);
 
-        emit EnableBalanceForwarder(_sender);
+        emit EnableBalanceForwarder(_sender); // @review: do we want to emit the event even if no state change?
     }
 
     /// @notice Disables balance forwarding for the authenticated account
@@ -63,6 +63,6 @@ abstract contract BalanceForwarder is IBalanceForwarder {
         isBalanceForwarderEnabled[_sender] = false;
         IBalanceTracker(balanceTracker).balanceTrackerHook(_sender, 0, false);
 
-        emit DisableBalanceForwarder(_sender);
+        emit DisableBalanceForwarder(_sender); // @review: do we want to emit the event even if no state change?
     }
 }
