@@ -4,7 +4,7 @@ Harvest explicitly called before redeem, therefore no harvest while redeeming be
 | src/module/YieldAggregatorVault.sol:YieldAggregatorVault contract |                 |        |        |        |         |
 |-------------------------------------------------------------------|-----------------|--------|--------|--------|---------|
 | Function Name                                                     | min             | avg    | median | max    | # calls |
-| redeem                                                            | 239648          | 239648 | 239648 | 239648 | 1       |
+| redeem                                                            | 216139          | 216139 | 216139 | 216139 | 1       |
 
 #### Redeem without harvesting, five strategies
 Harvest explicitly called before redeem, therefore no harvest while redeeming because of cool down period
@@ -12,7 +12,7 @@ Harvest explicitly called before redeem, therefore no harvest while redeeming be
 | src/module/YieldAggregatorVault.sol:YieldAggregatorVault contract |                 |        |        |        |         |
 |-------------------------------------------------------------------|-----------------|--------|--------|--------|---------|
 | Function Name                                                     | min             | avg    | median | max    | # calls |
-| redeem                                                            | 734642          | 734642  | 734642  | 734642  | 1    |
+| redeem                                                            | 655003          | 655003  | 655003  | 655003  | 1    |
 
 #### Redeem with harvesting, one strategy, no yield no loss
 
@@ -48,7 +48,7 @@ Harvest explicitly called before redeem, therefore no harvest while redeeming be
 | src/module/YieldAggregatorVault.sol:YieldAggregatorVault contract |                 |        |        |        |         |
 |-------------------------------------------------------------------|-----------------|--------|--------|--------|---------|
 | Function Name                                                     | min             | avg    | median | max    | # calls |
-| redeem                                                            | 731556          | 731556  | 731556  | 731556  | 1       |
+| redeem                                                            | 731556          | 731556  | 731556  | 731556  | 1    |
 
 #### Redeem with harvesting, one strategy with yield
 
@@ -75,7 +75,7 @@ Harvest explicitly called before redeem, therefore no harvest while redeeming be
 | src/module/YieldAggregatorVault.sol:YieldAggregatorVault contract |                 |        |        |        |         |
 |-------------------------------------------------------------------|-----------------|--------|--------|--------|---------|
 | Function Name                                                     | min             | avg    | median | max    | # calls |
-| redeem                                                            | 677251          | 677251  | 677251  | 677251  | 1       |
+| redeem                                                            | 677251          | 677251  | 677251  | 677251  | 1    |
 
 #### Redeem with harvesting, one strategies with loss
 
@@ -93,4 +93,4 @@ Harvest explicitly called before redeem, therefore no harvest while redeeming be
 | src/module/YieldAggregatorVault.sol:YieldAggregatorVault contract |                 |        |        |        |         |
 |-------------------------------------------------------------------|-----------------|--------|--------|--------|---------|
 | Function Name                                                     | min             | avg    | median | max    | # calls |
-| redeem                                                            | 631129          | 631129  | 631129  | 631129  | 1       |
+| redeem                                                            | 631129          | 631129  | 631129  | 631129  | 1    |

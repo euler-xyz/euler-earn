@@ -825,7 +825,7 @@ contract WithdrawGasMetering is YieldAggregatorBase {
         }
 
         vm.warp(block.timestamp + 86400);
-        // mock decrease by 0%
+        // mock decrease by 10%
         uint256 aggrCurrentStrategyBalance = eTST.balanceOf(address(eulerYieldAggregatorVault));
         uint256 aggrCurrentStrategyBalanceAfterNegYield = aggrCurrentStrategyBalance * 9e17 / 1e18;
         vm.mockCall(
@@ -937,7 +937,7 @@ contract WithdrawGasMetering is YieldAggregatorBase {
         }
 
         vm.warp(block.timestamp + 86400);
-        // mock decrease by 0%
+        // mock decrease by 10%
         uint256 aggrCurrentStrategyBalance = eTST.balanceOf(address(eulerYieldAggregatorVault));
         uint256 aggrCurrentStrategyBalanceAfterNegYield = aggrCurrentStrategyBalance * 9e17 / 1e18;
         vm.mockCall(

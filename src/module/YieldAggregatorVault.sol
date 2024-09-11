@@ -569,11 +569,11 @@ abstract contract YieldAggregatorVaultModule is ERC4626Upgradeable, ERC20VotesUp
     function _harvest(bool _checkCooldown) private {
         YieldAggregatorStorage storage $ = Storage._getYieldAggregatorStorage();
 
-        if (_checkCooldown && ($.lastHarvestTimestamp + Constants.HARVEST_COOLDOWN >= block.timestamp)) {
-            return;
-        }
+        // if (_checkCooldown && ($.lastHarvestTimestamp + Constants.HARVEST_COOLDOWN >= block.timestamp)) {
+        //     return;
+        // }
 
-        $.lastHarvestTimestamp = uint40(block.timestamp);
+        // $.lastHarvestTimestamp = uint40(block.timestamp);
 
         _executeHarvest($.withdrawalQueue);
     }
