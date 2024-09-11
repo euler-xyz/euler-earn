@@ -110,7 +110,7 @@ abstract contract YieldAggregatorVaultModule is ERC4626Upgradeable, ERC20VotesUp
 
         _callHooksTarget(Constants.WITHDRAW, _msgSender());
 
-        _harvest(true);
+        _harvest(false);
 
         uint256 maxAssets = _convertToAssets(_balanceOf(_owner), Math.Rounding.Floor);
         if (_assets > maxAssets) {
@@ -139,7 +139,7 @@ abstract contract YieldAggregatorVaultModule is ERC4626Upgradeable, ERC20VotesUp
 
         _callHooksTarget(Constants.REDEEM, _msgSender());
 
-        _harvest(true);
+        _harvest(false);
 
         uint256 maxShares = _balanceOf(_owner);
         if (_shares > maxShares) {
