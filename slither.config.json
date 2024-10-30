@@ -10,7 +10,7 @@
         "ethereum-vault-connector/=lib/ethereum-vault-connector/src/",
         "forge-std/=lib/forge-std/src/",
         "evk/=lib/euler-vault-kit/",
-        "reward-streams=lib/reward-streams/src",
+        "reward-streams=lib/reward-streams/src/",
         "openzeppelin-contracts/=lib/reward-streams/lib/openzeppelin-contracts/contracts",
         "@openzeppelin/=lib/openzeppelin-contracts/",
         "@openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
