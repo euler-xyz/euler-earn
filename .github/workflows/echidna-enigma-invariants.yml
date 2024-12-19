@@ -1,0 +1,57 @@
+name: Echidna Enigma Invariants
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  echidna:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mode: [property, assertion] # Define the modes here
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+
+      - name: Clone the private repo into corpus folder
+        run: |
+          git clone git@github.com:euler-xyz/euler-earn-enigma-corpus.git corpus
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Compile contracts
+        run: |
+          forge build --build-info
+
+      - name: Run Echidna ${{ matrix.mode == 'property' && 'Property' || 'Assertion' }} Mode
+        uses: crytic/echidna-action@v2
+        with:
+          files: .
+          contract: Tester
+          config: test/enigma-dark-invariants/_config/echidna_config_ci.yaml
+          crytic-args: --ignore-compile
+          test-mode: ${{ matrix.mode == 'assertion' && 'assertion' || '' }}

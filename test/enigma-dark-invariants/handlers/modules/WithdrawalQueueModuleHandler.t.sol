@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+// Interfaces
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IEulerEarn} from "src/interface/IEulerEarn.sol";
+
+// Libraries
+import "forge-std/console.sol";
+
+// Test Contracts
+import {Actor} from "../../utils/Actor.sol";
+import {BaseHandler} from "../../base/BaseHandler.t.sol";
+
+/// @title WithdrawalQueueModuleHandler
+/// @notice Handler test contract for a set of actions
+contract WithdrawalQueueModuleHandler is BaseHandler {
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      STATE VARIABLES                                      //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                          ACTIONS                                          //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    function reorderWithdrawalQueue(uint8 index1, uint8 index2) external {
+        _before();
+        eulerEulerEarnVault.reorderWithdrawalQueue(index1, index2);
+        _after();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                         OWNER ACTIONS                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                           HELPERS                                         //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+}
