@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 struct MarketConfig {
-    /// @notice The maximum amount of assets that can be allocated to the market.
+    /// @notice The maximum amount of assets that can be allocated to the vault.
     uint184 cap;
-    /// @notice Whether the market is in the withdraw queue.
+    /// @notice Whether the vault is in the withdraw queue.
     bool enabled;
-    /// @notice The timestamp at which the market can be instantly removed from the withdraw queue.
+    /// @notice The timestamp at which the vault can be instantly removed from the withdraw queue.
     uint64 removableAt;
 }
 
@@ -25,8 +25,9 @@ struct PendingAddress {
 }
 
 /// @title PendingLib
-/// @author Morpho Labs
+/// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org
+/// @custom:contact security@euler.xyz
 /// @notice Library to manage pending values and their validity timestamp.
 library PendingLib {
     /// @dev Updates `pending`'s value to `newValue` and its corresponding `validAt` timestamp.
