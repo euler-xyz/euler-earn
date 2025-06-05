@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.5.0;
 
-import {IMorpho, Id, MarketParams} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
+import {IEulerEarnFactory} from "./IEulerEarnFactory.sol";
+
 import {IERC4626} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {IERC20Permit} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import {MarketConfig, PendingUint192, PendingAddress} from "../libraries/PendingLib.sol";
 
 struct MarketAllocation {
-    /// @notice The market to allocate.
-    MarketParams marketParams;
+    /// @notice The vault to allocate.
+    IERC4626 id;
     /// @notice The amount of assets to allocate.
     uint256 assets;
-}
-
-interface IMulticall {
-    function multicall(bytes[] calldata) external returns (bytes[] memory);
 }
 
 interface IOwnable {
@@ -26,19 +23,11 @@ interface IOwnable {
     function pendingOwner() external view returns (address);
 }
 
-/// @dev This interface is used for factorizing IMetaMorphoV1_1StaticTyping and IMetaMorphoV1_1.
-/// @dev Consider using the IMetaMorphoV1_1 interface instead of this one.
-interface IMetaMorphoV1_1Base {
-    /// @notice The address of the Morpho contract.
-    function MORPHO() external view returns (IMorpho);
-
-    /// @notice OpenZeppelin decimals offset used by the ERC4626 implementation.
-    /// @dev Calculated to be max(0, 18 - underlyingDecimals).
-    /// @dev When equal to zero (<=> token decimals >= 18), the protection against the inflation front-running attack on
-    /// empty vault is low (see https://docs.openzeppelin.com/contracts/5.x/erc4626#inflation-attack). To protect
-    /// against this attack, vault deployers should make an initial deposit of a non-trivial amount in the vault or
-    /// depositors should check that the share price does not exceed a certain limit.
-    function DECIMALS_OFFSET() external view returns (uint8);
+/// @dev This interface is used for factorizing IEulerEarnStaticTyping and IEulerEarn.
+/// @dev Consider using the IEulerEarn interface instead of this one.
+interface IEulerEarnBase {
+    /// @notice The address of the creator.
+    function creator() external view returns (IEulerEarnFactory);
 
     /// @notice The address of the curator.
     function curator() external view returns (address);
@@ -61,17 +50,17 @@ interface IMetaMorphoV1_1Base {
     /// @notice The current timelock.
     function timelock() external view returns (uint256);
 
-    /// @dev Stores the order of markets on which liquidity is supplied upon deposit.
-    /// @dev Can contain any market. A market is skipped as soon as its supply cap is reached.
-    function supplyQueue(uint256) external view returns (Id);
+    /// @dev Stores the order of vaults in which liquidity is supplied upon deposit.
+    /// @dev Can contain any vault. A vault is skipped as soon as its supply cap is reached.
+    function supplyQueue(uint256) external view returns (IERC4626);
 
     /// @notice Returns the length of the supply queue.
     function supplyQueueLength() external view returns (uint256);
 
-    /// @dev Stores the order of markets from which liquidity is withdrawn upon withdrawal.
-    /// @dev Always contain all non-zero cap markets as well as all markets on which the vault supplies liquidity,
+    /// @dev Stores the order of vault from which liquidity is withdrawn upon withdrawal.
+    /// @dev Always contain all non-zero cap vault as well as all vault on which the Earn vault supplies liquidity,
     /// without duplicate.
-    function withdrawQueue(uint256) external view returns (Id);
+    function withdrawQueue(uint256) external view returns (IERC4626);
 
     /// @notice Returns the length of the withdraw queue.
     function withdrawQueueLength() external view returns (uint256);
@@ -79,7 +68,7 @@ interface IMetaMorphoV1_1Base {
     /// @notice Stores the total assets managed by this vault when the fee was last accrued.
     function lastTotalAssets() external view returns (uint256);
 
-    /// @notice Stores the missing assets due to realized bad debt or forced market removal.
+    /// @notice Stores the missing assets due to realized bad debt or forced vault removal.
     /// @dev In order to cover those lost assets, it is advised to supply on behalf of address(1) on the vault
     /// (canonical method).
     function lostAssets() external view returns (uint256);
@@ -96,39 +85,39 @@ interface IMetaMorphoV1_1Base {
     /// @dev Does not revert if there is no pending timelock.
     function revokePendingTimelock() external;
 
-    /// @notice Submits a `newSupplyCap` for the market defined by `marketParams`.
+    /// @notice Submits a `newSupplyCap` for the vault.
     /// @dev Warning: Reverts if a cap is already pending. Revoke the pending cap to overwrite it.
-    /// @dev Warning: Reverts if a market removal is pending.
+    /// @dev Warning: Reverts if a vault removal is pending.
     /// @dev In case the new cap is lower than the current one, the cap is set immediately.
-    function submitCap(MarketParams memory marketParams, uint256 newSupplyCap) external;
+    function submitCap(IERC4626 id, uint256 newSupplyCap) external;
 
-    /// @notice Accepts the pending cap of the market defined by `marketParams`.
-    function acceptCap(MarketParams memory marketParams) external;
+    /// @notice Accepts the pending cap of the vault.
+    function acceptCap(IERC4626 id) external;
 
-    /// @notice Revokes the pending cap of the market defined by `id`.
+    /// @notice Revokes the pending cap of the vault.
     /// @dev Does not revert if there is no pending cap.
-    function revokePendingCap(Id id) external;
+    function revokePendingCap(IERC4626 id) external;
 
-    /// @notice Submits a forced market removal from the vault, eventually losing all funds supplied to the market.
-    /// @notice This forced removal is expected to be used as an emergency process in case a market constantly reverts.
-    /// To softly remove a sane market, the curator role is expected to bundle a reallocation that empties the market
-    /// first (using `reallocate`), followed by the removal of the market (using `updateWithdrawQueue`).
+    /// @notice Submits a forced vault removal from the Earn vault, eventually losing all funds supplied to the vault.
+    /// @notice This forced removal is expected to be used as an emergency process in case a vault constantly reverts.
+    /// To softly remove a sane vault, the curator role is expected to bundle a reallocation that empties the vault
+    /// first (using `reallocate`), followed by the removal of the vault (using `updateWithdrawQueue`).
     /// @dev Warning: Reverts for non-zero cap or if there is a pending cap. Successfully submitting a zero cap will
     /// prevent such reverts.
-    function submitMarketRemoval(MarketParams memory marketParams) external;
+    function submitMarketRemoval(IERC4626 id) external;
 
-    /// @notice Revokes the pending removal of the market defined by `id`.
-    /// @dev Does not revert if there is no pending market removal.
-    function revokePendingMarketRemoval(Id id) external;
+    /// @notice Revokes the pending removal of the vault.
+    /// @dev Does not revert if there is no pending vault removal.
+    function revokePendingMarketRemoval(IERC4626 id) external;
 
-    /// @notice Sets the name of the vault.
+    /// @notice Sets the name of the Earn vault.
     function setName(string memory newName) external;
 
-    /// @notice Sets the symbol of the vault.
+    /// @notice Sets the symbol of the Earn vault.
     function setSymbol(string memory newSymbol) external;
 
     /// @notice Submits a `newGuardian`.
-    /// @notice Warning: a malicious guardian could disrupt the vault's operation, and would have the power to revoke
+    /// @notice Warning: a malicious guardian could disrupt the Earn vault's operation, and would have the power to revoke
     /// any pending guardian.
     /// @dev In case there is no guardian, the gardian is set immediately.
     /// @dev Warning: Submitting a gardian will overwrite the current pending gardian.
@@ -159,29 +148,29 @@ interface IMetaMorphoV1_1Base {
     function setSkimRecipient(address newSkimRecipient) external;
 
     /// @notice Sets `supplyQueue` to `newSupplyQueue`.
-    /// @param newSupplyQueue is an array of enabled markets, and can contain duplicate markets, but it would only
+    /// @param newSupplyQueue is an array of enabled vaults, and can contain duplicate vaults, but it would only
     /// increase the cost of depositing to the vault.
-    function setSupplyQueue(Id[] calldata newSupplyQueue) external;
+    function setSupplyQueue(IERC4626[] calldata newSupplyQueue) external;
 
-    /// @notice Updates the withdraw queue. Some markets can be removed, but no market can be added.
-    /// @notice Removing a market requires the vault to have 0 supply on it, or to have previously submitted a removal
-    /// for this market (with the function `submitMarketRemoval`).
+    /// @notice Updates the withdraw queue. Some vaults can be removed, but no vault can be added.
+    /// @notice Removing a vault requires the vault to have 0 supply on it, or to have previously submitted a removal
+    /// for this vault (with the function `submitMarketRemoval`).
     /// @notice Warning: Anyone can supply on behalf of the vault so the call to `updateWithdrawQueue` that expects a
-    /// market to be empty can be griefed by a front-run. To circumvent this, the allocator can simply bundle a
-    /// reallocation that withdraws max from this market with a call to `updateWithdrawQueue`.
-    /// @dev Warning: Removing a market with supply will decrease the fee accrued until one of the functions updating
+    /// vault to be empty can be griefed by a front-run. To circumvent this, the allocator can simply bundle a
+    /// reallocation that withdraws max from this vault with a call to `updateWithdrawQueue`.
+    /// @dev Warning: Removing a vault with supply will decrease the fee accrued until one of the functions updating
     /// `lastTotalAssets` is triggered (deposit/mint/withdraw/redeem/setFee/setFeeRecipient).
     /// @dev Warning: `updateWithdrawQueue` is not idempotent. Submitting twice the same tx will change the queue twice.
-    /// @param indexes The indexes of each market in the previous withdraw queue, in the new withdraw queue's order.
+    /// @param indexes The indexes of each vault in the previous withdraw queue, in the new withdraw queue's order.
     function updateWithdrawQueue(uint256[] calldata indexes) external;
 
-    /// @notice Reallocates the vault's liquidity so as to reach a given allocation of assets on each given market.
+    /// @notice Reallocates the vault's liquidity so as to reach a given allocation of assets on each given vault.
     /// @dev The behavior of the reallocation can be altered by state changes, including:
-    /// - Deposits on the vault that supplies to markets that are expected to be supplied to during reallocation.
-    /// - Withdrawals from the vault that withdraws from markets that are expected to be withdrawn from during
+    /// - Deposits on the Eanr vault that supplies to vaults that are expected to be supplied to during reallocation.
+    /// - Withdrawals from the Earn vault that withdraws from vaults that are expected to be withdrawn from during
     /// reallocation.
-    /// - Donations to the vault on markets that are expected to be supplied to during reallocation.
-    /// - Withdrawals from markets that are expected to be withdrawn from during reallocation.
+    /// - Donations to the vault on vaults that are expected to be supplied to during reallocation.
+    /// - Withdrawals from vaults that are expected to be withdrawn from during reallocation.
     /// @dev Sender is expected to pass `assets = type(uint256).max` with the last MarketAllocation of `allocations` to
     /// supply all the remaining withdrawn liquidity, which would ensure that `totalWithdrawn` = `totalSupplied`.
     /// @dev A supply in a reallocation step will make the reallocation revert if the amount is greater than the net
@@ -189,36 +178,37 @@ interface IMetaMorphoV1_1Base {
     function reallocate(MarketAllocation[] calldata allocations) external;
 }
 
-/// @dev This interface is inherited by MetaMorphoV1_1 so that function signatures are checked by the compiler.
-/// @dev Consider using the IMetaMorphoV1_1 interface instead of this one.
-interface IMetaMorphoV1_1StaticTyping is IMetaMorphoV1_1Base {
-    /// @notice Returns the current configuration of each market.
-    function config(Id) external view returns (uint184 cap, bool enabled, uint64 removableAt);
+/// @dev This interface is inherited by IEulerEarn so that function signatures are checked by the compiler.
+/// @dev Consider using the IEulerEarn interface instead of this one.
+interface IEulerEarnStaticTyping is IEulerEarnBase {
+    /// @notice Returns the current configuration of each vault.
+    function config(IERC4626) external view returns (uint184 cap, bool enabled, uint64 removableAt);
 
     /// @notice Returns the pending guardian.
     function pendingGuardian() external view returns (address guardian, uint64 validAt);
 
-    /// @notice Returns the pending cap for each market.
-    function pendingCap(Id) external view returns (uint192 value, uint64 validAt);
+    /// @notice Returns the pending cap for each vault.
+    function pendingCap(IERC4626) external view returns (uint192 value, uint64 validAt);
 
     /// @notice Returns the pending timelock.
     function pendingTimelock() external view returns (uint192 value, uint64 validAt);
 }
 
-/// @title IMetaMorphoV1_1
-/// @author Morpho Labs
+/// @title IEulerEarn
+/// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org
-/// @dev Use this interface for MetaMorphoV1_1 to have access to all the functions with the appropriate function
+/// @custom:contact security@euler.xyz
+/// @dev Use this interface for IEulerEarn to have access to all the functions with the appropriate function
 /// signatures.
-interface IMetaMorphoV1_1 is IMetaMorphoV1_1Base, IERC4626, IERC20Permit, IOwnable, IMulticall {
-    /// @notice Returns the current configuration of each market.
-    function config(Id) external view returns (MarketConfig memory);
+interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable {
+    /// @notice Returns the current configuration of each vault.
+    function config(IERC4626) external view returns (MarketConfig memory);
 
     /// @notice Returns the pending guardian.
     function pendingGuardian() external view returns (PendingAddress memory);
 
-    /// @notice Returns the pending cap for each market.
-    function pendingCap(Id) external view returns (PendingUint192 memory);
+    /// @notice Returns the pending cap for each vault.
+    function pendingCap(IERC4626) external view returns (PendingUint192 memory);
 
     /// @notice Returns the pending timelock.
     function pendingTimelock() external view returns (PendingUint192 memory);
