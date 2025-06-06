@@ -12,12 +12,25 @@ interface IEulerEarnFactory {
     /// @notice The address of the supported perspective contract.
     function supportedPerspective() external view returns (address);
 
-    /// @notice Whether a EulerEarn vault was created with the factory.
-    function isEulerEarn(address target) external view returns (bool);
+    /// @notice Whether a vault was created with the factory.
+    function isVault(address target) external view returns (bool);
 
+    /// @notice Fetch the length of the deployed proxies list
+    /// @return The length of the proxy list array
+    function getVaultListLength() external view returns (uint256);
+
+    /// @notice Get a slice of the deployed proxies array
+    /// @param start Start index of the slice
+    /// @param end End index of the slice
+    /// @return list An array containing the slice of the proxy list
+    function getVaultListSlice(uint256 start, uint256 end) external view returns (address[] memory list);
+
+    /// @notice Sets the perspective contract.
+    /// @param _perspective The address of the new perspective contract.
     function setPerspective(address _perspective) external;
 
-    function isVerified(address id) external view returns (bool);
+    /// @notice Whether a strategy is allowed to be used by the Earn vault.
+    function isStrategyAllowed(address id) external view returns (bool);
 
     /// @notice Creates a new EulerEarn vault.
     /// @param initialOwner The owner of the vault.

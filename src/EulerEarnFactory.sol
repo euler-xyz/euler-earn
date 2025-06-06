@@ -21,10 +21,14 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
     /* STORAGE */
     
+    /// @dev The perspective contract that is used to verify the strategies.
     IPerspective public perspective;
 
     /// @inheritdoc IEulerEarnFactory
-    mapping(address => bool) public isEulerEarn;
+    mapping(address => bool) public isVault;
+    
+    /// @dev The list of all the vaults created by the factory.
+    address[] public vaultList;
 
     /* CONSTRUCTOR */
 
@@ -45,7 +49,23 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
     }
 
     /// @inheritdoc IEulerEarnFactory
-    function isVerified(address id) external view returns (bool) {
+    function getVaultListLength() external view returns (uint256) {
+        return vaultList.length;
+    }
+
+    /// @inheritdoc IEulerEarnFactory
+    function getVaultListSlice(uint256 start, uint256 end) external view returns (address[] memory list) {
+        if (end == type(uint256).max) end = vaultList.length;
+        if (end < start || end > vaultList.length) revert ErrorsLib.BadQuery();
+
+        list = new address[](end - start);
+        for (uint256 i; i < end - start; ++i) {
+            list[i] = vaultList[start + i];
+        }
+    }
+
+    /// @inheritdoc IEulerEarnFactory
+    function isStrategyAllowed(address id) external view returns (bool) {
         return perspective.isVerified(id);
     }
 
@@ -71,7 +91,9 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
             address(new EulerEarn{salt: salt}(initialOwner, address(evc), initialTimelock, asset, name, symbol))
         );
 
-        isEulerEarn[address(eulerEarn)] = true;
+        isVault[address(eulerEarn)] = true;
+
+        vaultList.push(address(eulerEarn));
 
         emit EventsLib.CreateEulerEarn(
             address(eulerEarn), _msgSender(), initialOwner, initialTimelock, asset, name, symbol, salt

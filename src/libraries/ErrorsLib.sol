@@ -9,6 +9,9 @@ import {IERC4626} from "../../lib/openzeppelin-contracts/contracts/interfaces/IE
 /// @custom:contact security@euler.xyz
 /// @notice Library exposing error messages.
 library ErrorsLib {
+    /// @notice Thrown when the query is invalid.
+    error BadQuery();
+
     /// @notice Thrown when the address passed is the zero address.
     error ZeroAddress();
 
