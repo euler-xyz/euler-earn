@@ -27,7 +27,7 @@ interface IOwnable {
 /// @dev Consider using the IEulerEarn interface instead of this one.
 interface IEulerEarnBase {
     /// @notice The address of the creator.
-    function creator() external view returns (IEulerEarnFactory);
+    function creator() external view returns (address);
 
     /// @notice The address of the curator.
     function curator() external view returns (address);
