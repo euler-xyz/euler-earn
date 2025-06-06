@@ -26,6 +26,9 @@ interface IOwnable {
 /// @dev This interface is used for factorizing IEulerEarnStaticTyping and IEulerEarn.
 /// @dev Consider using the IEulerEarn interface instead of this one.
 interface IEulerEarnBase {
+    /// @notice The address of the Permit2 contract.
+    function permit2Address() external view returns (address);
+
     /// @notice The address of the creator.
     function creator() external view returns (address);
 

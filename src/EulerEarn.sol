@@ -15,6 +15,7 @@ import {PendingLib} from "./libraries/PendingLib.sol";
 import {ConstantsLib} from "./libraries/ConstantsLib.sol";
 import {ErrorsLib} from "./libraries/ErrorsLib.sol";
 import {EventsLib} from "./libraries/EventsLib.sol";
+import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {WAD} from "../lib/morpho-blue/src/libraries/MathLib.sol";
 import {UtilsLib} from "../lib/morpho-blue/src/libraries/UtilsLib.sol";
 import {SafeCast} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
@@ -23,7 +24,6 @@ import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/token/ERC2
 import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import {Ownable2Step, Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable2Step.sol";
-import {ERC20Permit} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {
     IERC20,
     IERC4626,
@@ -39,16 +39,20 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 /// @custom:contact security@morpho.org
 /// @custom:contact security@euler.xyz
 /// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 vault verified by the supported perspective.
-contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUtil, IEulerEarnStaticTyping {
+contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEarnStaticTyping {
     using Math for uint256;
     using UtilsLib for uint256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
+    using SafeERC20Permit2Lib for IERC20;
     using PendingLib for MarketConfig;
     using PendingLib for PendingUint192;
     using PendingLib for PendingAddress;
 
     /* IMMUTABLES */
+
+    /// @inheritdoc IEulerEarnBase
+    address public immutable permit2Address;
 
     /// @inheritdoc IEulerEarnBase
     address public immutable creator;
@@ -111,6 +115,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     /// @dev Initializes the contract.
     /// @param owner The owner of the contract.
     /// @param evc The EVC address.
+    /// @param permit2 The address of the Permit2 contract.
     /// @param initialTimelock The initial timelock.
     /// @param _asset The address of the underlying asset.
     /// @param __name The name of the Earn vault.
@@ -120,11 +125,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     constructor(
         address owner,
         address evc,
+        address permit2,
         uint256 initialTimelock,
         address _asset,
         string memory __name,
         string memory __symbol
-    ) ERC4626(IERC20(_asset)) ERC20Permit("") ERC20("", "") Ownable(owner) EVCUtil(evc) {
+    ) ERC4626(IERC20(_asset)) ERC20("", "") Ownable(owner) EVCUtil(evc) {
         if (initialTimelock != 0) _checkTimelockBounds(initialTimelock);
         _setTimelock(initialTimelock);
 
@@ -133,6 +139,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
 
         _symbol = __symbol;
         emit EventsLib.SetSymbol(__symbol);
+
+        permit2Address = permit2;
+
+        if (permit2 != address(0)) {
+            IERC20(_asset).forceApprove(permit2, type(uint256).max);
+        }
 
         creator = msg.sender;
     }
@@ -427,7 +439,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
                 if (supplyAssets + suppliedAssets > supplyCap) revert ErrorsLib.SupplyCapExceeded(id);
 
                 // The vaults's underlying asset is guaranteed to be the vault's asset because it has a non-zero supply cap.
-                IERC20(asset()).forceApprove(address(id), suppliedAssets);
+                IERC20(asset()).forceApproveWithPermit2(address(id), suppliedAssets, permit2Address);
                 uint256 suppliedShares = id.deposit(suppliedAssets, address(this));
 
                 emit EventsLib.ReallocateSupply(msgSender, id, suppliedAssets, suppliedShares);
@@ -510,11 +522,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     }
 
     /* ERC4626 (PUBLIC) */
-
-    /// @inheritdoc IERC20Metadata
-    function decimals() public view override(ERC20, ERC4626) returns (uint8) {
-        return ERC4626.decimals();
-    }
 
     /// @inheritdoc IERC20Metadata
     function name() public view override(IERC20Metadata, ERC20) returns (string memory) {
@@ -691,7 +698,10 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     /// @inheritdoc ERC4626
     /// @dev Used in mint or deposit to deposit the underlying asset to verified vaults.
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
-        super._deposit(caller, receiver, assets, shares);
+        IERC20(asset()).safeTransferFromWithPermit2(caller, address(this), assets, permit2Address);
+        _mint(receiver, shares);
+
+        emit Deposit(caller, receiver, assets, shares);
 
         _supplyEuler(assets);
 
@@ -808,7 +818,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
                 UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
 
             if (toSupply > 0) {
-                IERC20(asset()).forceApprove(address(id), toSupply);
+                IERC20(asset()).forceApproveWithPermit2(address(id), toSupply, permit2Address);
 
                 // Using try/catch to skip vaults that revert.
                 try id.deposit(toSupply, address(this)) {

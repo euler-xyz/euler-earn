@@ -19,6 +19,11 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 /// @custom:contact security@euler.xyz
 /// @notice This contract allows to create EulerEarn vaults, and to index them easily.
 contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
+    /* IMMUTABLES */
+
+    /// @dev The address of the Permit2 contract.
+    address public immutable permit2Address;
+
     /* STORAGE */
 
     /// @inheritdoc IEulerEarnFactory
@@ -34,10 +39,13 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
 
     /// @dev Initializes the contract.
     /// @param _owner The owner of the factory contract.
+    /// @param _evc The address of the EVC contract.
+    /// @param _permit2 The address of the Permit2 contract.
     /// @param _perspective The address of the supported perspective contract.
-    constructor(address _owner, address _evc, address _perspective) Ownable(_owner) EVCUtil(_evc) {
+    constructor(address _owner, address _evc, address _permit2, address _perspective) Ownable(_owner) EVCUtil(_evc) {
         if (_perspective == address(0)) revert ErrorsLib.ZeroAddress();
 
+        permit2Address = _permit2;
         perspective = IPerspective(_perspective);
     }
 
@@ -88,7 +96,11 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
         bytes32 salt
     ) external returns (IEulerEarn eulerEarn) {
         eulerEarn = IEulerEarn(
-            address(new EulerEarn{salt: salt}(initialOwner, address(evc), initialTimelock, asset, name, symbol))
+            address(
+                new EulerEarn{salt: salt}(
+                    initialOwner, address(evc), permit2Address, initialTimelock, asset, name, symbol
+                )
+            )
         );
 
         isVault[address(eulerEarn)] = true;

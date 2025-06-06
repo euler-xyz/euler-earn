@@ -9,6 +9,9 @@ import {IEulerEarn} from "./IEulerEarn.sol";
 /// @custom:contact security@euler.xyz
 /// @notice Interface of EulerEarn's factory.
 interface IEulerEarnFactory {
+    /// @notice The address of the Permit2 contract.
+    function permit2Address() external view returns (address);
+
     /// @notice The address of the supported perspective contract.
     function supportedPerspective() external view returns (address);
 
