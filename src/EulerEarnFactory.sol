@@ -21,14 +21,14 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
     /* STORAGE */
 
-    /// @dev The perspective contract that is used to verify the strategies.
-    IPerspective public perspective;
-
     /// @inheritdoc IEulerEarnFactory
     mapping(address => bool) public isVault;
 
     /// @dev The list of all the vaults created by the factory.
     address[] public vaultList;
+
+    /// @dev The perspective contract that is used to verify the strategies.
+    IPerspective internal perspective;
 
     /* CONSTRUCTOR */
 
