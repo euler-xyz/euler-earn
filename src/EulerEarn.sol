@@ -492,10 +492,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     }
 
     /// @inheritdoc IEulerEarnBase
-    function acceptCap(IERC4626 id)
-        external
-        afterTimelock(pendingCap[id].validAt)
-    {
+    function acceptCap(IERC4626 id) external afterTimelock(pendingCap[id].validAt) {
         // Safe "unchecked" cast because pendingCap <= type(uint184).max.
         _setCap(id, uint184(pendingCap[id].value));
     }
@@ -578,7 +575,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public override nonReentrant returns (uint256 shares) {
+    function withdraw(uint256 assets, address receiver, address owner)
+        public
+        override
+        nonReentrant
+        returns (uint256 shares)
+    {
         _accrueInterest();
 
         // Do not call expensive `maxWithdraw` and optimistically withdraw assets.
@@ -589,7 +591,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public override nonReentrant returns (uint256 assets) {
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        override
+        nonReentrant
+        returns (uint256 assets)
+    {
         _accrueInterest();
 
         // Do not call expensive `maxRedeem` and optimistically redeem shares.
@@ -663,7 +670,9 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
         uint256 newTotalAssets,
         Math.Rounding rounding
     ) internal pure returns (uint256) {
-        return assets.mulDiv(newTotalSupply + ConstantsLib.VIRTUAL_AMOUNT, newTotalAssets + ConstantsLib.VIRTUAL_AMOUNT, rounding);
+        return assets.mulDiv(
+            newTotalSupply + ConstantsLib.VIRTUAL_AMOUNT, newTotalAssets + ConstantsLib.VIRTUAL_AMOUNT, rounding
+        );
     }
 
     /// @dev Returns the amount of assets that the vault would exchange for the amount of `shares` provided.
@@ -674,7 +683,9 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
         uint256 newTotalAssets,
         Math.Rounding rounding
     ) internal pure returns (uint256) {
-        return shares.mulDiv(newTotalAssets + ConstantsLib.VIRTUAL_AMOUNT, newTotalSupply + ConstantsLib.VIRTUAL_AMOUNT, rounding);
+        return shares.mulDiv(
+            newTotalAssets + ConstantsLib.VIRTUAL_AMOUNT, newTotalSupply + ConstantsLib.VIRTUAL_AMOUNT, rounding
+        );
     }
 
     /// @inheritdoc ERC4626
@@ -715,7 +726,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
     /// @dev This function returns the account on behalf of which the current operation is being performed, which is
     /// either msg.sender or the account authenticated by the EVC.
     /// @return The address of the message sender.
-    function _msgSender() internal view virtual override (EVCUtil, Context) returns (address) {
+    function _msgSender() internal view virtual override(EVCUtil, Context) returns (address) {
         return EVCUtil._msgSender();
     }
 
@@ -793,7 +804,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, ERC20Permit, Ownable2Step, EVCUt
             uint256 supplyAssets = _expectedSupplyAssets(id);
 
             // TODO: maybe no need to call maxDeposit here? we can optimistically try to supply and if it reverts, it will get allocated to the next vault
-            uint256 toSupply = UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
+            uint256 toSupply =
+                UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
 
             if (toSupply > 0) {
                 IERC20(asset()).forceApprove(address(id), toSupply);

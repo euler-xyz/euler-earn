@@ -30,7 +30,7 @@ library ErrorsLib {
     /// @notice Thrown when the vault cannot be set in the supply queue.
     error UnauthorizedMarket(IERC4626 id);
 
-    /// @notice Thrown when submitting a cap for a vault whose underlying asset does not correspond to the underlying 
+    /// @notice Thrown when submitting a cap for a vault whose underlying asset does not correspond to the underlying
     /// asset of the Earn vault.
     error InconsistentAsset(IERC4626 id);
 

@@ -92,7 +92,9 @@ library EventsLib {
     /// @param id The address of the vault.
     /// @param withdrawnAssets The amount of assets withdrawn from the vault.
     /// @param withdrawnShares The amount of shares burned.
-    event ReallocateWithdraw(address indexed caller, IERC4626 indexed id, uint256 withdrawnAssets, uint256 withdrawnShares);
+    event ReallocateWithdraw(
+        address indexed caller, IERC4626 indexed id, uint256 withdrawnAssets, uint256 withdrawnShares
+    );
 
     /// @notice Emitted when interest are accrued.
     /// @param newTotalAssets The assets of the vault after accruing the interest but before the interaction.
@@ -137,7 +139,9 @@ library EventsLib {
     event SetAllocationFee(address indexed sender, address indexed vault, uint256 fee);
 
     /// @notice Emitted when the fee is transfered for a vault.
-    event TransferAllocationFee(address indexed sender, address indexed vault, uint256 amount, address indexed feeRecipient);
+    event TransferAllocationFee(
+        address indexed sender, address indexed vault, uint256 amount, address indexed feeRecipient
+    );
 
     /// @notice Emitted when the flow caps are set for a vault.
     event SetFlowCaps(address indexed sender, address indexed vault, FlowCapsConfig[] config);

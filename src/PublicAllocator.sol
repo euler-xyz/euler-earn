@@ -9,9 +9,7 @@ import {
     IPublicAllocatorStaticTyping,
     IPublicAllocatorBase
 } from "./interfaces/IPublicAllocator.sol";
-import {
-    IEulerEarn, MarketAllocation
-} from "./interfaces/IEulerEarn.sol";
+import {IEulerEarn, MarketAllocation} from "./interfaces/IEulerEarn.sol";
 
 import {ErrorsLib} from "./libraries/ErrorsLib.sol";
 import {EventsLib} from "./libraries/EventsLib.sol";
@@ -95,10 +93,7 @@ contract PublicAllocator is EVCUtil, IPublicAllocatorStaticTyping {
     /* PUBLIC */
 
     /// @inheritdoc IPublicAllocatorBase
-    function reallocateTo(address vault, Withdrawal[] calldata withdrawals, IERC4626 supplyId)
-        external
-        payable
-    {
+    function reallocateTo(address vault, Withdrawal[] calldata withdrawals, IERC4626 supplyId) external payable {
         if (msg.value != fee[vault]) revert ErrorsLib.IncorrectFee();
         if (msg.value > 0) accruedFee[vault] += msg.value;
 

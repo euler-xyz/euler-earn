@@ -52,9 +52,7 @@ interface IPublicAllocatorBase {
     /// @dev Will revert when `withdrawals` contains a duplicate or is not sorted.
     /// @dev Will revert if `withdrawals` contains the supply vault.
     /// @dev Will revert if a withdrawal amount is larger than available liquidity.
-    function reallocateTo(address vault, Withdrawal[] calldata withdrawals, IERC4626 supplyId)
-        external
-        payable;
+    function reallocateTo(address vault, Withdrawal[] calldata withdrawals, IERC4626 supplyId) external payable;
 
     /// @notice Sets the admin for a given vault.
     function setAdmin(address vault, address newAdmin) external;
