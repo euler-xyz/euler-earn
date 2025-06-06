@@ -74,7 +74,8 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
 
     /// @inheritdoc IEulerEarnFactory
     function isStrategyAllowed(address id) external view returns (bool) {
-        return perspective.isVerified(id);
+        (bool success,) = id.staticcall(abi.encodeCall(this.permit2Address, ()));
+        return (permit2Address == address(0) || success) && perspective.isVerified(id);
     }
 
     /// @inheritdoc IEulerEarnFactory

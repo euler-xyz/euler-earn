@@ -9,7 +9,7 @@ import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/
 /// @title SafeERC20Permit2Lib Library
 /// @custom:security-contact security@euler.xyz
 /// @author Euler Labs (https://www.eulerlabs.com/)
-/// @notice The library provides a helper for ERC20 transferFrom with use of Permit2
+/// @notice The library provides a helper for ERC20 approvals and transfers with use of Permit2
 library SafeERC20Permit2Lib {
     function forceApproveWithPermit2(IERC20 token, address spender, uint256 value, address permit2) internal {
         if (permit2 != address(0) && value <= type(uint160).max) {
