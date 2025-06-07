@@ -9,13 +9,15 @@ import "./helpers/IntegrationTest.sol";
 contract EulerEarnFactoryTest is IntegrationTest {
     function testFactoryAddressZero() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, (address(0))));
-        new EulerEarnFactory(address(0), address(evc), address(perspective));
+        new EulerEarnFactory(address(0), address(evc), address(permit2), address(perspective));
 
         vm.expectRevert(EVCUtil.EVC_InvalidAddress.selector);
-        new EulerEarnFactory(admin, address(0), address(perspective));
+        new EulerEarnFactory(admin, address(0), address(permit2), address(perspective));
+
+        new EulerEarnFactory(admin, address(evc), address(0), address(perspective));
 
         vm.expectRevert(ErrorsLib.ZeroAddress.selector);
-        new EulerEarnFactory(admin, address(evc), address(0));
+        new EulerEarnFactory(admin, address(evc), address(permit2), address(0));
     }
 
     function testCreateEulerEarn(
@@ -30,7 +32,7 @@ contract EulerEarnFactoryTest is IntegrationTest {
 
         bytes32 initCodeHash = hashInitCode(
             type(EulerEarn).creationCode,
-            abi.encode(initialOwner, address(evc), initialTimelock, address(loanToken), name, symbol)
+            abi.encode(initialOwner, address(evc), address(permit2), initialTimelock, address(loanToken), name, symbol)
         );
         address expectedAddress = computeCreate2Address(salt, initCodeHash, address(eeFactory));
 

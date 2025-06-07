@@ -16,10 +16,8 @@ contract IntegrationTest is BaseTest {
     function setUp() public virtual override {
         super.setUp();
 
-
-        eeFactory = new EulerEarnFactory(admin, address(evc), address(perspective));
+        eeFactory = new EulerEarnFactory(admin, address(evc), address(permit2), address(perspective));
         vault = eeFactory.createEulerEarn(OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(1)));
-        // vault = createEulerEarn(OWNER, address(evc), TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV");
 
         vm.startPrank(OWNER);
         vault.setCurator(CURATOR);
@@ -50,13 +48,14 @@ contract IntegrationTest is BaseTest {
     function createEulerEarn(
         address owner,
         address evc,
+        address permit2,
         uint256 initialTimelock,
         address asset,
         string memory name,
         string memory symbol
     ) public returns (IEulerEarn) {
         return IEulerEarn(
-            deployCode("EulerEarn.sol", abi.encode(owner, evc, initialTimelock, asset, name, symbol))
+            deployCode("EulerEarn.sol", abi.encode(owner, evc, permit2, initialTimelock, asset, name, symbol))
         );
     }
 

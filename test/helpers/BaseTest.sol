@@ -20,14 +20,17 @@ import {IPerspective} from "../../src/interfaces/IPerspective.sol";
 import {PerspectiveMock} from "../mocks/PerspectiveMock.sol";
 
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {EVaultMock} from "../mocks/EVaultMock.sol";
 
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 import {IERC20, ERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
-import {EVaultTestBase, IEVault, IRMTestDefault} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
+import {EVaultTestBase, IEVault, IRMTestDefault, Base, Dispatch} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
+import "../../lib/euler-vault-kit/src/EVault/shared/Constants.sol";
 
 import "../../lib/forge-std/src/Test.sol";
 import "../../lib/forge-std/src/console2.sol";
+
 
 uint256 constant BLOCK_TIME = 1;
 uint256 constant MIN_TEST_ASSETS = 1e8;
@@ -58,9 +61,9 @@ contract BaseTest is EVaultTestBase {
 
     IERC4626[] internal allMarkets;
     IERC4626 internal idleVault;
-    IERC4626 internal loanVault;
+    IERC4626 internal collateralVault;
 
-    IPerspective internal perspective;
+    PerspectiveMock internal perspective;
 
     function setUp() public virtual override {
         super.setUp();
@@ -70,25 +73,24 @@ contract BaseTest is EVaultTestBase {
 
         perspective = new PerspectiveMock();
 
-        IEVault eVault;
+        _etchEVaultOverrides();
 
+        IEVault eVault;
         eVault = IEVault(
             factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
         );
         eVault.setHookConfig(address(0), 0);
         
         idleVault = _toIERC4626(eVault);
-        perspective.perspectiveVerify(address(idleVault), true);
+        vm.label(address(idleVault), "IdleVault");
+        perspective.perspectiveVerify(address(idleVault));
 
         eVault = IEVault(
-            factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
+            factory.createProxy(address(0), true, abi.encodePacked(address(collateralToken), address(oracle), unitOfAccount))
         );
         eVault.setHookConfig(address(0), 0);
-        eVault.setInterestRateModel(address(new IRMTestDefault()));
-        eVault.setMaxLiquidationDiscount(0.2e4);
-        eVault.setFeeReceiver(feeReceiver);
 
-        loanVault = _toIERC4626(eVault);
+        collateralVault = _toIERC4626(eVault);
 
         for (uint256 i; i < NB_MARKETS; ++i) {
             uint16 ltv = 0.8e4 / (uint16(i) + 1);
@@ -100,26 +102,31 @@ contract BaseTest is EVaultTestBase {
             eVault.setInterestRateModel(address(new IRMTestDefault()));
             eVault.setMaxLiquidationDiscount(0.2e4);
 
-            _toIEVault(loanVault).setLTV(address(eVault), ltv, ltv, 0);
+            eVault.setLTV(address(collateralVault), ltv, ltv, 0);
+
+            perspective.perspectiveVerify(address(eVault));
 
             allMarkets.push(_toIERC4626(eVault));
 
             vm.prank(SUPPLIER);
-            collateralToken.approve(address(eVault), type(uint256).max);
+            loanToken.approve(address(eVault), type(uint256).max);
 
-            vm.prank(BORROWER);
-            collateralToken.approve(address(eVault), type(uint256).max);
+
+            vm.prank(REPAYER);
+            loanToken.approve(address(eVault), type(uint256).max);
         }
 
-        vm.prank(SUPPLIER);
-        loanToken.approve(address(loanVault), type(uint256).max);
+        vm.startPrank(BORROWER);
+        collateralToken.approve(address(collateralVault), type(uint256).max);
+        evc.enableCollateral(BORROWER, address(collateralVault));
+
 
         vm.stopPrank();
 
-        vm.prank(REPAYER);
-        loanToken.approve(address(loanVault), type(uint256).max);
-
         allMarkets.push(idleVault); // Must be pushed last.
+
+        oracle.setPrice(address(loanToken), unitOfAccount, 1e18);
+        oracle.setPrice(address(collateralToken), unitOfAccount, 1e18);
     }
 
     /// @dev Rolls & warps the given number of blocks forward the blockchain.
@@ -180,7 +187,33 @@ contract BaseTest is EVaultTestBase {
         return IERC4626(address(vault));
     }
 
-    function _toIEVault(IERC4626 vault) internal pure returns (IEVault) {
+    function _toEVault(IERC4626 vault) internal pure returns (IEVault) {
         return IEVault(address(vault));
+    }
+
+    function _toEVaultMock(IERC4626 vault) internal pure returns (EVaultMock) {
+        return EVaultMock(address(vault));
+    }
+
+    function _expectedSupplyAssets(IERC4626 _market, address _user) internal view virtual returns (uint256 assets) {
+        assets = _market.convertToAssets(_market.balanceOf(_user));
+    }
+
+    function _etchEVaultOverrides() internal {
+        integrations =
+            Base.Integrations(address(evc), address(protocolConfig), sequenceRegistry, balanceTracker, permit2);
+        modules = Dispatch.DeployedModules({
+            initialize: initializeModule,
+            token: tokenModule,
+            vault: vaultModule,
+            borrowing: borrowingModule,
+            liquidation: liquidationModule,
+            riskManager: riskManagerModule,
+            balanceForwarder: balanceForwarderModule,
+            governance: governanceModule
+        });
+        address mockImpl = address(new EVaultMock(integrations, modules));
+
+        vm.etch(factory.implementation(), mockImpl.code);
     }
 }

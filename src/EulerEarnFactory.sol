@@ -13,8 +13,6 @@ import {EulerEarn} from "./EulerEarn.sol";
 import {Ownable, Context} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 
-import "forge-std/console.sol";
-
 /// @title EulerEarnFactory
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org
@@ -104,7 +102,6 @@ contract EulerEarnFactory is Ownable, EVCUtil, IEulerEarnFactory {
                 )
             )
         );
-            console.log('eulerEarn: ', address(eulerEarn));
 
         isVault[address(eulerEarn)] = true;
 

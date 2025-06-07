@@ -1,341 +1,362 @@
-// // SPDX-License-Identifier: GPL-2.0-or-later
-// pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-2.0-or-later
+pragma solidity ^0.8.26;
 
-// import "./helpers/IntegrationTest.sol";
+import "./helpers/IntegrationTest.sol";
 
-// uint256 constant FEE = 0.2 ether; // 20%
+uint256 constant FEE = 0.2 ether; // 20%
 
-// contract FeeTest is IntegrationTest {
-//     using Math for uint256;
-//     using MathLib for uint256;
-//     using MarketParamsLib for IERC4626;
+contract FeeTest is IntegrationTest {
+    using Math for uint256;
+    using MathLib for uint256;
 
-//     function setUp() public override {
-//         super.setUp();
+    function setUp() public override {
+        super.setUp();
 
-//         _setFee(FEE);
+        _setFee(FEE);
 
-//         for (uint256 i; i < NB_MARKETS; ++i) {
-//             IERC4626 id = allMarkets[i];
+        for (uint256 i; i < NB_MARKETS; ++i) {
+            IERC4626 id = allMarkets[i];
 
-//             // Create some debt on the market to accrue interest.
+            // Create some debt on the market to accrue interest.
 
-//             loanToken.setBalance(SUPPLIER, MAX_TEST_ASSETS);
+            loanToken.setBalance(SUPPLIER, MAX_TEST_ASSETS);
 
-//             vm.prank(SUPPLIER);
-//             morpho.supply(marketParams, MAX_TEST_ASSETS, 0, ONBEHALF, hex"");
+            vm.prank(SUPPLIER);
+            id.deposit(MAX_TEST_ASSETS, ONBEHALF);
 
-//             uint256 collateral = uint256(MAX_TEST_ASSETS).wDivUp(marketParams.lltv);
-//             collateralToken.setBalance(BORROWER, collateral);
+            uint256 ltvWithExtra = _toEVault(id).LTVBorrow(address(collateralVault)) - 0.01e4;
+            uint256 collateral = MAX_TEST_ASSETS.mulDivUp(1e4, ltvWithExtra);
 
-//             vm.startPrank(BORROWER);
-//             morpho.supplyCollateral(marketParams, collateral, BORROWER, hex"");
-//             morpho.borrow(marketParams, MAX_TEST_ASSETS, 0, BORROWER, BORROWER);
-//             vm.stopPrank();
-//         }
 
-//         _setCap(allMarkets[0], CAP);
-//         _sortSupplyQueueIdleLast();
-//     }
+            address borrowerSubaccount = address(uint160(uint160(BORROWER) ^ i));
 
-//     function testSetFee(uint256 fee) public {
-//         fee = bound(fee, 0, ConstantsLib.MAX_FEE);
-//         vm.assume(fee != vault.fee());
+            vm.startPrank(BORROWER);
+            evc.enableController(borrowerSubaccount, address(id));
+            evc.enableCollateral(borrowerSubaccount, address(collateralVault));
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.SetFee(OWNER, fee);
-//         vm.prank(OWNER);
-//         vault.setFee(fee);
+            vm.startPrank(borrowerSubaccount);
 
-//         assertEq(vault.fee(), fee, "fee");
-//     }
+            collateralToken.setBalance(borrowerSubaccount, collateral);
+            collateralToken.approve(address(collateralVault), type(uint256).max);
+            collateralVault.deposit(collateral, borrowerSubaccount);
 
-//     function _feeShares() internal view returns (uint256) {
-//         uint256 totalAssetsAfter = vault.totalAssets();
-//         uint256 interest = totalAssetsAfter - vault.lastTotalAssets();
-//         uint256 feeAssets = interest.mulDiv(FEE, WAD);
+            _toEVault(id).borrow(MAX_TEST_ASSETS, BORROWER);
 
-//         return feeAssets.mulDiv(vault.totalSupply() + 1, totalAssetsAfter - feeAssets + 1, Math.Rounding.Floor);
-//     }
+            vm.stopPrank();
+        }
 
-//     function testAccrueFeeWithinABlock(uint256 deposited, uint256 withdrawn) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS + 1, MAX_TEST_ASSETS);
-//         // The deposited amount is rounded down on Morpho and thus cannot be withdrawn in a block in most cases.
-//         withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited - 1);
+        _setCap(allMarkets[0], CAP);
+        _sortSupplyQueueIdleLast();
+    }
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+    function testSetFee(uint256 fee) public {
+        fee = bound(fee, 0, ConstantsLib.MAX_FEE);
+        vm.assume(fee != vault.fee());
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.expectEmit(address(vault));
+        emit EventsLib.SetFee(OWNER, fee);
+        vm.prank(OWNER);
+        vault.setFee(fee);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        assertEq(vault.fee(), fee, "fee");
+    }
 
-//         vm.prank(ONBEHALF);
-//         vault.withdraw(withdrawn, RECEIVER, ONBEHALF);
+    function _feeShares() internal view returns (uint256) {
+        uint256 totalAssetsAfter = vault.totalAssets();
+        uint256 interest = totalAssetsAfter - vault.lastTotalAssets();
+        uint256 feeAssets = interest.mulDiv(FEE, WAD);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertApproxEqAbs(vault.balanceOf(FEE_RECIPIENT), 0, 1, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        return feeAssets.mulDiv(vault.totalSupply() + 1e6, totalAssetsAfter - feeAssets + 1e6, Math.Rounding.Floor);
+    }
 
-//     function testDepositAccrueFee(uint256 deposited, uint256 newDeposit, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         newDeposit = bound(newDeposit, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         blocks = _boundBlocks(blocks);
+    function testAccrueFeeWithinABlock(uint256 deposited, uint256 withdrawn) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS + 1, MAX_TEST_ASSETS);
+        // The deposited amount is rounded down on Morpho and thus cannot be withdrawn in a block in most cases.
+        withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited - 1);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//         _forward(blocks);
+        vm.prank(ONBEHALF);
+        vault.withdraw(withdrawn, RECEIVER, ONBEHALF);
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertApproxEqAbs(vault.balanceOf(FEE_RECIPIENT), 0, 1, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         loanToken.setBalance(SUPPLIER, newDeposit);
+    function testDepositAccrueFee(uint256 deposited, uint256 newDeposit, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        newDeposit = bound(newDeposit, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        blocks = _boundBlocks(blocks);
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(newDeposit, ONBEHALF);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//     function testMintAccrueFee(uint256 deposited, uint256 newDeposit, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         newDeposit = bound(newDeposit, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         blocks = _boundBlocks(blocks);
+        _forward(blocks);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, newDeposit);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
 
-//         _forward(blocks);
+        vm.prank(SUPPLIER);
+        vault.deposit(newDeposit, ONBEHALF);
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         uint256 shares = vault.convertToShares(newDeposit);
+    function testMintAccrueFee(uint256 deposited, uint256 newDeposit, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        newDeposit = bound(newDeposit, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        blocks = _boundBlocks(blocks);
 
-//         loanToken.setBalance(SUPPLIER, newDeposit);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         vm.prank(SUPPLIER);
-//         vault.mint(shares, ONBEHALF);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        _forward(blocks);
 
-//     function testRedeemAccrueFee(uint256 deposited, uint256 withdrawn, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited);
-//         blocks = _boundBlocks(blocks);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        uint256 shares = vault.convertToShares(newDeposit);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, newDeposit);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
 
-//         _forward(blocks);
+        vm.prank(SUPPLIER);
+        vault.mint(shares, ONBEHALF);
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         uint256 shares = vault.convertToShares(withdrawn);
+    function testRedeemAccrueFee(uint256 deposited, uint256 withdrawn, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited);
+        blocks = _boundBlocks(blocks);
+        deposited += 2;
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        loanToken.setBalance(SUPPLIER, deposited);
+ 
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         vm.prank(ONBEHALF);
-//         vault.redeem(shares, RECEIVER, ONBEHALF);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        _forward(blocks);
 
-//     function testWithdrawAccrueFee(uint256 deposited, uint256 withdrawn, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited);
-//         blocks = _boundBlocks(blocks);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        uint256 shares = vault.convertToShares(withdrawn);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        vm.prank(ONBEHALF);
+        vault.redeem(shares, RECEIVER, ONBEHALF);
 
-//         _forward(blocks);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+    function testWithdrawAccrueFee(uint256 deposited, uint256 withdrawn, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited);
+        blocks = _boundBlocks(blocks);
+        deposited += 2;
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         vm.prank(ONBEHALF);
-//         vault.withdraw(withdrawn, RECEIVER, ONBEHALF);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//     function testSetFeeAccrueFee(uint256 deposited, uint256 fee, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         fee = bound(fee, 0, FEE - 1);
-//         blocks = _boundBlocks(blocks);
+        _forward(blocks);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        vm.prank(ONBEHALF);
+        vault.withdraw(withdrawn, RECEIVER, ONBEHALF);
 
-//         _forward(blocks);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+    function testSetFeeAccrueFee(uint256 deposited, uint256 fee, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        fee = bound(fee, 0, FEE - 1);
+        blocks = _boundBlocks(blocks);
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         _setFee(fee);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//     }
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//     function testSetFeeRecipientAccrueFee(uint256 deposited, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         blocks = _boundBlocks(blocks);
+        _forward(blocks);
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
+        _setFee(fee);
 
-//         _forward(blocks);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+    }
 
-//         uint256 feeShares = _feeShares();
-//         vm.assume(feeShares != 0);
+    function testSetFeeRecipientAccrueFee(uint256 deposited, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        blocks = _boundBlocks(blocks);
 
-//         vm.expectEmit(address(vault));
-//         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
-//         emit EventsLib.UpdateLastTotalAssets(vault.totalAssets());
-//         emit EventsLib.SetFeeRecipient(address(1));
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         vm.prank(OWNER);
-//         vault.setFeeRecipient(address(1));
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
-//         assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
-//         assertEq(vault.balanceOf(address(1)), 0, "vault.balanceOf(address(1))");
-//     }
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets1");
 
-//     function testSetFeeNotOwner(uint256 fee) public {
-//         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-//         vault.setFee(fee);
-//     }
+        _forward(blocks);
 
-//     function testSetFeeMaxFeeExceeded(uint256 fee) public {
-//         fee = bound(fee, ConstantsLib.MAX_FEE + 1, type(uint256).max);
+        uint256 feeShares = _feeShares();
+        vm.assume(feeShares != 0);
 
-//         vm.prank(OWNER);
-//         vm.expectRevert(ErrorsLib.MaxFeeExceeded.selector);
-//         vault.setFee(fee);
-//     }
+        console.log('vault.totalAssets(: ', vault.totalAssets());
+        console.log('feeShares: ', feeShares);
 
-//     function testSetFeeAlreadySet() public {
-//         vm.prank(OWNER);
-//         vm.expectRevert(ErrorsLib.AlreadySet.selector);
-//         vault.setFee(FEE);
-//     }
+  // vault.totalAssets(:  123703770
+  // feeShares:  3985065
+  // emit AccrueInterest(newTotalAssets: 123703770 [1.237e8], feeShares: 3991364 [3.991e6])
 
-//     function testSetFeeZeroFeeRecipient(uint256 fee) public {
-//         fee = bound(fee, 1, ConstantsLib.MAX_FEE);
 
-//         vm.startPrank(OWNER);
+        vm.expectEmit(address(vault));
+        emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
+        emit EventsLib.UpdateLastTotalAssets(vault.totalAssets());
+        emit EventsLib.SetFeeRecipient(address(1));
 
-//         vault.setFee(0);
-//         vault.setFeeRecipient(address(0));
+        vm.prank(OWNER);
+        vault.setFeeRecipient(address(1));
 
-//         vm.expectRevert(ErrorsLib.ZeroFeeRecipient.selector);
-//         vault.setFee(fee);
+        assertApproxEqAbs(vault.lastTotalAssets(), vault.totalAssets(), 1, "lastTotalAssets2");
+        assertEq(vault.balanceOf(FEE_RECIPIENT), feeShares, "vault.balanceOf(FEE_RECIPIENT)");
+        assertEq(vault.balanceOf(address(1)), 0, "vault.balanceOf(address(1))");
+    }
 
-//         vm.stopPrank();
-//     }
+    function testSetFeeNotOwner(uint256 fee) public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vault.setFee(fee);
+    }
 
-//     function testSetFeeRecipientAlreadySet() public {
-//         vm.prank(OWNER);
-//         vm.expectRevert(ErrorsLib.AlreadySet.selector);
-//         vault.setFeeRecipient(FEE_RECIPIENT);
-//     }
+    function testSetFeeMaxFeeExceeded(uint256 fee) public {
+        fee = bound(fee, ConstantsLib.MAX_FEE + 1, type(uint256).max);
 
-//     function testSetZeroFeeRecipientWithFee() public {
-//         vm.prank(OWNER);
-//         vm.expectRevert(ErrorsLib.ZeroFeeRecipient.selector);
-//         vault.setFeeRecipient(address(0));
-//     }
+        vm.prank(OWNER);
+        vm.expectRevert(ErrorsLib.MaxFeeExceeded.selector);
+        vault.setFee(fee);
+    }
 
-//     function testConvertToAssetsWithFeeAndInterest(uint256 deposited, uint256 assets, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         assets = bound(assets, 1, MAX_TEST_ASSETS);
-//         blocks = _boundBlocks(blocks);
+    function testSetFeeAlreadySet() public {
+        vm.prank(OWNER);
+        vm.expectRevert(ErrorsLib.AlreadySet.selector);
+        vault.setFee(FEE);
+    }
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+    function testSetFeeZeroFeeRecipient(uint256 fee) public {
+        fee = bound(fee, 1, ConstantsLib.MAX_FEE);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        vm.startPrank(OWNER);
 
-//         uint256 sharesBefore = vault.convertToShares(assets);
+        vault.setFee(0);
+        vault.setFeeRecipient(address(0));
 
-//         _forward(blocks);
+        vm.expectRevert(ErrorsLib.ZeroFeeRecipient.selector);
+        vault.setFee(fee);
 
-//         uint256 feeShares = _feeShares();
-//         uint256 expectedShares =
-//             assets.mulDiv(vault.totalSupply() + feeShares + 1, vault.totalAssets() + 1, Math.Rounding.Floor);
-//         uint256 shares = vault.convertToShares(assets);
+        vm.stopPrank();
+    }
 
-//         assertEq(shares, expectedShares, "shares");
-//         assertLt(shares, sharesBefore, "shares decreased");
-//     }
+    function testSetFeeRecipientAlreadySet() public {
+        vm.prank(OWNER);
+        vm.expectRevert(ErrorsLib.AlreadySet.selector);
+        vault.setFeeRecipient(FEE_RECIPIENT);
+    }
 
-//     function testConvertToSharesWithFeeAndInterest(uint256 deposited, uint256 shares, uint256 blocks) public {
-//         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         shares = bound(shares, 1, MAX_TEST_ASSETS);
-//         blocks = _boundBlocks(blocks);
+    function testSetZeroFeeRecipientWithFee() public {
+        vm.prank(OWNER);
+        vm.expectRevert(ErrorsLib.ZeroFeeRecipient.selector);
+        vault.setFeeRecipient(address(0));
+    }
 
-//         loanToken.setBalance(SUPPLIER, deposited);
+    function testConvertToAssetsWithFeeAndInterest(uint256 deposited, uint256 assets, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        assets = bound(assets, 1, MAX_TEST_ASSETS);
+        blocks = _boundBlocks(blocks);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposited, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, deposited);
 
-//         uint256 assetsBefore = vault.convertToAssets(shares);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
 
-//         _forward(blocks);
+        uint256 sharesBefore = vault.convertToShares(assets);
 
-//         uint256 feeShares = _feeShares();
-//         uint256 expectedAssets =
-//             shares.mulDiv(vault.totalAssets() + 1, vault.totalSupply() + feeShares + 1, Math.Rounding.Floor);
-//         uint256 assets = vault.convertToAssets(shares);
+        _forward(blocks);
 
-//         assertEq(assets, expectedAssets, "assets");
-//         assertGe(assets, assetsBefore, "assets increased");
-//     }
-// }
+        uint256 feeShares = _feeShares();
+        uint256 expectedShares =
+            assets.mulDiv(vault.totalSupply() + feeShares + 1e6, vault.totalAssets() + 1e6, Math.Rounding.Floor);
+        uint256 shares = vault.convertToShares(assets);
+
+        assertEq(shares, expectedShares, "shares");
+        assertLt(shares, sharesBefore, "shares decreased");
+    }
+
+    function testConvertToSharesWithFeeAndInterest(uint256 deposited, uint256 shares, uint256 blocks) public {
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        shares = bound(shares, 1, MAX_TEST_ASSETS);
+        blocks = _boundBlocks(blocks);
+
+        loanToken.setBalance(SUPPLIER, deposited);
+
+        vm.prank(SUPPLIER);
+        vault.deposit(deposited, ONBEHALF);
+
+        uint256 assetsBefore = vault.convertToAssets(shares);
+
+        _forward(blocks);
+
+        uint256 feeShares = _feeShares();
+        uint256 expectedAssets =
+            shares.mulDiv(vault.totalAssets() + 1e6, vault.totalSupply() + feeShares + 1e6, Math.Rounding.Floor);
+        uint256 assets = vault.convertToAssets(shares);
+
+        assertEq(assets, expectedAssets, "assets");
+        assertGe(assets, assetsBefore, "assets increased");
+    }
+}
