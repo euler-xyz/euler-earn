@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import "../EulerEarn.sol";
-
-import {IERC4626} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import "../../src/EulerEarn.sol";
 
 contract EulerEarnMock is EulerEarn {
     constructor(

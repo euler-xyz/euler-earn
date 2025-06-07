@@ -195,6 +195,9 @@ interface IEulerEarnStaticTyping is IEulerEarnBase {
 /// @dev Use this interface for IEulerEarn to have access to all the functions with the appropriate function
 /// signatures.
 interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable {
+    /// @notice Returns the address of the Ethereum Vault Connector (EVC) used by this contract.
+    function EVC() external view returns (address);
+
     /// @notice Returns the current configuration of each vault.
     function config(IERC4626) external view returns (MarketConfig memory);
 
