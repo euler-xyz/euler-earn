@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 import "../../lib/openzeppelin-contracts/contracts/interfaces/IERC777.sol";
 import "../../lib/openzeppelin-contracts/contracts/interfaces/IERC777Recipient.sol";

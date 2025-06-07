@@ -126,4 +126,7 @@ library ErrorsLib {
 
     /// @notice Thrown when attempting to supply more than the max inflow of a vault.
     error MaxInflowExceeded(IERC4626 id);
+
+    /// @notice Thrown when the maximum uint128 is exceeded.
+    error MaxUint128Exceeded();
 }
