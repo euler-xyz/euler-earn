@@ -69,7 +69,7 @@
 //         uint256 remaining = eulerEarnMock.mockSimulateWithdrawMorpho(assets);
 
 //         uint256 expectedWithdrawable =
-//             morpho.expectedSupplyAssets(allMarkets[0], address(eulerEarnMock)) - borrowedAmount;
+//             _expectedSupplyAssets(allMarkets[0], address(eulerEarnMock)) - borrowedAmount;
 //         uint256 expectedRemaining = assets.zeroFloorSub(expectedWithdrawable);
 
 //         assertEq(remaining, expectedRemaining, "remaining");

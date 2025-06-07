@@ -91,9 +91,9 @@
 //         newAssets[2] = bound(newAssets[2], 0, CAP2);
 
 //         uint256[3] memory assets;
-//         assets[0] = morpho.expectedSupplyAssets(allMarkets[0], address(vault));
-//         assets[1] = morpho.expectedSupplyAssets(allMarkets[1], address(vault));
-//         assets[2] = morpho.expectedSupplyAssets(allMarkets[2], address(vault));
+//         assets[0] = _expectedSupplyAssets(allMarkets[0], address(vault));
+//         assets[1] = _expectedSupplyAssets(allMarkets[1], address(vault));
+//         assets[2] = _expectedSupplyAssets(allMarkets[2], address(vault));
 
 //         allocations.push(MarketAllocation(idleParams, 0));
 //         allocations.push(MarketAllocation(allMarkets[0], newAssets[0]));

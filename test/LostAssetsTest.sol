@@ -190,7 +190,7 @@
 
 //         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore + interest);
 
-//         uint256 expectedTotalAssets = morpho.expectedSupplyAssets(allMarkets[0], address(vault));
+//         uint256 expectedTotalAssets = _expectedSupplyAssets(allMarkets[0], address(vault));
 //         uint256 totalAssetsAfter = vault.totalAssets();
 
 //         assertEq(totalAssetsAfter, expectedTotalAssets + expectedLostAssets);

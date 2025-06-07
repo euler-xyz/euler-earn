@@ -35,6 +35,8 @@ import {
 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
 import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 
+import "forge-std/console.sol";
+
 /// @title EulerEarn
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org

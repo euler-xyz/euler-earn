@@ -13,7 +13,7 @@ contract PerspectiveMock is IPerspective {
         return "PerspectiveMock";
     }
 
-    function perspectiveVerify(address vault, bool) external {
+    function perspectiveVerify(address vault) external {
         verified.push(vault);
         lookup[vault] = true;
     }

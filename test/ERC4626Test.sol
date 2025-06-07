@@ -2,11 +2,10 @@
 pragma solidity ^0.8.26;
 
 import {IERC20Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
-import {IMorphoFlashLoanCallback} from "../lib/morpho-blue/src/interfaces/IMorphoCallbacks.sol";
 
 import "./helpers/IntegrationTest.sol";
 
-contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
+contract ERC4626Test is IntegrationTest {
     using MorphoBalancesLib for IMorpho;
     using MarketParamsLib for IERC4626;
 
@@ -20,9 +19,9 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
     function testDecimals(uint8 decimals) public {
         vm.mockCall(address(loanToken), abi.encodeWithSignature("decimals()"), abi.encode(decimals));
 
-        vault = createEulerEarn(OWNER, address(morpho), TIMELOCK, address(loanToken), "EulerEarn Vault", "MMV");
+        vault = eeFactory.createEulerEarn(OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(2)));
 
-        assertEq(vault.decimals(), Math.max(18, decimals), "decimals");
+        assertEq(vault.decimals(), decimals, "decimals");
     }
 
     function testMint(uint256 assets) public {
@@ -40,7 +39,7 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         assertGt(deposited, 0, "deposited");
         assertEq(loanToken.balanceOf(address(vault)), 0, "balanceOf(vault)");
         assertEq(vault.balanceOf(ONBEHALF), shares, "balanceOf(ONBEHALF)");
-        assertEq(morpho.expectedSupplyAssets(allMarkets[0], address(vault)), assets, "expectedSupplyAssets(vault)");
+        assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), assets, "expectedSupplyAssets(vault)");
     }
 
     function testDeposit(uint256 assets) public {
@@ -56,7 +55,7 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         assertGt(shares, 0, "shares");
         assertEq(loanToken.balanceOf(address(vault)), 0, "balanceOf(vault)");
         assertEq(vault.balanceOf(ONBEHALF), shares, "balanceOf(ONBEHALF)");
-        assertEq(morpho.expectedSupplyAssets(allMarkets[0], address(vault)), assets, "expectedSupplyAssets(vault)");
+        assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), assets, "expectedSupplyAssets(vault)");
     }
 
     function testRedeem(uint256 deposited, uint256 redeemed) public {
@@ -150,7 +149,7 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         assertEq(shares, minted, "shares");
         assertEq(vault.balanceOf(ONBEHALF), 0, "balanceOf(ONBEHALF)");
         assertEq(loanToken.balanceOf(RECEIVER), assets, "loanToken.balanceOf(RECEIVER)");
-        assertEq(morpho.expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
+        assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
     }
 
     function testRedeemAll(uint256 deposited) public {
@@ -169,7 +168,7 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         assertEq(assets, deposited, "assets");
         assertEq(vault.balanceOf(ONBEHALF), 0, "balanceOf(ONBEHALF)");
         assertEq(loanToken.balanceOf(RECEIVER), deposited, "loanToken.balanceOf(RECEIVER)");
-        assertEq(morpho.expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
+        assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
     }
 
     function testRedeemNotDeposited(uint256 deposited) public {
@@ -293,17 +292,19 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
 
         assets = bound(assets, deposited + 1, type(uint256).max / (deposited + 1));
 
-        collateralToken.setBalance(BORROWER, type(uint128).max);
+        collateralToken.setBalance(BORROWER, MAX_SANE_AMOUNT);
 
         // Borrow liquidity.
         vm.startPrank(BORROWER);
-        morpho.supplyCollateral(allMarkets[0], type(uint128).max, BORROWER, hex"");
-        morpho.borrow(allMarkets[0], 1, 0, BORROWER, BORROWER);
+        collateralVault.deposit(type(uint256).max, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toIEVault(allMarkets[0]).borrow(1, BORROWER);
 
         vm.startPrank(ONBEHALF);
         vm.expectRevert(ErrorsLib.NotEnoughLiquidity.selector);
         vault.withdraw(assets, RECEIVER, ONBEHALF);
     }
+
 
     function testTransfer(uint256 deposited, uint256 toTransfer) public {
         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
@@ -332,40 +333,21 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         vm.prank(SUPPLIER);
         vault.deposit(depositedAssets, ONBEHALF);
 
-        collateralToken.setBalance(BORROWER, type(uint128).max);
+        collateralToken.setBalance(BORROWER, MAX_SANE_AMOUNT);
 
         vm.startPrank(BORROWER);
-        morpho.supplyCollateral(allMarkets[0], type(uint128).max, BORROWER, hex"");
-        morpho.borrow(allMarkets[0], borrowedAssets, 0, BORROWER, BORROWER);
+        collateralVault.deposit(type(uint256).max, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toIEVault(allMarkets[0]).borrow(borrowedAssets, BORROWER);
 
         assertEq(vault.maxWithdraw(ONBEHALF), depositedAssets - borrowedAssets, "maxWithdraw(ONBEHALF)");
-    }
-
-    function testMaxWithdrawFlashLoan(uint256 supplied, uint256 deposited) public {
-        supplied = bound(supplied, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-
-        loanToken.setBalance(SUPPLIER, supplied);
-
-        vm.prank(SUPPLIER);
-        morpho.supply(allMarkets[0], supplied, 0, ONBEHALF, hex"");
-
-        loanToken.setBalance(SUPPLIER, deposited);
-
-        vm.prank(SUPPLIER);
-        vault.deposit(deposited, ONBEHALF);
-
-        assertGt(vault.maxWithdraw(ONBEHALF), 0);
-
-        loanToken.approve(address(morpho), type(uint256).max);
-        morpho.flashLoan(address(loanToken), loanToken.balanceOf(address(morpho)), hex"");
     }
 
     function testMaxDeposit() public {
         _setCap(allMarkets[0], 1 ether);
 
         IERC4626[] memory supplyQueue = new IERC4626[](1);
-        supplyQueue[0] = allMarkets[0].id();
+        supplyQueue[0] = allMarkets[0];
 
         vm.prank(ALLOCATOR);
         vault.setSupplyQueue(supplyQueue);
@@ -374,24 +356,28 @@ contract ERC4626Test is IntegrationTest, IMorphoFlashLoanCallback {
         collateralToken.setBalance(BORROWER, 2 ether);
 
         vm.prank(SUPPLIER);
-        morpho.supply(allMarkets[0], 1 ether, 0, SUPPLIER, hex"");
+        allMarkets[0].deposit(1 ether, SUPPLIER);
 
         vm.startPrank(BORROWER);
-        morpho.supplyCollateral(allMarkets[0], 2 ether, BORROWER, hex"");
-        morpho.borrow(allMarkets[0], 1 ether, 0, BORROWER, BORROWER);
+        collateralVault.deposit(2 ether, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toIEVault(allMarkets[0]).borrow(1 ether, BORROWER);
         vm.stopPrank();
 
         _forward(1_000);
 
-        loanToken.setBalance(SUPPLIER, 1 ether);
+        loanToken.setBalance(SUPPLIER, 2 ether);
 
         vm.prank(SUPPLIER);
         vault.deposit(1 ether, ONBEHALF);
 
-        assertEq(vault.maxDeposit(SUPPLIER), 0);
-    }
+        // since exchange rate in the market is >1, deposit will lose 1 wei due to rounding,
+        // which reports max deposit as 1. It's not consumable though on Euler vaults,
+        // due to zero shares error 
+        assertEq(vault.maxDeposit(SUPPLIER), 1);
 
-    function onMorphoFlashLoan(uint256, bytes memory) external view {
-        assertEq(vault.maxWithdraw(ONBEHALF), 0);
+        vm.prank(SUPPLIER);
+        vm.expectRevert(ErrorsLib.AllCapsReached.selector);
+        vault.deposit(1, ONBEHALF);
     }
 }
