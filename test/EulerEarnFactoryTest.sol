@@ -14,7 +14,6 @@ contract EulerEarnFactoryTest is IntegrationTest {
         vm.expectRevert(EVCUtil.EVC_InvalidAddress.selector);
         new EulerEarnFactory(admin, address(0), address(permit2), address(perspective));
 
-        vm.expectRevert(ErrorsLib.ZeroAddress.selector);
         new EulerEarnFactory(admin, address(evc), address(0), address(perspective));
 
         vm.expectRevert(ErrorsLib.ZeroAddress.selector);

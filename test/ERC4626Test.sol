@@ -6,9 +6,6 @@ import {IERC20Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/d
 import "./helpers/IntegrationTest.sol";
 
 contract ERC4626Test is IntegrationTest {
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
-
     function setUp() public override {
         super.setUp();
 
