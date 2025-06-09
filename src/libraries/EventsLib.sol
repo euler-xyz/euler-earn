@@ -28,9 +28,6 @@ library EventsLib {
     /// @notice Emitted when `timelock` is set to `newTimelock`.
     event SetTimelock(address indexed caller, uint256 newTimelock);
 
-    /// @notice Emitted when `skimRecipient` is set to `newSkimRecipient`.
-    event SetSkimRecipient(address indexed newSkimRecipient);
-
     /// @notice Emitted `fee` is set to `newFee`.
     event SetFee(address indexed caller, uint256 newFee);
 
@@ -100,9 +97,6 @@ library EventsLib {
     /// @param newTotalAssets The assets of the vault after accruing the interest but before the interaction.
     /// @param feeShares The shares minted to the fee recipient.
     event AccrueInterest(uint256 newTotalAssets, uint256 feeShares);
-
-    /// @notice Emitted when an `amount` of `token` is transferred to the skim recipient by `caller`.
-    event Skim(address indexed caller, address indexed token, uint256 amount);
 
     /// @notice Emitted when a new EulerEarn vault is created.
     /// @param eulerEarn The address of the EulerEarn vault.

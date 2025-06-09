@@ -47,9 +47,6 @@ interface IEulerEarnBase {
     /// @notice The fee recipient.
     function feeRecipient() external view returns (address);
 
-    /// @notice The skim recipient.
-    function skimRecipient() external view returns (address);
-
     /// @notice The current timelock.
     function timelock() external view returns (uint256);
 
@@ -132,9 +129,6 @@ interface IEulerEarnBase {
     /// @notice Revokes the pending guardian.
     function revokePendingGuardian() external;
 
-    /// @notice Skims the vault `token` balance to `skimRecipient`.
-    function skim(address) external;
-
     /// @notice Sets `newAllocator` as an allocator or not (`newIsAllocator`).
     function setIsAllocator(address newAllocator, bool newIsAllocator) external;
 
@@ -146,9 +140,6 @@ interface IEulerEarnBase {
 
     /// @notice Sets `feeRecipient` to `newFeeRecipient`.
     function setFeeRecipient(address newFeeRecipient) external;
-
-    /// @notice Sets `skimRecipient` to `newSkimRecipient`.
-    function setSkimRecipient(address newSkimRecipient) external;
 
     /// @notice Sets `supplyQueue` to `newSupplyQueue`.
     /// @param newSupplyQueue is an array of enabled vaults, and can contain duplicate vaults, but it would only

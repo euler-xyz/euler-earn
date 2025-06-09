@@ -90,9 +90,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     address public feeRecipient;
 
     /// @inheritdoc IEulerEarnBase
-    address public skimRecipient;
-
-    /// @inheritdoc IEulerEarnBase
     IERC4626[] public supplyQueue;
 
     /// @inheritdoc IEulerEarnBase
@@ -225,15 +222,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         isAllocator[newAllocator] = newIsAllocator;
 
         emit EventsLib.SetIsAllocator(newAllocator, newIsAllocator);
-    }
-
-    /// @inheritdoc IEulerEarnBase
-    function setSkimRecipient(address newSkimRecipient) external onlyOwner {
-        if (newSkimRecipient == skimRecipient) revert ErrorsLib.AlreadySet();
-
-        skimRecipient = newSkimRecipient;
-
-        emit EventsLib.SetSkimRecipient(newSkimRecipient);
     }
 
     /// @inheritdoc IEulerEarnBase
@@ -503,18 +491,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         _setCap(id, uint184(pendingCap[id].value));
     }
 
-    /// @inheritdoc IEulerEarnBase
-    function skim(address token) external {
-        if (_inWithdrawQueue(token)) revert ErrorsLib.SkimNotAllowed();
-        if (skimRecipient == address(0)) revert ErrorsLib.ZeroAddress();
-
-        uint256 amount = IERC20(token).balanceOf(address(this));
-
-        IERC20(token).safeTransfer(skimRecipient, amount);
-
-        emit EventsLib.Skim(_msgSender(), token, amount);
-    }
-
     /* ERC4626 (PUBLIC) */
 
     /// @inheritdoc IERC20Metadata
@@ -732,14 +708,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     /// @return The address of the message sender.
     function _msgSender() internal view virtual override(EVCUtil, Context) returns (address) {
         return EVCUtil._msgSender();
-    }
-
-    /// @dev Checks if the token is a share of an withdraw queue vault.
-    function _inWithdrawQueue(address token) internal view returns (bool) {
-        for (uint256 i; i < withdrawQueue.length; ++i) {
-            if (address(withdrawQueue[i]) == token) return true;
-        }
-        return false;
     }
 
     /// @dev Reverts if `newTimelock` is not within the bounds.

@@ -94,9 +94,6 @@ library ErrorsLib {
     /// @notice Thrown when the amount withdrawn is not exactly the amount supplied.
     error InconsistentReallocation();
 
-    /// @notice Thrown when the skim is not allowed.
-    error SkimNotAllowed();
-
     /// @notice Thrown when all caps have been reached.
     error AllCapsReached();
 
