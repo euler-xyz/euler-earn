@@ -11,12 +11,22 @@ import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/
 /// @author Euler Labs (https://www.eulerlabs.com/)
 /// @notice The library provides a helper for ERC20 approvals and transfers with use of Permit2
 library SafeERC20Permit2Lib {
-    function forceApproveWithPermit2(IERC20 token, address spender, uint256 value, address permit2) internal {
-        if (permit2 != address(0) && value <= type(uint160).max) {
-            // it's safe to down-cast value to uint160
-            IAllowanceTransfer(permit2).approve(address(token), spender, uint160(value), 0);
+    function forceApproveMaxWithPermit2(IERC20 token, address spender, address permit2) internal {
+        if (permit2 == address(0)) {
+            SafeERC20.forceApprove(token, spender, type(uint256).max);
         } else {
-            SafeERC20.forceApprove(token, spender, value);
+            if (token.allowance(address(this), permit2) == 0) {
+                SafeERC20.forceApprove(token, permit2, type(uint256).max);
+            }
+            IAllowanceTransfer(permit2).approve(address(token), spender, type(uint160).max, type(uint48).max);
+        }
+    }
+
+    function revokeApprovalWithPermit2(IERC20 token, address spender, address permit2) internal {
+        if (permit2 == address(0)) {
+            SafeERC20.forceApprove(token, spender, 0);
+        } else {
+            IAllowanceTransfer(permit2).approve(address(token), spender, 0, 0);
         }
     }
 

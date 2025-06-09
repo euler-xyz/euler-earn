@@ -141,11 +141,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         emit EventsLib.SetSymbol(__symbol);
 
         permit2Address = permit2;
-
-        if (permit2 != address(0)) {
-            IERC20(_asset).forceApprove(permit2, type(uint256).max);
-        }
-
         creator = msg.sender;
     }
 
@@ -439,7 +434,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 if (supplyAssets + suppliedAssets > supplyCap) revert ErrorsLib.SupplyCapExceeded(id);
 
                 // The vaults's underlying asset is guaranteed to be the vault's asset because it has a non-zero supply cap.
-                IERC20(asset()).forceApproveWithPermit2(address(id), suppliedAssets, permit2Address);
                 uint256 suppliedShares = id.deposit(suppliedAssets, address(this));
 
                 emit EventsLib.ReallocateSupply(msgSender, id, suppliedAssets, suppliedShares);
@@ -777,6 +771,9 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         address msgSender = _msgSender();
         MarketConfig storage marketConfig = config[id];
 
+        (bool success, bytes memory result) = address(id).staticcall(abi.encodeCall(this.permit2Address, ()));
+        address permit2 = success && result.length >= 32 ? abi.decode(result, (address)) : address(0);
+
         if (supplyCap > 0) {
             if (!marketConfig.enabled) {
                 withdrawQueue.push(id);
@@ -788,10 +785,14 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 // Take into account assets of the new vault without applying a fee.
                 _updateLastTotalAssets(lastTotalAssets + _expectedSupplyAssets(id));
 
+                IERC20(asset()).forceApproveMaxWithPermit2(address(id), permit2);
+
                 emit EventsLib.SetWithdrawQueue(msgSender, withdrawQueue);
             }
 
             marketConfig.removableAt = 0;
+        } else {
+            IERC20(asset()).revokeApprovalWithPermit2(address(id), permit2);
         }
 
         marketConfig.cap = supplyCap;
@@ -818,8 +819,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
 
             if (toSupply > 0) {
-                IERC20(asset()).forceApproveWithPermit2(address(id), toSupply, permit2Address);
-
                 // Using try/catch to skip vaults that revert.
                 try id.deposit(toSupply, address(this)) {
                     assets -= toSupply;
