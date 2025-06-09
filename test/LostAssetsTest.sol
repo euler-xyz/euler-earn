@@ -1,382 +1,401 @@
-// // SPDX-License-Identifier: GPL-2.0-or-later
-// pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-2.0-or-later
+pragma solidity ^0.8.26;
 
-// import "./helpers/IntegrationTest.sol";
+import "./helpers/IntegrationTest.sol";
 
-// contract LostAssetsTest is IntegrationTest {
-//     using stdStorage for StdStorage;
-//     using MorphoBalancesLib for IMorpho;
-//     using MarketParamsLib for IERC4626;
-//     using MathLib for uint256;
+contract LostAssetsTest is IntegrationTest {
+    using stdStorage for StdStorage;
+    using MorphoBalancesLib for IMorpho;
+    using MarketParamsLib for IERC4626;
+    using MathLib for uint256;
 
-//     address internal LIQUIDATOR;
+    address internal LIQUIDATOR;
 
-//     function _writeTotalSupplyAssets(bytes32 id, uint128 newValue) internal {
-//         uint256 marketSlot = 3;
-//         bytes32 totalSupplySlot = keccak256(abi.encode(id, marketSlot));
-//         bytes32 totalSupplyValue = vm.load(address(morpho), totalSupplySlot);
-//         bytes32 newTotalSupplyValue = (totalSupplyValue >> 128 << 128) | bytes32(uint256(newValue));
-//         vm.store(address(morpho), totalSupplySlot, newTotalSupplyValue);
-//     }
+    function setUp() public override {
+        super.setUp();
 
-//     function setUp() public override {
-//         super.setUp();
+        _setCap(allMarkets[0], CAP);
+        _sortSupplyQueueIdleLast();
 
-//         _setCap(allMarkets[0], CAP);
-//         _sortSupplyQueueIdleLast();
+        LIQUIDATOR = makeAddr("Liquidator");
+    }
 
-//         LIQUIDATOR = makeAddr("Liquidator");
-//     }
+    function testWriteTotalSupplyAssets(uint112 newValue) public {
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(newValue);
 
-//     function testWriteTotalSupplyAssets(bytes32 id, uint128 newValue) public {
-//         _writeTotalSupplyAssets(id, newValue);
+        assertEq(_toEVaultMock(allMarkets[0]).totalAssets(), newValue);
+    }
 
-//         assertEq(morpho.market(IERC4626.wrap(id)).totalSupplyAssets, newValue);
-//     }
+    function testTotalAssetsNoDecrease(uint256 assets, uint112 expectedLostAssets) public {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//     function testTotalAssetsNoDecrease(uint256 assets, uint128 expectedLostAssets) public {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         loanToken.setBalance(SUPPLIER, assets);
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 0, totalSupplyAssetsBefore));
+        uint256 totalAssetsBefore = vault.totalAssets();
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-//         uint256 totalAssetsBefore = vault.totalAssets();
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
-//         uint256 totalAssetsAfter = vault.totalAssets();
+        uint256 totalAssetsAfter = vault.totalAssets();
 
-//         assertEq(totalAssetsAfter, totalAssetsBefore, "totalAssets decreased");
-//     }
+        assertEq(totalAssetsAfter, totalAssetsBefore, "totalAssets decreased");
+    }
 
-//     function testLastTotalAssetsNoDecrease(uint256 assets, uint128 expectedLostAssets) public {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+    function testLastTotalAssetsNoDecrease(uint256 assets, uint112 expectedLostAssets) public {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         loanToken.setBalance(SUPPLIER, assets);
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 0, totalSupplyAssetsBefore));
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
 
-//         uint256 lastTotalAssetsBefore = vault.lastTotalAssets();
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
-//         uint256 lastTotalAssetsAfter = vault.lastTotalAssets();
+        uint256 lastTotalAssetsBefore = vault.lastTotalAssets();
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
+        vault.deposit(0, ONBEHALF); // update lostAssets.
+        uint256 lastTotalAssetsAfter = vault.lastTotalAssets();
 
-//         assertGe(lastTotalAssetsAfter, lastTotalAssetsBefore, "totalAssets decreased");
-//     }
+        assertGe(lastTotalAssetsAfter, lastTotalAssetsBefore, "totalAssets decreased");
+    }
 
-//     function testLostAssetsValue() public {
-//         loanToken.setBalance(SUPPLIER, 1 ether);
+    function testLostAssetsValue() public {
+        loanToken.setBalance(SUPPLIER, 1 ether);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(1 ether, ONBEHALF);
+        vm.prank(SUPPLIER);
+        vault.deposit(1 ether, ONBEHALF);
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), 0.5 ether);
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(0.5 ether);
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         assertEq(vault.lostAssets(), 0.5 ether, "expected lostAssets");
-//     }
+        // virtual deposit will be entitled to part of the remaining assets
+        assertApproxEqAbs(vault.lostAssets(), 0.4 ether, 0.5e6, "expected lostAssets");
+    }
 
-//     function testLostAssetsValue(uint256 assets, uint128 expectedLostAssets) public returns (uint128) {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         loanToken.setBalance(SUPPLIER, assets);
+    function testLostAssetsValueFuzz(uint256 assets, uint112 expectedLostAssets) public returns (uint112, uint256) {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 0, totalSupplyAssetsBefore));
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-//         assertEq(vault.lostAssets(), expectedLostAssets, "expected lostAssets");
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         return expectedLostAssets;
-//     }
+        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "expected lostAssets");
 
-//     function testResupplyOnLostAssets(uint256 assets, uint128 expectedLostAssets, uint256 assets2) public {
-//         expectedLostAssets = testLostAssetsValue(assets, expectedLostAssets);
+        return (expectedLostAssets, totalAssetsBeforeVault);
+    }
 
-//         assets2 = bound(assets2, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+    function testResupplyOnLostAssets(uint256 assets, uint112 expectedLostAssets, uint256 assets2) public {
+        uint256 totalAssetsBeforeVault;
+        (expectedLostAssets, totalAssetsBeforeVault) = testLostAssetsValueFuzz(assets, expectedLostAssets);
 
-//         loanToken.setBalance(SUPPLIER, assets2);
+        assets2 = bound(assets2, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets2, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, assets2);
 
-//         assertEq(vault.lostAssets(), expectedLostAssets, "lostAssets after resupply");
-//     }
+        vm.prank(SUPPLIER);
+        vault.deposit(assets2, ONBEHALF);
 
-//     function testNewLostAssetsOnLostAssets(
-//         uint256 firstSupply,
-//         uint128 firstLostAssets,
-//         uint256 secondSupply,
-//         uint128 secondLostAssets
-//     ) public {
-//         firstLostAssets = testLostAssetsValue(firstSupply, firstLostAssets);
+        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after resupply");
+    }
 
-//         secondSupply = bound(secondSupply, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+    function testNewLostAssetsOnLostAssets(
+        uint256 firstSupply,
+        uint112 firstLostAssets,
+        uint256 secondSupply,
+        uint112 secondLostAssets
+    ) public {
+        uint256 totalAssetsBeforeVault;
+        (firstLostAssets, totalAssetsBeforeVault) = testLostAssetsValueFuzz(firstSupply, firstLostAssets);
 
-//         loanToken.setBalance(SUPPLIER, secondSupply);
+        secondSupply = bound(secondSupply, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(secondSupply, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, secondSupply);
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         secondLostAssets = uint128(bound(secondLostAssets, 0, totalSupplyAssetsBefore));
+        vm.prank(SUPPLIER);
+        vault.deposit(secondSupply, ONBEHALF);
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - secondLostAssets);
+        uint256 totalAssetsBeforeVaultSecond = allMarkets[0].totalAssets();
+        secondLostAssets = uint112(bound(secondLostAssets, 0, totalAssetsBeforeVaultSecond));
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVaultSecond - secondLostAssets));
 
-//         assertEq(vault.lostAssets(), firstLostAssets + secondLostAssets, "lostAssets after new loss");
-//     }
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//     function testLostAssetsEvent(uint256 assets, uint128 expectedLostAssets) public {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        assertApproxEqAbs(vault.lostAssets(), firstLostAssets + secondLostAssets, uint256(firstLostAssets + secondLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after new loss");
+    }
 
-//         loanToken.setBalance(SUPPLIER, assets);
+    function testLostAssetsEvent(uint256 assets, uint112 expectedLostAssets) public {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 0, totalSupplyAssetsBefore));
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
 
-//         vm.expectEmit();
-//         emit EventsLib.UpdateLostAssets(expectedLostAssets);
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
 
-//         assertEq(vault.lostAssets(), expectedLostAssets, "totalAssets decreased");
-//     }
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-//     function testMaxWithdrawWithLostAssets(uint256 assets, uint128 expectedLostAssets) public {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        uint256 snapshotId = vm.snapshot();
+        vault.deposit(0, ONBEHALF); // update lostAssets.
+        uint256 actuallyLost = vault.lostAssets();
+        vm.revertTo(snapshotId);
 
-//         loanToken.setBalance(SUPPLIER, assets);
+        vm.expectEmit();
+        emit EventsLib.UpdateLostAssets(actuallyLost);
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after resupply");
+    }
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 1, totalSupplyAssetsBefore));
+    function testMaxWithdrawWithLostAssets(uint256 assets, uint112 expectedLostAssets) public {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         assertEq(vault.maxWithdraw(ONBEHALF), totalSupplyAssetsBefore);
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 1, totalAssetsBeforeVault));
 
-//         assertEq(vault.maxWithdraw(ONBEHALF), totalSupplyAssetsBefore - expectedLostAssets);
-//     }
+        assertEq(vault.maxWithdraw(ONBEHALF), totalAssetsBeforeVault);
 
-//     function testInterestAccrualWithLostAssets(uint256 assets, uint128 expectedLostAssets, uint128 interest) public {
-//         expectedLostAssets = testLostAssetsValue(assets, expectedLostAssets);
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         interest = uint128(bound(interest, 1, type(uint128).max - totalSupplyAssetsBefore));
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore + interest);
+        assertApproxEqAbs(vault.maxWithdraw(ONBEHALF), totalAssetsBeforeVault - expectedLostAssets, 1);
+    }
 
-//         uint256 expectedTotalAssets = _expectedSupplyAssets(allMarkets[0], address(vault));
-//         uint256 totalAssetsAfter = vault.totalAssets();
+    function testInterestAccrualWithLostAssets(uint256 assets, uint112 expectedLostAssets, uint112 interest) public {
+        uint256 totalAssetsBeforeFirst;
+        (expectedLostAssets, totalAssetsBeforeFirst) = testLostAssetsValueFuzz(assets, expectedLostAssets);
 
-//         assertEq(totalAssetsAfter, expectedTotalAssets + expectedLostAssets);
-//     }
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        interest = uint112(bound(interest, 1, type(uint112).max - totalAssetsBeforeVault));
 
-//     function testDonationWithLostAssets(uint256 assets, uint128 expectedLostAssets, uint256 donation) public {
-//         expectedLostAssets = testLostAssetsValue(assets, expectedLostAssets);
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault + interest));
 
-//         donation = bound(donation, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        uint256 expectedTotalAssets = _expectedSupplyAssets(allMarkets[0], address(vault));
+        uint256 totalAssetsAfter = vault.totalAssets();
 
-//         uint256 totalAssetsBefore = vault.totalAssets();
+        assertApproxEqAbs(totalAssetsAfter, expectedTotalAssets + expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeFirst);
+    }
 
-//         loanToken.setBalance(SUPPLIER, donation);
-//         vm.prank(SUPPLIER);
-//         morpho.supply(allMarkets[0], donation, 0, address(vault), "");
+    function testDonationWithLostAssets(uint256 assets, uint112 expectedLostAssets, uint256 donation) public {
+        uint256 totalAssetsBeforeVault;
+        (expectedLostAssets, totalAssetsBeforeVault) = testLostAssetsValueFuzz(assets, expectedLostAssets);
 
-//         uint256 totalAssetsAfter = vault.totalAssets();
+        donation = bound(donation, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         assertEq(totalAssetsAfter, totalAssetsBefore + donation);
-//     }
+        uint256 totalAssetsBefore = vault.totalAssets();
 
-//     function testForcedMarketRemoval(uint256 assets0, uint256 assets1) public {
-//         assets0 = bound(assets0, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         assets1 = bound(assets1, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        loanToken.setBalance(SUPPLIER, donation);
+        vm.prank(SUPPLIER);
+        allMarkets[0].deposit(donation, address(vault));
 
-//         _setCap(allMarkets[0], type(uint128).max);
-//         IERC4626[] memory supplyQueue = new IERC4626[](1);
-//         supplyQueue[0] = allMarkets[0].id();
-//         vm.prank(CURATOR);
-//         vault.setSupplyQueue(supplyQueue);
+        uint256 totalAssetsAfter = vault.totalAssets();
 
-//         loanToken.setBalance(SUPPLIER, assets0);
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets0, address(vault));
+        assertEq(totalAssetsAfter, totalAssetsBefore + donation);
+    }
 
-//         _setCap(allMarkets[1], type(uint128).max);
-//         supplyQueue[0] = allMarkets[1].id();
-//         vm.prank(CURATOR);
-//         vault.setSupplyQueue(supplyQueue);
+    function testForcedMarketRemoval(uint256 assets0, uint256 assets1) public {
+        assets0 = bound(assets0, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        assets1 = bound(assets1, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         loanToken.setBalance(SUPPLIER, assets1);
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets1, address(vault));
+        _setCap(allMarkets[0], type(uint112).max);
+        IERC4626[] memory supplyQueue = new IERC4626[](1);
+        supplyQueue[0] = allMarkets[0];
+        vm.prank(CURATOR);
+        vault.setSupplyQueue(supplyQueue);
 
-//         _setCap(allMarkets[0], 0);
-//         vm.prank(CURATOR);
-//         vault.submitMarketRemoval(allMarkets[0]);
-//         vm.warp(block.timestamp + vault.timelock());
+        loanToken.setBalance(SUPPLIER, assets0);
+        vm.prank(SUPPLIER);
+        vault.deposit(assets0, address(vault));
 
-//         uint256 totalAssetsBefore = vault.totalAssets();
+        _setCap(allMarkets[1], type(uint112).max);
+        supplyQueue[0] = allMarkets[1];
+        vm.prank(CURATOR);
+        vault.setSupplyQueue(supplyQueue);
 
-//         uint256[] memory withdrawQueue = new uint256[](2);
-//         withdrawQueue[0] = 0;
-//         withdrawQueue[1] = 2;
-//         vm.prank(CURATOR);
-//         vault.updateWithdrawQueue(withdrawQueue);
+        loanToken.setBalance(SUPPLIER, assets1);
+        vm.prank(SUPPLIER);
+        vault.deposit(assets1, address(vault));
 
-//         uint256 totalAssetsAfter = vault.totalAssets();
+        _setCap(allMarkets[0], 0);
+        vm.prank(CURATOR);
+        vault.submitMarketRemoval(allMarkets[0]);
+        vm.warp(block.timestamp + vault.timelock());
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        uint256 totalAssetsBefore = vault.totalAssets();
 
-//         assertEq(totalAssetsBefore, totalAssetsAfter);
-//         assertEq(vault.lostAssets(), assets0);
-//     }
+        uint256[] memory withdrawQueue = new uint256[](2);
+        withdrawQueue[0] = 0;
+        withdrawQueue[1] = 2;
+        vm.prank(CURATOR);
+        vault.updateWithdrawQueue(withdrawQueue);
 
-//     function testLostAssetsAfterBadDebt(uint256 borrowed, uint256 collateral, uint256 deposit) public {
-//         borrowed = bound(borrowed, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-//         collateral = bound(collateral, borrowed.mulDivUp(1e18, allMarkets[0].lltv), type(uint128).max);
-//         deposit = bound(deposit, borrowed, MAX_TEST_ASSETS);
+        uint256 totalAssetsAfter = vault.totalAssets();
 
-//         collateralToken.setBalance(BORROWER, collateral);
-//         loanToken.setBalance(LIQUIDATOR, borrowed);
-//         loanToken.setBalance(SUPPLIER, deposit);
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(deposit, ONBEHALF);
+        assertEq(totalAssetsBefore, totalAssetsAfter);
+        assertEq(vault.lostAssets(), assets0);
+    }
 
-//         vm.startPrank(BORROWER);
-//         morpho.supplyCollateral(allMarkets[0], collateral, BORROWER, hex"");
-//         morpho.borrow(allMarkets[0], borrowed, 0, BORROWER, BORROWER);
-//         vm.stopPrank();
+    function testLostAssetsAfterBadDebt(uint256 borrowed, uint256 collateral, uint256 deposit) public {
+        borrowed = bound(borrowed, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        collateral = bound(collateral, borrowed.mulDivUp(1e4, _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault))) + 0.01e4, type(uint112).max - 1);
+        deposit = bound(deposit, borrowed, MAX_TEST_ASSETS);
 
-//         oracle.setPrice(0);
+        collateralToken.setBalance(BORROWER, collateral);
+        collateralToken.setBalance(LIQUIDATOR, collateral);
+        loanToken.setBalance(LIQUIDATOR, borrowed);
+        loanToken.setBalance(SUPPLIER, deposit);
 
-//         vm.prank(LIQUIDATOR);
+        vm.prank(SUPPLIER);
+        vault.deposit(deposit, ONBEHALF);
 
-//         morpho.liquidate(allMarkets[0], BORROWER, collateral, 0, hex"");
+        vm.startPrank(BORROWER);
+        collateralVault.deposit(collateral, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toEVault(allMarkets[0]).borrow(borrowed, BORROWER);
 
-//         uint256 totalAssetsBefore = vault.totalAssets();
+        vm.stopPrank();
 
-//         assertEq(vault.lostAssets(), 0);
+        oracle.setPrice(address(collateralToken), unitOfAccount, 0);
 
-//         vault.deposit(0, ONBEHALF); // update lostAssets.
+        vm.startPrank(LIQUIDATOR);
+        collateralToken.approve(address(collateralVault), type(uint256).max);
+        collateralVault.deposit(1, LIQUIDATOR); // collateral value must be strictly gt than liability
+        evc.enableController(LIQUIDATOR, address(allMarkets[0]));
+        evc.enableCollateral(LIQUIDATOR, address(collateralVault));
 
-//         assertEq(vault.lostAssets(), borrowed);
-//         assertEq(totalAssetsBefore, vault.totalAssets());
-//     }
+        _toEVault(allMarkets[0]).liquidate(BORROWER, address(collateralVault), 0, 0);
+        vm.stopPrank();
 
-//     function testCoverLostAssets(uint256 assets, uint128 expectedLostAssets) public {
-//         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        uint256 totalAssetsBefore = vault.totalAssets();
 
-//         loanToken.setBalance(SUPPLIER, assets);
+        assertEq(vault.lostAssets(), 0);
 
-//         vm.prank(SUPPLIER);
-//         vault.deposit(assets, ONBEHALF);
+        vault.deposit(0, ONBEHALF); // update lostAssets.
 
-//         uint128 totalSupplyAssetsBefore = morpho.market(allMarkets[0].id()).totalSupplyAssets;
-//         expectedLostAssets = uint128(bound(expectedLostAssets, 0, totalSupplyAssetsBefore));
+        assertApproxEqAbs(vault.lostAssets(), borrowed, 1e6);
+        assertEq(totalAssetsBefore, vault.totalAssets());
+    }
 
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), totalSupplyAssetsBefore - expectedLostAssets);
+    function testCoverLostAssets(uint256 assets, uint112 expectedLostAssets) public {
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
-//         loanToken.setBalance(address(this), expectedLostAssets);
-//         loanToken.approve(address(vault), expectedLostAssets);
-//         vault.deposit(expectedLostAssets, address(1));
+        loanToken.setBalance(SUPPLIER, assets);
 
-//         vm.prank(ONBEHALF);
-//         vault.withdraw(assets, ONBEHALF, ONBEHALF);
-//     }
+        vm.prank(SUPPLIER);
+        vault.deposit(assets, ONBEHALF);
 
-//     function testSupplyCanCreateLostAssets() public {
-//         _setCap(allMarkets[0], type(uint128).max);
-//         IERC4626[] memory supplyQueue = new IERC4626[](1);
-//         supplyQueue[0] = allMarkets[0].id();
-//         vm.prank(CURATOR);
-//         vault.setSupplyQueue(supplyQueue);
+        uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
+        expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
 
-//         uint256 assets0 = 1 ether;
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-//         loanToken.setBalance(SUPPLIER, assets0);
-//         collateralToken.setBalance(BORROWER, type(uint128).max);
+        loanToken.setBalance(address(this), expectedLostAssets + 1);
+        loanToken.approve(address(vault), expectedLostAssets + 1);
+        vault.deposit(expectedLostAssets + 1, address(1));
 
-//         vm.prank(SUPPLIER);
-//         morpho.supply(allMarkets[0], assets0, 0, SUPPLIER, hex"");
+        vm.prank(ONBEHALF);
+        vault.withdraw(assets, ONBEHALF, ONBEHALF);
+    }
 
-//         vm.startPrank(BORROWER);
-//         morpho.supplyCollateral(allMarkets[0], type(uint128).max, BORROWER, hex"");
-//         morpho.borrow(allMarkets[0], assets0, 0, BORROWER, BORROWER);
-//         vm.stopPrank();
+    function testSupplyCanCreateLostAssets() public {
+        _setCap(allMarkets[0], type(uint112).max);
+        IERC4626[] memory supplyQueue = new IERC4626[](1);
+        supplyQueue[0] = allMarkets[0];
+        vm.prank(CURATOR);
+        vault.setSupplyQueue(supplyQueue);
 
-//         // WARP
-//         // irm.setApr(1e18);
-//         vm.warp(block.timestamp + 1000);
-//         morpho.accrueInterest(allMarkets[0]);
+        uint256 assets0 = 1 ether;
 
-//         loanToken.setBalance(address(this), 2);
-//         vault.deposit(2, address(this));
+        loanToken.setBalance(SUPPLIER, assets0);
+        collateralToken.setBalance(BORROWER, type(uint112).max);
 
-//         vault.deposit(0, address(this));
+        vm.prank(SUPPLIER);
+        allMarkets[0].deposit(assets0, SUPPLIER);
 
-//         assertEq(vault.lostAssets(), 1);
-//     }
+        vm.startPrank(BORROWER);
+        collateralVault.deposit(type(uint256).max, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toEVault(allMarkets[0]).borrow(assets0, BORROWER);
+        vm.stopPrank();
 
-//     function testWithdrawCanCreateLostAssets() public {
-//         // Values found by fuzzing.
-//         uint256 assets = 68398999741522940;
-//         uint128 newTotalSupplyAssets = 615590997673706468;
+        // WARP
+        // irm.setApr(1e18);
+        vm.warp(block.timestamp + 1000);
+        _toEVault(allMarkets[0]).touch();
 
-//         _setCap(allMarkets[0], type(uint128).max);
-//         IERC4626[] memory supplyQueue = new IERC4626[](1);
-//         supplyQueue[0] = allMarkets[0].id();
-//         vm.prank(CURATOR);
-//         vault.setSupplyQueue(supplyQueue);
+        loanToken.setBalance(address(this), 2);
+        vault.deposit(2, address(this));
 
-//         loanToken.setBalance(address(this), assets);
-//         vault.deposit(assets, address(this));
+        vault.deposit(0, address(this));
 
-//         collateralToken.setBalance(BORROWER, type(uint128).max);
-//         vm.startPrank(BORROWER);
-//         morpho.supplyCollateral(allMarkets[0], type(uint128).max, BORROWER, hex"");
-//         morpho.borrow(allMarkets[0], assets, 0, BORROWER, BORROWER);
-//         vm.stopPrank();
+        assertEq(vault.lostAssets(), 1);
+    }
 
-//         // WARP
-//         _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), newTotalSupplyAssets);
+    function testWithdrawCanCreateLostAssets() public {
+        // Values found by fuzzing.
+        uint256 assets = 68398999741522940;
+        uint112 newTotalSupplyAssets = 615590997673706468;
 
-//         loanToken.setBalance(BORROWER, type(uint256).max);
-//         vm.startPrank(BORROWER);
-//         loanToken.approve(address(morpho), type(uint256).max);
-//         morpho.repay(allMarkets[0], 0, morpho.position(allMarkets[0].id(), BORROWER).borrowShares, BORROWER, hex"");
-//         vm.stopPrank();
+        _setCap(allMarkets[0], type(uint112).max);
+        IERC4626[] memory supplyQueue = new IERC4626[](1);
+        supplyQueue[0] = allMarkets[0];
+        vm.prank(CURATOR);
+        vault.setSupplyQueue(supplyQueue);
 
-//         vault.withdraw(vault.maxWithdraw(address(this)) - 1, address(this), address(this));
+        loanToken.setBalance(address(this), assets);
+        vault.deposit(assets, address(this));
 
-//         // Call to update lostAssets.
-//         vault.deposit(0, address(this));
+        collateralToken.setBalance(BORROWER, type(uint112).max);
+        vm.startPrank(BORROWER);
+        // morpho.supplyCollateral(allMarkets[0], type(uint112).max, BORROWER, hex"");
+        // morpho.borrow(allMarkets[0], assets, 0, BORROWER, BORROWER);
+        collateralVault.deposit(type(uint256).max, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toEVault(allMarkets[0]).borrow(assets, BORROWER);
+        vm.stopPrank();
 
-//         assertEq(vault.lostAssets(), 1);
-//     }
-// }
+        // WARP
+        // _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), newTotalSupplyAssets);
+        _toEVaultMock(allMarkets[0]).mockSetTotalSupply(newTotalSupplyAssets);
+
+        loanToken.setBalance(BORROWER, type(uint256).max);
+        vm.startPrank(BORROWER);
+        loanToken.approve(address(allMarkets[0]), type(uint256).max);
+        // morpho.repay(allMarkets[0], 0, morpho.position(allMarkets[0].id(), BORROWER).borrowShares, BORROWER, hex"");
+        _toEVault(allMarkets[0]).repay(type(uint256).max, BORROWER);
+        vm.stopPrank();
+
+        vault.withdraw(vault.maxWithdraw(address(this)) - 1, address(this), address(this));
+
+        // Call to update lostAssets.
+        vault.deposit(0, address(this));
+
+        assertEq(vault.lostAssets(), 1);
+    }
+}

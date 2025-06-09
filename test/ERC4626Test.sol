@@ -295,7 +295,7 @@ contract ERC4626Test is IntegrationTest {
         vm.startPrank(BORROWER);
         collateralVault.deposit(type(uint256).max, BORROWER);
         evc.enableController(BORROWER, address(allMarkets[0]));
-        _toIEVault(allMarkets[0]).borrow(1, BORROWER);
+        _toEVault(allMarkets[0]).borrow(1, BORROWER);
 
         vm.startPrank(ONBEHALF);
         vm.expectRevert(ErrorsLib.NotEnoughLiquidity.selector);
@@ -335,7 +335,7 @@ contract ERC4626Test is IntegrationTest {
         vm.startPrank(BORROWER);
         collateralVault.deposit(type(uint256).max, BORROWER);
         evc.enableController(BORROWER, address(allMarkets[0]));
-        _toIEVault(allMarkets[0]).borrow(borrowedAssets, BORROWER);
+        _toEVault(allMarkets[0]).borrow(borrowedAssets, BORROWER);
 
         assertEq(vault.maxWithdraw(ONBEHALF), depositedAssets - borrowedAssets, "maxWithdraw(ONBEHALF)");
     }
@@ -358,7 +358,7 @@ contract ERC4626Test is IntegrationTest {
         vm.startPrank(BORROWER);
         collateralVault.deposit(2 ether, BORROWER);
         evc.enableController(BORROWER, address(allMarkets[0]));
-        _toIEVault(allMarkets[0]).borrow(1 ether, BORROWER);
+        _toEVault(allMarkets[0]).borrow(1 ether, BORROWER);
         vm.stopPrank();
 
         _forward(1_000);

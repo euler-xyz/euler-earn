@@ -8,7 +8,6 @@ uint256 constant FEE = 0.2 ether; // 20%
 contract FeeTest is IntegrationTest {
     using Math for uint256;
     using MathLib for uint256;
-    using MarketParamsLib for IERC4626;
 
     function setUp() public override {
         super.setUp();
@@ -25,7 +24,7 @@ contract FeeTest is IntegrationTest {
             vm.prank(SUPPLIER);
             id.deposit(MAX_TEST_ASSETS, ONBEHALF);
 
-            uint256 ltvWithExtra = _toIEVault(id).LTVBorrow(address(collateralVault)) - 0.01e4;
+            uint256 ltvWithExtra = _toEVault(id).LTVBorrow(address(collateralVault)) - 0.01e4;
             uint256 collateral = MAX_TEST_ASSETS.mulDivUp(1e4, ltvWithExtra);
 
 
@@ -41,7 +40,7 @@ contract FeeTest is IntegrationTest {
             collateralToken.approve(address(collateralVault), type(uint256).max);
             collateralVault.deposit(collateral, borrowerSubaccount);
 
-            _toIEVault(id).borrow(MAX_TEST_ASSETS, BORROWER);
+            _toEVault(id).borrow(MAX_TEST_ASSETS, BORROWER);
 
             vm.stopPrank();
         }

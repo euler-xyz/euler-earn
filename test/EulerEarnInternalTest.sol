@@ -57,7 +57,7 @@ contract EulerEarnInternalTest is BaseTest {
         loanToken.setBalance(SUPPLIER, suppliedAmount);
         vm.prank(SUPPLIER);
         eulerEarnMock.deposit(suppliedAmount, SUPPLIER);
-        uint256 ltvWithExtra = _toIEVault(allMarkets[0]).LTVBorrow(address(collateralVault)) - 0.01e4;
+        uint256 ltvWithExtra = _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault)) - 0.01e4;
         uint256 collateral = suppliedAmount.mulDivUp(1e4, ltvWithExtra);
 
         collateralToken.setBalance(BORROWER, collateral);
@@ -65,7 +65,7 @@ contract EulerEarnInternalTest is BaseTest {
         vm.startPrank(BORROWER);
         collateralVault.deposit(collateral, BORROWER);
         evc.enableController(BORROWER, address(allMarkets[0]));
-        _toIEVault(allMarkets[0]).borrow(borrowedAmount, BORROWER);
+        _toEVault(allMarkets[0]).borrow(borrowedAmount, BORROWER);
         vm.stopPrank();
 
         uint256 remaining = eulerEarnMock.mockSimulateWithdrawEuler(assets);

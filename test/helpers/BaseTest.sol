@@ -20,11 +20,12 @@ import {IPerspective} from "../../src/interfaces/IPerspective.sol";
 import {PerspectiveMock} from "../mocks/PerspectiveMock.sol";
 
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {EVaultMock} from "../mocks/EVaultMock.sol";
 
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 import {IERC20, ERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
-import {EVaultTestBase, IEVault, IRMTestDefault} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
+import {EVaultTestBase, IEVault, IRMTestDefault, Base, Dispatch} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
 import "../../lib/euler-vault-kit/src/EVault/shared/Constants.sol";
 
 import "../../lib/forge-std/src/Test.sol";
@@ -72,8 +73,9 @@ contract BaseTest is EVaultTestBase {
 
         perspective = new PerspectiveMock();
 
-        IEVault eVault;
+        _etchEVaultOverrides();
 
+        IEVault eVault;
         eVault = IEVault(
             factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
         );
@@ -185,11 +187,33 @@ contract BaseTest is EVaultTestBase {
         return IERC4626(address(vault));
     }
 
-    function _toIEVault(IERC4626 vault) internal pure returns (IEVault) {
+    function _toEVault(IERC4626 vault) internal pure returns (IEVault) {
         return IEVault(address(vault));
+    }
+
+    function _toEVaultMock(IERC4626 vault) internal pure returns (EVaultMock) {
+        return EVaultMock(address(vault));
     }
 
     function _expectedSupplyAssets(IERC4626 _market, address _user) internal view virtual returns (uint256 assets) {
         assets = _market.convertToAssets(_market.balanceOf(_user));
+    }
+
+    function _etchEVaultOverrides() internal {
+        integrations =
+            Base.Integrations(address(evc), address(protocolConfig), sequenceRegistry, balanceTracker, permit2);
+        modules = Dispatch.DeployedModules({
+            initialize: initializeModule,
+            token: tokenModule,
+            vault: vaultModule,
+            borrowing: borrowingModule,
+            liquidation: liquidationModule,
+            riskManager: riskManagerModule,
+            balanceForwarder: balanceForwarderModule,
+            governance: governanceModule
+        });
+        address mockImpl = address(new EVaultMock(integrations, modules));
+
+        vm.etch(factory.implementation(), mockImpl.code);
     }
 }
