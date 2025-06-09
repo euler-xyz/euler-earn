@@ -48,13 +48,14 @@ contract IntegrationTest is BaseTest {
     function createEulerEarn(
         address owner,
         address evc,
+        address permit2,
         uint256 initialTimelock,
         address asset,
         string memory name,
         string memory symbol
     ) public returns (IEulerEarn) {
         return IEulerEarn(
-            deployCode("EulerEarn.sol", abi.encode(owner, evc, initialTimelock, asset, name, symbol))
+            deployCode("EulerEarn.sol", abi.encode(owner, evc, permit2, initialTimelock, asset, name, symbol))
         );
     }
 
