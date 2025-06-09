@@ -782,7 +782,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
             uint256 supplyAssets = _expectedSupplyAssets(id);
 
-            // TODO: maybe no need to call maxDeposit here? we can optimistically try to supply and if it reverts, it will get allocated to the next vault
             uint256 toSupply =
                 UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
 
