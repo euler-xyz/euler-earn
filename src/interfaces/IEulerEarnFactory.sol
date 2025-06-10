@@ -33,6 +33,8 @@ interface IEulerEarnFactory {
     function setPerspective(address _perspective) external;
 
     /// @notice Whether a strategy is allowed to be used by the Earn vault.
+    /// @dev Warning: Only allow trusted, correctly implemented ERC4626 strategies to be used by the Earn vault.
+    /// @dev Warning: Allowed strategies must not be prone to the first-depositor attack.
     function isStrategyAllowed(address id) external view returns (bool);
 
     /// @notice Creates a new EulerEarn vault.
