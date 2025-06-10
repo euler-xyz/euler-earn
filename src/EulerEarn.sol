@@ -285,7 +285,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     /* ONLY CURATOR FUNCTIONS */
 
     /// @inheritdoc IEulerEarnBase
-    function submitCap(IERC4626 id, uint256 newSupplyCap) external onlyCuratorRole {
+    function submitCap(IERC4626 id, uint256 newSupplyCap) external nonReentrant onlyCuratorRole {
         if (id.asset() != asset()) revert ErrorsLib.InconsistentAsset(id);
         if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
         if (pendingCap[id].validAt != 0) revert ErrorsLib.AlreadyPending();
