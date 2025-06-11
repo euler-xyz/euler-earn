@@ -9,7 +9,7 @@ uint256 constant TIMELOCK = 1 weeks;
 
 contract IntegrationTest is BaseTest {
     using MathLib for uint256;
-    
+
     IEulerEarnFactory eeFactory; 
     IEulerEarn internal vault;
 
@@ -23,7 +23,7 @@ contract IntegrationTest is BaseTest {
         vault.setCurator(CURATOR);
         vault.setIsAllocator(ALLOCATOR, true);
         vault.setFeeRecipient(FEE_RECIPIENT);
-        vault.setSkimRecipient(SKIM_RECIPIENT);
+
         vm.stopPrank();
 
         _setCap(idleVault, type(uint184).max);
