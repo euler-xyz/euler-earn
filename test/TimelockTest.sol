@@ -447,7 +447,7 @@
 //     }
 
 //     function testSubmitMarketRemovalMarketNotEnabled() public {
-//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[1].id()));
+//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[1]));
 //         vm.prank(CURATOR);
 //         vault.submitMarketRemoval(allMarkets[1]);
 //     }

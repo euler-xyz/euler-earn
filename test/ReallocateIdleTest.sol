@@ -34,11 +34,11 @@
 //         suppliedAssets[1] = bound(suppliedAssets[1], 1, CAP2);
 //         suppliedAssets[2] = bound(suppliedAssets[2], 1, CAP2);
 
-//         allocations.push(MarketAllocation(idleParams, 0));
+//         allocations.push(MarketAllocation(idleVault, 0));
 //         allocations.push(MarketAllocation(allMarkets[0], suppliedAssets[0]));
 //         allocations.push(MarketAllocation(allMarkets[1], suppliedAssets[1]));
 //         allocations.push(MarketAllocation(allMarkets[2], suppliedAssets[2]));
-//         allocations.push(MarketAllocation(idleParams, type(uint256).max));
+//         allocations.push(MarketAllocation(idleVault, type(uint256).max));
 
 //         uint256 idleBefore = _idle();
 
@@ -46,17 +46,17 @@
 //         vault.reallocate(allocations);
 
 //         assertEq(
-//             morpho.supplyShares(allMarkets[0].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[0], address(vault)),
 //             suppliedAssets[0] * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(0)"
 //         );
 //         assertEq(
-//             morpho.supplyShares(allMarkets[1].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[1], address(vault)),
 //             suppliedAssets[1] * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(1)"
 //         );
 //         assertEq(
-//             morpho.supplyShares(allMarkets[2].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[2], address(vault)),
 //             suppliedAssets[2] * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(2)"
 //         );

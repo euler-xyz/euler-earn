@@ -24,7 +24,7 @@ contract FeeTest is IntegrationTest {
             vm.prank(SUPPLIER);
             id.deposit(MAX_TEST_ASSETS, ONBEHALF);
 
-            uint256 ltvWithExtra = _toEVault(id).LTVBorrow(address(collateralVault)) - 0.01e4;
+            uint256 ltvWithExtra = _toEVault(id).LTVBorrow(address(collateralVault)) - 1;
             uint256 collateral = MAX_TEST_ASSETS.mulDivUp(1e4, ltvWithExtra);
 
 

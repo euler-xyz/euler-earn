@@ -30,7 +30,7 @@
 
 //         reentrantToken = new ERC777Mock(100_000, new address[](0), IERC1820Registry(address(registry)));
 
-//         idleParams = IERC4626({
+//         idleVault = IERC4626({
 //             loanToken: address(reentrantToken),
 //             collateralToken: address(0),
 //             oracle: address(0),
@@ -38,7 +38,7 @@
 //             lltv: 0
 //         });
 
-//         morpho.createMarket(idleParams);
+//         morpho.createMarket(idleVault);
 
 //         vault = IEulerEarn(
 //             address(
@@ -52,7 +52,7 @@
 //         vault.setFeeRecipient(FEE_RECIPIENT);
 //         vm.stopPrank();
 
-//         _setCap(idleParams, type(uint184).max);
+//         _setCap(idleVault, type(uint184).max);
 //         _setFee(FEE);
 
 //         reentrantToken.approve(address(vault), type(uint256).max);

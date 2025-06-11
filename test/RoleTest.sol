@@ -145,7 +145,7 @@
 
 //     function testAllocatorOrCuratorOrOwnerShouldTriggerAllocatorFunctions() public {
 //         IERC4626[] memory supplyQueue = new IERC4626[](1);
-//         supplyQueue[0] = idleParams.id();
+//         supplyQueue[0] = idleVault;
 
 //         uint256[] memory withdrawQueueFromRanks = new uint256[](1);
 //         withdrawQueueFromRanks[0] = 0;

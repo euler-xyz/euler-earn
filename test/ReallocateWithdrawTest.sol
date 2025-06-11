@@ -37,25 +37,25 @@
 //         allocations.push(MarketAllocation(allMarkets[0], 0));
 //         allocations.push(MarketAllocation(allMarkets[1], 0));
 //         allocations.push(MarketAllocation(allMarkets[2], 0));
-//         allocations.push(MarketAllocation(idleParams, type(uint256).max));
+//         allocations.push(MarketAllocation(idleVault, type(uint256).max));
 
 //         vm.expectEmit();
 //         emit EventsLib.ReallocateWithdraw(
-//             ALLOCATOR, allMarkets[0].id(), CAP2, morpho.supplyShares(allMarkets[0].id(), address(vault))
+//             ALLOCATOR, allMarkets[0], CAP2, morpho.supplyShares(allMarkets[0], address(vault))
 //         );
 //         emit EventsLib.ReallocateWithdraw(
-//             ALLOCATOR, allMarkets[1].id(), CAP2, morpho.supplyShares(allMarkets[1].id(), address(vault))
+//             ALLOCATOR, allMarkets[1], CAP2, morpho.supplyShares(allMarkets[1], address(vault))
 //         );
 //         emit EventsLib.ReallocateWithdraw(
-//             ALLOCATOR, allMarkets[2].id(), CAP2, morpho.supplyShares(allMarkets[2].id(), address(vault))
+//             ALLOCATOR, allMarkets[2], CAP2, morpho.supplyShares(allMarkets[2], address(vault))
 //         );
 
 //         vm.prank(ALLOCATOR);
 //         vault.reallocate(allocations);
 
-//         assertEq(morpho.supplyShares(allMarkets[0].id(), address(vault)), 0, "morpho.supplyShares(0)");
-//         assertEq(morpho.supplyShares(allMarkets[1].id(), address(vault)), 0, "morpho.supplyShares(1)");
-//         assertEq(morpho.supplyShares(allMarkets[2].id(), address(vault)), 0, "morpho.supplyShares(2)");
+//         assertEq(morpho.supplyShares(allMarkets[0], address(vault)), 0, "morpho.supplyShares(0)");
+//         assertEq(morpho.supplyShares(allMarkets[1], address(vault)), 0, "morpho.supplyShares(1)");
+//         assertEq(morpho.supplyShares(allMarkets[2], address(vault)), 0, "morpho.supplyShares(2)");
 //         assertEq(_idle(), INITIAL_DEPOSIT, "idle");
 //     }
 
@@ -75,7 +75,7 @@
 //         allocations.push(MarketAllocation(allMarkets[0], 0));
 
 //         vm.prank(ALLOCATOR);
-//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[0].id()));
+//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[0]));
 //         vault.reallocate(allocations);
 //     }
 
@@ -95,43 +95,43 @@
 //         assets[1] = _expectedSupplyAssets(allMarkets[1], address(vault));
 //         assets[2] = _expectedSupplyAssets(allMarkets[2], address(vault));
 
-//         allocations.push(MarketAllocation(idleParams, 0));
+//         allocations.push(MarketAllocation(idleVault, 0));
 //         allocations.push(MarketAllocation(allMarkets[0], newAssets[0]));
 //         allocations.push(MarketAllocation(allMarkets[1], newAssets[1]));
 //         allocations.push(MarketAllocation(allMarkets[2], newAssets[2]));
-//         allocations.push(MarketAllocation(idleParams, type(uint256).max));
+//         allocations.push(MarketAllocation(idleVault, type(uint256).max));
 
 //         uint256 expectedIdle = _idle() + 3 * CAP2 - newAssets[0] - newAssets[1] - newAssets[2];
 
-//         emit EventsLib.ReallocateWithdraw(ALLOCATOR, idleParams.id(), 0, 0);
+//         emit EventsLib.ReallocateWithdraw(ALLOCATOR, idleVault, 0, 0);
 
-//         if (newAssets[0] < assets[0]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[0].id(), 0, 0);
-//         else if (newAssets[0] > assets[0]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[0].id(), 0, 0);
+//         if (newAssets[0] < assets[0]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[0], 0, 0);
+//         else if (newAssets[0] > assets[0]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[0], 0, 0);
 
-//         if (newAssets[1] < assets[1]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[1].id(), 0, 0);
-//         else if (newAssets[1] > assets[1]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[1].id(), 0, 0);
+//         if (newAssets[1] < assets[1]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[1], 0, 0);
+//         else if (newAssets[1] > assets[1]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[1], 0, 0);
 
-//         if (newAssets[2] < assets[2]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[2].id(), 0, 0);
-//         else if (newAssets[2] > assets[2]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[2].id(), 0, 0);
+//         if (newAssets[2] < assets[2]) emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[2], 0, 0);
+//         else if (newAssets[2] > assets[2]) emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[2], 0, 0);
 
-//         emit EventsLib.ReallocateSupply(ALLOCATOR, idleParams.id(), 0, 0);
+//         emit EventsLib.ReallocateSupply(ALLOCATOR, idleVault, 0, 0);
 
 //         vm.prank(ALLOCATOR);
 //         vault.reallocate(allocations);
 
 //         assertEq(
-//             morpho.supplyShares(allMarkets[0].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[0], address(vault)),
 //             newAssets[0] * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(0)"
 //         );
 //         assertApproxEqAbs(
-//             morpho.supplyShares(allMarkets[1].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[1], address(vault)),
 //             newAssets[1] * SharesMathLib.VIRTUAL_SHARES,
 //             SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(1)"
 //         );
 //         assertEq(
-//             morpho.supplyShares(allMarkets[2].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[2], address(vault)),
 //             newAssets[2] * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(2)"
 //         );
@@ -147,22 +147,22 @@
 
 //         vm.expectEmit();
 //         emit EventsLib.ReallocateWithdraw(
-//             ALLOCATOR, allMarkets[0].id(), CAP2, morpho.supplyShares(allMarkets[0].id(), address(vault))
+//             ALLOCATOR, allMarkets[0], CAP2, morpho.supplyShares(allMarkets[0], address(vault))
 //         );
 //         emit EventsLib.ReallocateWithdraw(
-//             ALLOCATOR, allMarkets[1].id(), CAP2, morpho.supplyShares(allMarkets[1].id(), address(vault))
+//             ALLOCATOR, allMarkets[1], CAP2, morpho.supplyShares(allMarkets[1], address(vault))
 //         );
 //         emit EventsLib.ReallocateSupply(
-//             ALLOCATOR, allMarkets[2].id(), 3 * CAP2, 3 * morpho.supplyShares(allMarkets[2].id(), address(vault))
+//             ALLOCATOR, allMarkets[2], 3 * CAP2, 3 * morpho.supplyShares(allMarkets[2], address(vault))
 //         );
 
 //         vm.prank(ALLOCATOR);
 //         vault.reallocate(allocations);
 
-//         assertEq(morpho.supplyShares(allMarkets[0].id(), address(vault)), 0, "morpho.supplyShares(0)");
-//         assertEq(morpho.supplyShares(allMarkets[1].id(), address(vault)), 0, "morpho.supplyShares(1)");
+//         assertEq(morpho.supplyShares(allMarkets[0], address(vault)), 0, "morpho.supplyShares(0)");
+//         assertEq(morpho.supplyShares(allMarkets[1], address(vault)), 0, "morpho.supplyShares(1)");
 //         assertEq(
-//             morpho.supplyShares(allMarkets[2].id(), address(vault)),
+//             morpho.supplyShares(allMarkets[2], address(vault)),
 //             3 * CAP2 * SharesMathLib.VIRTUAL_SHARES,
 //             "morpho.supplyShares(2)"
 //         );
@@ -184,7 +184,7 @@
 //         allocations.push(MarketAllocation(allMarkets[2], suppliedAssets[2]));
 
 //         vm.prank(ALLOCATOR);
-//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.SupplyCapExceeded.selector, allMarkets[1].id()));
+//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.SupplyCapExceeded.selector, allMarkets[1]));
 //         vault.reallocate(allocations);
 //     }
 
@@ -196,7 +196,7 @@
 //         allocations.push(MarketAllocation(allMarkets[0], CAP2 + 1));
 
 //         vm.prank(ALLOCATOR);
-//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.SupplyCapExceeded.selector, allMarkets[0].id()));
+//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.SupplyCapExceeded.selector, allMarkets[0]));
 //         vault.reallocate(allocations);
 //     }
 
@@ -207,7 +207,7 @@
 
 //         _setCap(allMarkets[0], type(uint184).max);
 
-//         allocations.push(MarketAllocation(idleParams, 0));
+//         allocations.push(MarketAllocation(idleVault, 0));
 //         allocations.push(MarketAllocation(allMarkets[0], 2 * CAP2 + rewards));
 
 //         vm.prank(ALLOCATOR);
@@ -220,10 +220,10 @@
 //         allocations.push(MarketAllocation(allMarkets[1], CAP2));
 //         allocations.push(MarketAllocation(allMarkets[2], CAP2));
 //         allocations.push(MarketAllocation(allMarkets[3], 0)); // non enabled market.
-//         allocations.push(MarketAllocation(idleParams, type(uint256).max));
+//         allocations.push(MarketAllocation(idleVault, type(uint256).max));
 
 //         vm.prank(ALLOCATOR);
-//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[3].id()));
+//         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.MarketNotEnabled.selector, allMarkets[3]));
 //         vault.reallocate(allocations);
 //     }
 // }
