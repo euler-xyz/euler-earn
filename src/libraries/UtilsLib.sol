@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {ErrorsLib} from "./ErrorsLib.sol";
 
+uint256 constant WAD = 1e18;
+
 /// @title UtilsLib
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org

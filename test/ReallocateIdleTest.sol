@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import {SharesMathLib} from "../lib/morpho-blue/src/libraries/SharesMathLib.sol";
-
 import "./helpers/IntegrationTest.sol";
 
 uint256 constant CAP2 = 100e18;
 uint256 constant INITIAL_DEPOSIT = 4 * CAP2;
 
 contract ReallocateIdleTest is IntegrationTest {
-    using MarketParamsLib for IERC4626;
-
     MarketAllocation[] internal allocations;
 
     function setUp() public override {

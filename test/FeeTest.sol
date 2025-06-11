@@ -71,7 +71,7 @@ contract FeeTest is IntegrationTest {
 
     function testAccrueFeeWithinABlock(uint256 deposited, uint256 withdrawn) public {
         deposited = bound(deposited, MIN_TEST_ASSETS + 1, MAX_TEST_ASSETS);
-        // The deposited amount is rounded down on Morpho and thus cannot be withdrawn in a block in most cases.
+        // The deposited amount is rounded down and thus cannot be withdrawn in a block in most cases.
         withdrawn = bound(withdrawn, MIN_TEST_ASSETS, deposited - 1);
 
         loanToken.setBalance(SUPPLIER, deposited);

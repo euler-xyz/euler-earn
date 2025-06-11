@@ -4,8 +4,6 @@ pragma solidity ^0.8.26;
 import "./helpers/IntegrationTest.sol";
 
 contract RoleTest is IntegrationTest {
-    using MarketParamsLib for IERC4626;
-
     function testSetCurator() public {
         address newCurator = makeAddr("Curator2");
 

@@ -7,8 +7,6 @@ uint256 constant FEE = 0.1 ether; // 10%
 
 contract RevokeTest is IntegrationTest {
     using Math for uint256;
-    using MathLib for uint256;
-    using MarketParamsLib for IERC4626;
 
     function setUp() public override {
         super.setUp();

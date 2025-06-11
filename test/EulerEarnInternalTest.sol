@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import {UtilsLib} from "../lib/morpho-blue/src/libraries/UtilsLib.sol";
-import {SharesMathLib} from "../lib/morpho-blue/src/libraries/SharesMathLib.sol";
+import {UtilsLib} from "../src/libraries/UtilsLib.sol";
 
 import "./helpers/BaseTest.sol";
 import {EulerEarnMock} from "./mocks/EulerEarnMock.sol";
 
 contract EulerEarnInternalTest is BaseTest {
-    using MathLib for uint256;
-    using MorphoLib for IMorpho;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
-    using SharesMathLib for uint256;
     using UtilsLib for uint256;
+    using MathLib for uint256;
 
     EulerEarnMock internal eulerEarnMock;
 

@@ -8,8 +8,6 @@ import {EulerEarn} from "../../src/EulerEarn.sol";
 uint256 constant TIMELOCK = 1 weeks;
 
 contract IntegrationTest is BaseTest {
-    using MathLib for uint256;
-
     IEulerEarnFactory eeFactory; 
     IEulerEarn internal vault;
 

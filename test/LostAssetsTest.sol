@@ -5,8 +5,6 @@ import "./helpers/IntegrationTest.sol";
 
 contract LostAssetsTest is IntegrationTest {
     using stdStorage for StdStorage;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
     using MathLib for uint256;
 
     address internal LIQUIDATOR;

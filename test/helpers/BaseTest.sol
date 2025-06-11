@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-
-import {WAD, MathLib} from "../../lib/morpho-blue/src/libraries/MathLib.sol";
 import {Math} from "../../lib/openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
-import {MorphoLib} from "../../lib/morpho-blue/src/libraries/periphery/MorphoLib.sol";
-import {MorphoBalancesLib} from "../../lib/morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
+import {MathLib, WAD} from "./MathLib.sol";
 
 import "../../src/interfaces/IEulerEarn.sol";
 
 import "../../src/libraries/ConstantsLib.sol";
 import {ErrorsLib} from "../../src/libraries/ErrorsLib.sol";
 import {EventsLib} from "../../src/libraries/EventsLib.sol";
-import {ORACLE_PRICE_SCALE} from "../../lib/morpho-blue/src/libraries/ConstantsLib.sol";
 
 import {IPerspective} from "../../src/interfaces/IPerspective.sol";
 import {PerspectiveMock} from "../mocks/PerspectiveMock.sol";
@@ -39,11 +33,6 @@ uint184 constant CAP = type(uint128).max;
 uint256 constant NB_MARKETS = ConstantsLib.MAX_QUEUE_LENGTH + 1;
 
 contract BaseTest is EVaultTestBase {
-    using MathLib for uint256;
-    using MorphoLib for IMorpho;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
-
     address internal OWNER = makeAddr("Owner");
     address internal SUPPLIER = makeAddr("Supplier");
     address internal BORROWER = makeAddr("Borrower");

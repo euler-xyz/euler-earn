@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import {UtilsLib} from "../lib/morpho-blue/src/libraries/UtilsLib.sol";
-import {SharesMathLib} from "../lib/morpho-blue/src/libraries/SharesMathLib.sol";
+import {UtilsLib} from "../src/libraries/UtilsLib.sol";
 
 import "./helpers/IntegrationTest.sol";
 
@@ -10,10 +9,6 @@ uint256 constant CAP2 = 100e18;
 uint256 constant INITIAL_DEPOSIT = 4 * CAP2;
 
 contract ReallocateWithdrawTest is IntegrationTest {
-    using MarketParamsLib for IERC4626;
-    using MorphoBalancesLib for IMorpho;
-    using MorphoLib for IMorpho;
-    using SharesMathLib for uint256;
     using UtilsLib for uint256;
 
     MarketAllocation[] internal allocations;
@@ -130,10 +125,9 @@ contract ReallocateWithdrawTest is IntegrationTest {
             newAssets[0],
             "balanceOf(0)"
         );
-        assertApproxEqAbs(
+        assertEq(
             allMarkets[1].balanceOf(address(vault)),
             newAssets[1],
-            SharesMathLib.VIRTUAL_SHARES,
             "balanceOf(1)"
         );
         assertEq(
