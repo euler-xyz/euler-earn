@@ -8,7 +8,6 @@ import "./helpers/IntegrationTest.sol";
 
 contract MarketTest is IntegrationTest {
     using MathLib for uint256;
-    using MarketParamsLib for IERC4626;
 
     function setUp() public override {
         super.setUp();

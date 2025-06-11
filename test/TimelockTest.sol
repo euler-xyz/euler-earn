@@ -69,7 +69,7 @@
 //         timelock = bound(timelock, ConstantsLib.MAX_TIMELOCK + 1, type(uint256).max);
 
 //         vm.expectRevert(ErrorsLib.AboveMaxTimelock.selector);
-//         createEulerEarn(OWNER, address(morpho), timelock, address(loanToken), "EulerEarn Vault", "MMV");
+//         createEulerEarn(OWNER, address(morpho), timelock, address(loanToken), "EulerEarn Vault", "EEV");
 //     }
 
 //     function testSubmitTimelockAboveMaxTimelock(uint256 timelock) public {

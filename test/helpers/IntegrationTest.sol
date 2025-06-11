@@ -44,7 +44,7 @@ contract IntegrationTest is BaseTest {
 
     // Deploy EulerEarn from artifacts
     // Replaces using `new EulerEarn` which would force 0.8.26 on all tests
-    // (since EulerEarn has pragma solidity 0.8.26)
+    // (since EulerEarn has pragma solidity ^0.8.26)
     function createEulerEarn(
         address owner,
         address evc,
