@@ -9,8 +9,7 @@
 > - implements [EVK](https://github.com/euler-xyz/euler-vault-kit/blob/master/docs/whitepaper.md#accounting)-style `VIRTUAL_AMOUNT` conversions;
 > - adds reentrancy protection;
 > - removes the `skim` function and related functionality;
-> - removes ERC-2612 permit functionality;
-> - removes multicall functionality.
+> - removes ERC-2612 permit functionality.
 
 ## Overview
 
