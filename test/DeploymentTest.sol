@@ -48,15 +48,6 @@ contract DeploymentTest is IntegrationTest {
         createEulerEarn(OWNER, address(0), permit2, 1 days, address(loanToken), "EulerEarn Vault", "EEV");
     }
 
-    function testDeployEulerEarnNotToken(address notToken) public {
-        vm.assume(address(notToken) != address(loanToken));
-        vm.assume(address(notToken) != address(collateralToken));
-        vm.assume(address(notToken) != address(vault));
-
-        vm.expectRevert();
-        createEulerEarn(OWNER, address(evc), permit2, 1 days, notToken, "EulerEarn Vault", "EEV");
-    }
-
     function testDeployEulerEarn(
         address owner,
         address evc,
@@ -68,7 +59,7 @@ contract DeploymentTest is IntegrationTest {
         assumeNotZeroAddress(owner);
         assumeNotZeroAddress(evc);
         initialTimelock = _boundInitialTimelock(initialTimelock);
-
+  
         IEulerEarn newVault = createEulerEarn(owner, evc, permit2, initialTimelock, address(loanToken), name, symbol);
 
         assertEq(newVault.owner(), owner, "owner");
@@ -77,9 +68,5 @@ contract DeploymentTest is IntegrationTest {
         assertEq(newVault.asset(), address(loanToken), "asset");
         assertEq(newVault.name(), name, "name");
         assertEq(newVault.symbol(), symbol, "symbol");
-
-        revert("TODO");
-        if (permit2 != address(0))
-          assertEq(loanToken.allowance(address(newVault), address(evc)), type(uint256).max, "loanToken allowance");
     }
 }

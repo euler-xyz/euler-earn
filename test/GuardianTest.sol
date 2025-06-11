@@ -5,7 +5,6 @@ import "./helpers/IntegrationTest.sol";
 
 contract GuardianTest is IntegrationTest {
     using Math for uint256;
-    using MathLib for uint256;
 
     function setUp() public override {
         super.setUp();

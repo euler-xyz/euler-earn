@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.26;
+pragma solidity ^0.8.26;
 
 import {
     MarketConfig,
@@ -16,8 +16,7 @@ import {ConstantsLib} from "./libraries/ConstantsLib.sol";
 import {ErrorsLib} from "./libraries/ErrorsLib.sol";
 import {EventsLib} from "./libraries/EventsLib.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
-import {WAD} from "../lib/morpho-blue/src/libraries/MathLib.sol";
-import {UtilsLib} from "../lib/morpho-blue/src/libraries/UtilsLib.sol";
+import {UtilsLib, WAD} from "./libraries/UtilsLib.sol";
 import {SafeCast} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 

@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.26;
 
-import {UtilsLib} from "../lib/morpho-blue/src/libraries/UtilsLib.sol";
-import {SharesMathLib} from "../lib/morpho-blue/src/libraries/SharesMathLib.sol";
+import {UtilsLib} from "../src/libraries/UtilsLib.sol";
 
 import "./helpers/BaseTest.sol";
 import {EulerEarnMock} from "./mocks/EulerEarnMock.sol";
 
 contract EulerEarnInternalTest is BaseTest {
-    using MathLib for uint256;
-    using MorphoLib for IMorpho;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
-    using SharesMathLib for uint256;
     using UtilsLib for uint256;
+    using MathLib for uint256;
 
     EulerEarnMock internal eulerEarnMock;
 
@@ -57,7 +52,7 @@ contract EulerEarnInternalTest is BaseTest {
         loanToken.setBalance(SUPPLIER, suppliedAmount);
         vm.prank(SUPPLIER);
         eulerEarnMock.deposit(suppliedAmount, SUPPLIER);
-        uint256 ltvWithExtra = _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault)) - 0.01e4;
+        uint256 ltvWithExtra = _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault)) - 1;
         uint256 collateral = suppliedAmount.mulDivUp(1e4, ltvWithExtra);
 
         collateralToken.setBalance(BORROWER, collateral);

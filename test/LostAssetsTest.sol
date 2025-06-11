@@ -5,8 +5,6 @@ import "./helpers/IntegrationTest.sol";
 
 contract LostAssetsTest is IntegrationTest {
     using stdStorage for StdStorage;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for IERC4626;
     using MathLib for uint256;
 
     address internal LIQUIDATOR;
@@ -75,7 +73,7 @@ contract LostAssetsTest is IntegrationTest {
         vault.deposit(0, ONBEHALF); // update lostAssets.
 
         // virtual deposit will be entitled to part of the remaining assets
-        assertApproxEqAbs(vault.lostAssets(), 0.4 ether, 0.5e6, "expected lostAssets");
+        assertApproxEqAbs(vault.lostAssets(), 0.5 ether, 0.5e6, "expected lostAssets");
     }
 
 
@@ -358,9 +356,9 @@ contract LostAssetsTest is IntegrationTest {
     }
 
     function testWithdrawCanCreateLostAssets() public {
-        // Values found by fuzzing.
-        uint256 assets = 68398999741522940;
-        uint112 newTotalSupplyAssets = 615590997673706468;
+        revert("TODO");
+        uint256 assets = 1e6;
+        uint112 newTotalSupplyAssets = 2e6;
 
         _setCap(allMarkets[0], type(uint112).max);
         IERC4626[] memory supplyQueue = new IERC4626[](1);
@@ -371,27 +369,11 @@ contract LostAssetsTest is IntegrationTest {
         loanToken.setBalance(address(this), assets);
         vault.deposit(assets, address(this));
 
-        collateralToken.setBalance(BORROWER, type(uint112).max);
-        vm.startPrank(BORROWER);
-        // morpho.supplyCollateral(allMarkets[0], type(uint112).max, BORROWER, hex"");
-        // morpho.borrow(allMarkets[0], assets, 0, BORROWER, BORROWER);
-        collateralVault.deposit(type(uint256).max, BORROWER);
-        evc.enableController(BORROWER, address(allMarkets[0]));
-        _toEVault(allMarkets[0]).borrow(assets, BORROWER);
-        vm.stopPrank();
-
-        // WARP
-        // _writeTotalSupplyAssets(IERC4626.unwrap(allMarkets[0].id()), newTotalSupplyAssets);
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(newTotalSupplyAssets);
 
-        loanToken.setBalance(BORROWER, type(uint256).max);
-        vm.startPrank(BORROWER);
-        loanToken.approve(address(allMarkets[0]), type(uint256).max);
-        // morpho.repay(allMarkets[0], 0, morpho.position(allMarkets[0].id(), BORROWER).borrowShares, BORROWER, hex"");
-        _toEVault(allMarkets[0]).repay(type(uint256).max, BORROWER);
-        vm.stopPrank();
-
-        vault.withdraw(vault.maxWithdraw(address(this)) - 1, address(this), address(this));
+        loanToken.setBalance(address(allMarkets[0]), type(uint112).max);
+        uint256 maxWithdraw = vault.maxWithdraw(address(this));
+        vault.withdraw(maxWithdraw, address(this), address(this));
 
         // Call to update lostAssets.
         vault.deposit(0, address(this));

@@ -8,8 +8,6 @@ import {EulerEarn} from "../../src/EulerEarn.sol";
 uint256 constant TIMELOCK = 1 weeks;
 
 contract IntegrationTest is BaseTest {
-    using MathLib for uint256;
-    
     IEulerEarnFactory eeFactory; 
     IEulerEarn internal vault;
 
@@ -23,7 +21,7 @@ contract IntegrationTest is BaseTest {
         vault.setCurator(CURATOR);
         vault.setIsAllocator(ALLOCATOR, true);
         vault.setFeeRecipient(FEE_RECIPIENT);
-        vault.setSkimRecipient(SKIM_RECIPIENT);
+
         vm.stopPrank();
 
         _setCap(idleVault, type(uint184).max);
@@ -44,7 +42,7 @@ contract IntegrationTest is BaseTest {
 
     // Deploy EulerEarn from artifacts
     // Replaces using `new EulerEarn` which would force 0.8.26 on all tests
-    // (since EulerEarn has pragma solidity 0.8.26)
+    // (since EulerEarn has pragma solidity ^0.8.26)
     function createEulerEarn(
         address owner,
         address evc,
