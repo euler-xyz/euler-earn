@@ -356,7 +356,6 @@ contract LostAssetsTest is IntegrationTest {
     }
 
     function testWithdrawCanCreateLostAssets() public {
-        revert("TODO");
         uint256 assets = 1e6;
         uint112 newTotalSupplyAssets = 2e6;
 
