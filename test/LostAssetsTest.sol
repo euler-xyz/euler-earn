@@ -76,7 +76,6 @@ contract LostAssetsTest is IntegrationTest {
         assertApproxEqAbs(vault.lostAssets(), 0.5 ether, 0.5e6, "expected lostAssets");
     }
 
-
     function testLostAssetsValueFuzz(uint256 assets, uint112 expectedLostAssets) public returns (uint112, uint256) {
         assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
@@ -92,7 +91,12 @@ contract LostAssetsTest is IntegrationTest {
 
         vault.deposit(0, ONBEHALF); // update lostAssets.
 
-        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "expected lostAssets");
+        assertApproxEqAbs(
+            vault.lostAssets(),
+            expectedLostAssets,
+            uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault,
+            "expected lostAssets"
+        );
 
         return (expectedLostAssets, totalAssetsBeforeVault);
     }
@@ -108,7 +112,12 @@ contract LostAssetsTest is IntegrationTest {
         vm.prank(SUPPLIER);
         vault.deposit(assets2, ONBEHALF);
 
-        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after resupply");
+        assertApproxEqAbs(
+            vault.lostAssets(),
+            expectedLostAssets,
+            uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault,
+            "lostAssets after resupply"
+        );
     }
 
     function testNewLostAssetsOnLostAssets(
@@ -134,7 +143,12 @@ contract LostAssetsTest is IntegrationTest {
 
         vault.deposit(0, ONBEHALF); // update lostAssets.
 
-        assertApproxEqAbs(vault.lostAssets(), firstLostAssets + secondLostAssets, uint256(firstLostAssets + secondLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after new loss");
+        assertApproxEqAbs(
+            vault.lostAssets(),
+            firstLostAssets + secondLostAssets,
+            uint256(firstLostAssets + secondLostAssets) * 1e6 / totalAssetsBeforeVault,
+            "lostAssets after new loss"
+        );
     }
 
     function testLostAssetsEvent(uint256 assets, uint112 expectedLostAssets) public {
@@ -144,7 +158,6 @@ contract LostAssetsTest is IntegrationTest {
 
         vm.prank(SUPPLIER);
         vault.deposit(assets, ONBEHALF);
-
 
         uint256 totalAssetsBeforeVault = allMarkets[0].totalAssets();
         expectedLostAssets = uint112(bound(expectedLostAssets, 0, totalAssetsBeforeVault));
@@ -160,7 +173,12 @@ contract LostAssetsTest is IntegrationTest {
         emit EventsLib.UpdateLostAssets(actuallyLost);
         vault.deposit(0, ONBEHALF); // update lostAssets.
 
-        assertApproxEqAbs(vault.lostAssets(), expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault, "lostAssets after resupply");
+        assertApproxEqAbs(
+            vault.lostAssets(),
+            expectedLostAssets,
+            uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeVault,
+            "lostAssets after resupply"
+        );
     }
 
     function testMaxWithdrawWithLostAssets(uint256 assets, uint112 expectedLostAssets) public {
@@ -195,7 +213,11 @@ contract LostAssetsTest is IntegrationTest {
         uint256 expectedTotalAssets = _expectedSupplyAssets(allMarkets[0], address(vault));
         uint256 totalAssetsAfter = vault.totalAssets();
 
-        assertApproxEqAbs(totalAssetsAfter, expectedTotalAssets + expectedLostAssets, uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeFirst);
+        assertApproxEqAbs(
+            totalAssetsAfter,
+            expectedTotalAssets + expectedLostAssets,
+            uint256(expectedLostAssets) * 1e6 / totalAssetsBeforeFirst
+        );
     }
 
     function testDonationWithLostAssets(uint256 assets, uint112 expectedLostAssets, uint256 donation) public {
@@ -261,7 +283,11 @@ contract LostAssetsTest is IntegrationTest {
 
     function testLostAssetsAfterBadDebt(uint256 borrowed, uint256 collateral, uint256 deposit) public {
         borrowed = bound(borrowed, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
-        collateral = bound(collateral, borrowed.mulDivUp(1e4, _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault))) + 0.01e4, type(uint112).max - 1);
+        collateral = bound(
+            collateral,
+            borrowed.mulDivUp(1e4, _toEVault(allMarkets[0]).LTVBorrow(address(collateralVault))) + 0.01e4,
+            type(uint112).max - 1
+        );
         deposit = bound(deposit, borrowed, MAX_TEST_ASSETS);
 
         collateralToken.setBalance(BORROWER, collateral);

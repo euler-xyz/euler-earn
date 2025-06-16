@@ -59,7 +59,7 @@ contract DeploymentTest is IntegrationTest {
         assumeNotZeroAddress(owner);
         assumeNotZeroAddress(evc);
         initialTimelock = _boundInitialTimelock(initialTimelock);
-  
+
         IEulerEarn newVault = createEulerEarn(owner, evc, permit2, initialTimelock, address(loanToken), name, symbol);
 
         assertEq(newVault.owner(), owner, "owner");

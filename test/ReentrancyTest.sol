@@ -42,12 +42,16 @@ contract ReentrancyTest is IntegrationTest, IERC1820Implementer {
         reentrantToken = new ERC777Mock(100_000, new address[](0), IERC1820Registry(address(registry)));
 
         IERC4626 idleVault = IERC4626(
-            factory.createProxy(address(0), true, abi.encodePacked(address(reentrantToken), address(oracle), unitOfAccount))
+            factory.createProxy(
+                address(0), true, abi.encodePacked(address(reentrantToken), address(oracle), unitOfAccount)
+            )
         );
         _toEVault(idleVault).setHookConfig(address(0), 0);
         perspective.perspectiveVerify(address(idleVault));
 
-        vault = eeFactory.createEulerEarn(OWNER, TIMELOCK, address(reentrantToken), "EulerEarn Vault", "EEV", bytes32(uint256(2)));
+        vault = eeFactory.createEulerEarn(
+            OWNER, TIMELOCK, address(reentrantToken), "EulerEarn Vault", "EEV", bytes32(uint256(2))
+        );
 
         vm.startPrank(OWNER);
         vault.setCurator(CURATOR);

@@ -8,14 +8,16 @@ import {EulerEarn} from "../../src/EulerEarn.sol";
 uint256 constant TIMELOCK = 1 weeks;
 
 contract IntegrationTest is BaseTest {
-    IEulerEarnFactory eeFactory; 
+    IEulerEarnFactory eeFactory;
     IEulerEarn internal vault;
 
     function setUp() public virtual override {
         super.setUp();
 
         eeFactory = new EulerEarnFactory(admin, address(evc), address(permit2), address(perspective));
-        vault = eeFactory.createEulerEarn(OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(1)));
+        vault = eeFactory.createEulerEarn(
+            OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(1))
+        );
 
         vm.startPrank(OWNER);
         vault.setCurator(CURATOR);

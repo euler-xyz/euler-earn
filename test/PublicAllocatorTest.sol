@@ -2,12 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {
-    IntegrationTest,
-    MarketAllocation,
-    IERC4626,
-    stdError
-} from "./helpers/IntegrationTest.sol";
+import {IntegrationTest, MarketAllocation, IERC4626, stdError} from "./helpers/IntegrationTest.sol";
 import {PublicAllocator, FlowCapsConfig, Withdrawal, FlowCaps} from "../src/PublicAllocator.sol";
 import {ErrorsLib} from "../src/libraries/ErrorsLib.sol";
 import {EventsLib} from "../src/libraries/EventsLib.sol";

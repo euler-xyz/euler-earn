@@ -84,7 +84,9 @@ contract RoleTest is IntegrationTest {
         vm.stopPrank();
     }
 
-    function testCuratorOrGuardianFunctionsShouldRevertWhenNotCuratorOrGuardianRole(address caller, IERC4626 id) public {
+    function testCuratorOrGuardianFunctionsShouldRevertWhenNotCuratorOrGuardianRole(address caller, IERC4626 id)
+        public
+    {
         vm.assume(caller != vault.owner() && caller != vault.curator() && caller != vault.guardian());
 
         vm.startPrank(caller);

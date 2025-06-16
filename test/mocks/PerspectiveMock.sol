@@ -6,7 +6,7 @@ import {IPerspective} from "../../src/interfaces/IPerspective.sol";
 import "forge-std/Test.sol";
 
 contract PerspectiveMock is IPerspective {
-    address[] internal verified; 
+    address[] internal verified;
     mapping(address => bool) lookup;
 
     function name() external pure returns (string memory) {
@@ -29,5 +29,4 @@ contract PerspectiveMock is IPerspective {
     function verifiedArray() external view returns (address[] memory) {
         return verified;
     }
-
 }

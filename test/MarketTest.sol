@@ -56,7 +56,9 @@ contract MarketTest is IntegrationTest {
 
     function testSubmitCapInconsistentAsset() public {
         IERC4626 id = IERC4626(
-            factory.createProxy(address(0), true, abi.encodePacked(address(collateralToken), address(oracle), unitOfAccount))
+            factory.createProxy(
+                address(0), true, abi.encodePacked(address(collateralToken), address(oracle), unitOfAccount)
+            )
         );
 
         vm.prank(CURATOR);
@@ -304,9 +306,7 @@ contract MarketTest is IntegrationTest {
         indexes[2] = 3;
 
         vm.prank(ALLOCATOR);
-        vm.expectRevert(
-            abi.encodeWithSelector(ErrorsLib.InvalidMarketRemovalTimelockNotElapsed.selector, idleVault)
-        );
+        vm.expectRevert(abi.encodeWithSelector(ErrorsLib.InvalidMarketRemovalTimelockNotElapsed.selector, idleVault));
         vault.updateWithdrawQueue(indexes);
     }
 
@@ -409,27 +409,19 @@ contract MarketTest is IntegrationTest {
         uint256 anyShares = 1000;
 
         vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)),
-            abi.encode(maxAnyDeposit)
+            anyMarket, abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)), abi.encode(maxAnyDeposit)
         );
 
         vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.previewDeposit.selector, maxAnyDeposit),
-            abi.encode(anyShares)
+            anyMarket, abi.encodeWithSelector(IERC4626.previewDeposit.selector, maxAnyDeposit), abi.encode(anyShares)
         );
 
         vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.deposit.selector, 1, address(vault)),
-            abi.encode(anyShares)
+            anyMarket, abi.encodeWithSelector(IERC4626.deposit.selector, 1, address(vault)), abi.encode(anyShares)
         );
 
         vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.previewRedeem.selector, anyShares),
-            abi.encode(maxAnyDeposit)
+            anyMarket, abi.encodeWithSelector(IERC4626.previewRedeem.selector, anyShares), abi.encode(maxAnyDeposit)
         );
 
         vm.prank(SUPPLIER);
@@ -437,7 +429,9 @@ contract MarketTest is IntegrationTest {
 
         IERC20 asset = IERC20(vault.asset());
 
-        assertEq(asset.balanceOf(address(secondMarket)), depositAmount - 1, "because of maxDeposit second market got all - 1");
+        assertEq(
+            asset.balanceOf(address(secondMarket)), depositAmount - 1, "because of maxDeposit second market got all - 1"
+        );
     }
 
     function testNoDepositWhenPreviewZero() public {
@@ -448,16 +442,10 @@ contract MarketTest is IntegrationTest {
         loanToken.setBalance(SUPPLIER, depositAmount);
 
         vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)),
-            abi.encode(depositAmount)
+            anyMarket, abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)), abi.encode(depositAmount)
         );
 
-        vm.mockCall(
-            anyMarket,
-            abi.encodeWithSelector(IERC4626.previewDeposit.selector, depositAmount),
-            abi.encode(0)
-        );
+        vm.mockCall(anyMarket, abi.encodeWithSelector(IERC4626.previewDeposit.selector, depositAmount), abi.encode(0));
 
         vm.prank(SUPPLIER);
         vault.deposit(depositAmount, SUPPLIER);
@@ -468,8 +456,8 @@ contract MarketTest is IntegrationTest {
     }
 
     function prepareAnyMarketSetup() private returns (address) {
-
-        address anyMarket = factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount));
+        address anyMarket =
+            factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount));
 
         perspective.perspectiveVerify(anyMarket);
 

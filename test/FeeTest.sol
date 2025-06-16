@@ -27,7 +27,6 @@ contract FeeTest is IntegrationTest {
             uint256 ltvWithExtra = _toEVault(id).LTVBorrow(address(collateralVault)) - 1;
             uint256 collateral = MAX_TEST_ASSETS.mulDivUp(1e4, ltvWithExtra);
 
-
             address borrowerSubaccount = address(uint160(uint160(BORROWER) ^ i));
 
             vm.startPrank(BORROWER);
@@ -155,7 +154,7 @@ contract FeeTest is IntegrationTest {
         deposited += 2;
 
         loanToken.setBalance(SUPPLIER, deposited);
- 
+
         vm.prank(SUPPLIER);
         vault.deposit(deposited, ONBEHALF);
 
