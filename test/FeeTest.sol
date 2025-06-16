@@ -248,14 +248,6 @@ contract FeeTest is IntegrationTest {
         uint256 feeShares = _feeShares();
         vm.assume(feeShares != 0);
 
-        console.log('vault.totalAssets(: ', vault.totalAssets());
-        console.log('feeShares: ', feeShares);
-
-  // vault.totalAssets(:  123703770
-  // feeShares:  3985065
-  // emit AccrueInterest(newTotalAssets: 123703770 [1.237e8], feeShares: 3991364 [3.991e6])
-
-
         vm.expectEmit(address(vault));
         emit EventsLib.AccrueInterest(vault.totalAssets(), feeShares);
         emit EventsLib.UpdateLastTotalAssets(vault.totalAssets());

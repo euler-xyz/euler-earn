@@ -327,12 +327,7 @@ contract MarketTest is IntegrationTest {
         vault.updateWithdrawQueue(indexes);
     }
 
-    function testEnableMarketWithLiquidity() public {
-      uint256 deposited=115792089237316195423570985008687907853269984665640564039457584007913129639935;
-       uint256 additionalSupply=160455071862313873578031842432977085;
-        uint256 blocks=34900789681133995410844141362679471;
-
-    // function testEnableMarketWithLiquidity(uint256 deposited, uint256 additionalSupply, uint256 blocks) public {
+    function testEnableMarketWithLiquidity(uint256 deposited, uint256 additionalSupply, uint256 blocks) public {
         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
         additionalSupply = bound(additionalSupply, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
         blocks = _boundBlocks(blocks);
@@ -376,5 +371,120 @@ contract MarketTest is IntegrationTest {
         vault.revokePendingCap(IERC4626(address(0)));
         vault.revokePendingMarketRemoval(IERC4626(address(0)));
         vm.stopPrank();
+    }
+
+    function testNoAllowanceIfDepositFailed() public {
+        address anyMarket = prepareAnyMarketSetup();
+        IERC4626 secondMarket = allMarkets[0];
+
+        uint256 depositAmount = type(uint32).max;
+        loanToken.setBalance(SUPPLIER, depositAmount);
+
+        // simulate deposit failure
+        vm.mockCallRevert(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.deposit.selector, depositAmount, address(vault)),
+            abi.encode(false)
+        );
+
+        vm.prank(SUPPLIER);
+        vault.deposit(depositAmount, SUPPLIER);
+
+        IERC20 asset = IERC20(vault.asset());
+
+        // market with failed deposit should have no allowance
+        assertEq(asset.allowance(address(vault), anyMarket), 0, "[0] allowance should be ZERO");
+        // market with successful deposit should have no allowance
+        assertEq(asset.allowance(address(vault), address(secondMarket)), 0, "[1] allowance should be ZERO");
+    }
+
+    function testMaxDepositCap() public {
+        address anyMarket = prepareAnyMarketSetup();
+        IERC4626 secondMarket = allMarkets[0];
+
+        uint256 depositAmount = type(uint32).max;
+        loanToken.setBalance(SUPPLIER, depositAmount);
+
+        uint256 maxAnyDeposit = 1;
+        uint256 anyShares = 1000;
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)),
+            abi.encode(maxAnyDeposit)
+        );
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.previewDeposit.selector, maxAnyDeposit),
+            abi.encode(anyShares)
+        );
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.deposit.selector, 1, address(vault)),
+            abi.encode(anyShares)
+        );
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.previewRedeem.selector, anyShares),
+            abi.encode(maxAnyDeposit)
+        );
+
+        vm.prank(SUPPLIER);
+        vault.deposit(depositAmount, SUPPLIER);
+
+        IERC20 asset = IERC20(vault.asset());
+
+        assertEq(asset.balanceOf(address(secondMarket)), depositAmount - 1, "because of maxDeposit second market got all - 1");
+    }
+
+    function testNoDepositWhenPreviewZero() public {
+        address anyMarket = prepareAnyMarketSetup();
+        IERC4626 secondMarket = allMarkets[0];
+
+        uint256 depositAmount = type(uint32).max;
+        loanToken.setBalance(SUPPLIER, depositAmount);
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.maxDeposit.selector, address(vault)),
+            abi.encode(depositAmount)
+        );
+
+        vm.mockCall(
+            anyMarket,
+            abi.encodeWithSelector(IERC4626.previewDeposit.selector, depositAmount),
+            abi.encode(0)
+        );
+
+        vm.prank(SUPPLIER);
+        vault.deposit(depositAmount, SUPPLIER);
+
+        IERC20 asset = IERC20(vault.asset());
+
+        assertEq(asset.balanceOf(address(secondMarket)), depositAmount, "second market got all");
+    }
+
+    function prepareAnyMarketSetup() private returns (address) {
+
+        address anyMarket = factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount));
+
+        perspective.perspectiveVerify(anyMarket);
+
+        IERC4626[] memory supplyQueue = new IERC4626[](2);
+        supplyQueue[0] = IERC4626(anyMarket);
+        supplyQueue[1] = allMarkets[0];
+
+        _setCap(supplyQueue[0], type(uint64).max);
+        _setCap(supplyQueue[1], type(uint64).max);
+
+        vm.prank(ALLOCATOR);
+        vault.setSupplyQueue(supplyQueue);
+
+        assertEq(address(vault.supplyQueue(0)), address(supplyQueue[0]));
+
+        return anyMarket;
     }
 }

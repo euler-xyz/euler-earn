@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import {
     MarketConfig,
@@ -33,8 +33,6 @@ import {
     SafeERC20
 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
 import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
-
-import "forge-std/console.sol";
 
 /// @title EulerEarn
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
