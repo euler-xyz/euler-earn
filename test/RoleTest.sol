@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import "./helpers/IntegrationTest.sol";
+import "forge-std/Test.sol";
 
 contract RoleTest is IntegrationTest {
     function testSetCurator() public {
@@ -49,6 +50,7 @@ contract RoleTest is IntegrationTest {
 
     function testOwnerFunctionsShouldRevertWhenNotOwner(address caller) public {
         vm.assume(caller != vault.owner());
+        vm.assume(caller != address(0));
 
         vm.startPrank(caller);
 
