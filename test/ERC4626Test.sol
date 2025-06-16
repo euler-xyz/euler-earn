@@ -16,7 +16,9 @@ contract ERC4626Test is IntegrationTest {
     function testDecimals(uint8 decimals) public {
         vm.mockCall(address(loanToken), abi.encodeWithSignature("decimals()"), abi.encode(decimals));
 
-        vault = eeFactory.createEulerEarn(OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(2)));
+        vault = eeFactory.createEulerEarn(
+            OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(2))
+        );
 
         assertEq(vault.decimals(), decimals, "decimals");
     }
@@ -302,7 +304,6 @@ contract ERC4626Test is IntegrationTest {
         vault.withdraw(assets, RECEIVER, ONBEHALF);
     }
 
-
     function testTransfer(uint256 deposited, uint256 toTransfer) public {
         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
@@ -370,7 +371,7 @@ contract ERC4626Test is IntegrationTest {
 
         // since exchange rate in the market is >1, deposit will lose 1 wei due to rounding,
         // which reports max deposit as 1. It's not consumable though on Euler vaults,
-        // due to zero shares error 
+        // due to zero shares error
         assertEq(vault.maxDeposit(SUPPLIER), 1);
 
         vm.prank(SUPPLIER);

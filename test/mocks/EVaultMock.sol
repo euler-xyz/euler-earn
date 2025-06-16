@@ -7,9 +7,7 @@ import {Assets, Owed} from "../../lib/euler-vault-kit/src/EVault/shared/types/Ty
 import "forge-std/console.sol";
 
 contract EVaultMock is EVault {
-    constructor(Integrations memory integrations, DeployedModules memory modules) 
-    EVault(integrations, modules)
-    {}
+    constructor(Integrations memory integrations, DeployedModules memory modules) EVault(integrations, modules) {}
 
     function mockSetTotalSupply(uint112 newValue) external {
         vaultStorage.totalBorrows = Owed.wrap(uint112(0));

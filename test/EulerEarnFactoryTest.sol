@@ -5,7 +5,6 @@ import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.so
 import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 import "./helpers/IntegrationTest.sol";
 
-
 contract EulerEarnFactoryTest is IntegrationTest {
     function testFactoryAddressZero() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, (address(0))));
@@ -55,5 +54,4 @@ contract EulerEarnFactoryTest is IntegrationTest {
         assertEq(eulerEarn.name(), name, "name");
         assertEq(eulerEarn.symbol(), symbol, "symbol");
     }
-
 }

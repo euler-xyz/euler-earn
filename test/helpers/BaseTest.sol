@@ -19,12 +19,17 @@ import {EVaultMock} from "../mocks/EVaultMock.sol";
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 import {IERC20, ERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
-import {EVaultTestBase, IEVault, IRMTestDefault, Base, Dispatch} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
+import {
+    EVaultTestBase,
+    IEVault,
+    IRMTestDefault,
+    Base,
+    Dispatch
+} from "../../lib/euler-vault-kit/test/unit/evault/EVaultTestBase.t.sol";
 import "../../lib/euler-vault-kit/src/EVault/shared/Constants.sol";
 
 import "../../lib/forge-std/src/Test.sol";
 import "../../lib/forge-std/src/console2.sol";
-
 
 uint256 constant BLOCK_TIME = 1;
 uint256 constant MIN_TEST_ASSETS = 1e8;
@@ -75,7 +80,9 @@ contract BaseTest is EVaultTestBase {
         perspective.perspectiveVerify(address(idleVault));
 
         eVault = IEVault(
-            factory.createProxy(address(0), true, abi.encodePacked(address(collateralToken), address(oracle), unitOfAccount))
+            factory.createProxy(
+                address(0), true, abi.encodePacked(address(collateralToken), address(oracle), unitOfAccount)
+            )
         );
         eVault.setHookConfig(address(0), 0);
 
@@ -85,7 +92,9 @@ contract BaseTest is EVaultTestBase {
             uint16 ltv = 0.8e4 / (uint16(i) + 1);
 
             eVault = IEVault(
-                factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
+                factory.createProxy(
+                    address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount)
+                )
             );
             eVault.setHookConfig(address(0), 0);
             eVault.setInterestRateModel(address(new IRMTestDefault()));
@@ -100,7 +109,6 @@ contract BaseTest is EVaultTestBase {
             vm.prank(SUPPLIER);
             loanToken.approve(address(eVault), type(uint256).max);
 
-
             vm.prank(REPAYER);
             loanToken.approve(address(eVault), type(uint256).max);
         }
@@ -108,7 +116,6 @@ contract BaseTest is EVaultTestBase {
         vm.startPrank(BORROWER);
         collateralToken.approve(address(collateralVault), type(uint256).max);
         evc.enableCollateral(BORROWER, address(collateralVault));
-
 
         vm.stopPrank();
 
@@ -135,7 +142,6 @@ contract BaseTest is EVaultTestBase {
     function _boundAddressNotZero(address input) internal pure virtual returns (address) {
         return address(uint160(bound(uint256(uint160(input)), 1, type(uint160).max)));
     }
-
 
     /// @dev Returns a random market params from the list of markets enabled on Blue (except the idle market).
     function _randomMarket(uint256 seed) internal view returns (IERC4626) {

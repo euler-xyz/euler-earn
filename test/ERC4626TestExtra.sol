@@ -7,9 +7,8 @@ import {ErrorsLib} from "../src/libraries/ErrorsLib.sol";
 
 import "forge-std/Test.sol";
 
-
 abstract contract VaultsLittleHelper is IntegrationTest {
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         _setCap(allMarkets[0], CAP);
@@ -55,7 +54,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     uint256 internal constant _REAL_ASSETS_LIMIT = type(uint112).max;
     uint256 internal constant _IDLE_CAP = type(uint112).max;
 
-    address immutable public depositor;
+    address public immutable depositor;
 
     constructor() {
         depositor = makeAddr("Depositor");
@@ -85,11 +84,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     }
 
     function test_maxDeposit1() public view {
-        assertEq(
-            vault.maxDeposit(address(1)),
-            CAP + _IDLE_CAP,
-            "ERC4626 expect to return summary CAP for all markets"
-        );
+        assertEq(vault.maxDeposit(address(1)), CAP + _IDLE_CAP, "ERC4626 expect to return summary CAP for all markets");
     }
 
     function test_maxDeposit_withDeposit() public {
@@ -105,7 +100,9 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     }
 
     function test_maxDeposit_takesIntoAccountAccruedInterest_fuzz(
-        uint112 _depositAmount, uint112 _aboveDeposit, uint8 _days
+        uint112 _depositAmount,
+        uint112 _aboveDeposit,
+        uint8 _days
     ) public {
         vm.assume(_depositAmount > 1e18);
         vm.assume(_aboveDeposit > 1e18);
@@ -162,11 +159,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     }
 
     function test_maxMint() public view {
-        assertEq(
-            vault.maxMint(address(1)),
-            (CAP + _IDLE_CAP),
-            "ERC4626 expect to return summary CAP for all markets"
-        );
+        assertEq(vault.maxMint(address(1)), (CAP + _IDLE_CAP), "ERC4626 expect to return summary CAP for all markets");
     }
 
     function test_maxMint_withDeposit() public {
@@ -186,10 +179,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         assertEq(maxRedeem, 0, "nothing to redeem");
     }
 
-    function test_maxRedeem_deposit_fuzz(
-        uint112 _assets,
-        uint16 _assets2
-    ) public {
+    function test_maxRedeem_deposit_fuzz(uint112 _assets, uint16 _assets2) public {
         vm.assume(_assets > 0);
         vm.assume(_assets2 > 0);
 
@@ -207,10 +197,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertDepositorHasNothingToRedeem();
     }
 
-    function test_maxRedeem_whenBorrow_1token_fuzz(
-        uint112 _collateral,
-        uint112 _toBorrow
-    ) public {
+    function test_maxRedeem_whenBorrow_1token_fuzz(uint112 _collateral, uint112 _toBorrow) public {
         vm.assume(_toBorrow <= uint256(_collateral) * 7 / 10);
         vm.assume(_toBorrow > 0);
 
@@ -222,10 +209,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertDepositorCanNotRedeemMore(maxRedeem);
     }
 
-    function test_maxRedeem_whenInterest_fuzz(
-        uint112 _collateral,
-        uint112 _toBorrow
-    ) public {
+    function test_maxRedeem_whenInterest_fuzz(uint112 _collateral, uint112 _toBorrow) public {
         vm.assume(_toBorrow > 3);
         vm.assume(_toBorrow <= uint256(_collateral) * 7 / 10);
         vm.assume(_collateral < _REAL_ASSETS_LIMIT * 9 / 10);
@@ -245,10 +229,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         assertEq(maxWithdraw, 0, "nothing to withdraw");
     }
 
-    function test_maxWithdraw_deposit_fuzz(
-        uint112 _assets,
-        uint16 _assets2
-    ) public {
+    function test_maxWithdraw_deposit_fuzz(uint112 _assets, uint16 _assets2) public {
         vm.assume(_assets > 0);
         vm.assume(_assets2 > 0);
 
@@ -266,10 +247,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertMaxWithdrawIsZeroAtTheEnd();
     }
 
-    function test_maxWithdraw_notEnoughLiquidity_fuzz(
-        uint112 _collateral,
-        uint64 _percentToReduceLiquidity
-    ) public {
+    function test_maxWithdraw_notEnoughLiquidity_fuzz(uint112 _collateral, uint64 _percentToReduceLiquidity) public {
         vm.assume(_percentToReduceLiquidity <= 1e18);
 
         uint256 reduced = uint256(_collateral) * _percentToReduceLiquidity / 1e18;
@@ -304,7 +282,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     function test_previewDeposit_beforeInterest_fuzz(uint112 _assets) public {
         vm.assume(_assets > 0);
 
-        uint256 previewShares =vault.previewDeposit(_assets);
+        uint256 previewShares = vault.previewDeposit(_assets);
         uint256 shares = _deposit(_assets, depositor);
 
         assertEq(previewShares, shares, "previewDeposit must return as close but NOT more");
@@ -334,10 +312,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertPreviewMint(_shares);
     }
 
-    function test_previewMint_afterNoInterest_fuzz(
-        uint112 _depositAmount,
-        uint112 _shares
-    ) public {
+    function test_previewMint_afterNoInterest_fuzz(uint112 _depositAmount, uint112 _shares) public {
         vm.assume(_shares < _REAL_ASSETS_LIMIT / 3);
 
         _previewMint_afterNoInterest(_depositAmount, _shares);
@@ -360,10 +335,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertPreviewMint(_shares);
     }
 
-    function test_previewWithdraw_noInterestNoDebt_fuzz(
-        uint112 _assetsOrShares,
-        bool _partial
-    ) public {
+    function test_previewWithdraw_noInterestNoDebt_fuzz(uint112 _assetsOrShares, bool _partial) public {
         uint256 amountIn = _partial ? uint256(_assetsOrShares) * 37 / 100 : _assetsOrShares;
         vm.assume(amountIn > 1);
 
@@ -378,11 +350,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         _assertPreviewWithdraw(preview, amountIn);
     }
 
-    function test_previewWithdraw_debt_fuzz(
-        uint112 _assetsOrShares,
-        bool _interest,
-        bool _partial
-    ) public {
+    function test_previewWithdraw_debt_fuzz(uint112 _assetsOrShares, bool _interest, bool _partial) public {
         vm.assume(_assetsOrShares > 1); // can not create debt with 1 collateral
 
         uint112 amountToUse = _partial ? uint112(uint256(_assetsOrShares) * 37 / 100) : _assetsOrShares;
@@ -471,7 +439,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     }
 
     function _createUnderlyingUsage() internal {
-      uint256 maxDeposit = _REAL_ASSETS_LIMIT - loanToken.balanceOf(address(vault));
+        uint256 maxDeposit = _REAL_ASSETS_LIMIT - loanToken.balanceOf(address(vault));
         loanToken.setBalance(depositor, maxDeposit);
         vm.prank(depositor);
         vault.deposit(maxDeposit, depositor);
@@ -504,9 +472,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
     }
 
     function _getPreview(uint256 _amountToUse) internal view virtual returns (uint256 preview) {
-        preview = _useRedeem()
-            ? vault.previewRedeem(_amountToUse)
-            : vault.previewWithdraw(_amountToUse);
+        preview = _useRedeem() ? vault.previewRedeem(_amountToUse) : vault.previewWithdraw(_amountToUse);
     }
 
     function _useRedeem() internal pure virtual returns (bool) {
@@ -576,7 +542,6 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         vm.stopPrank();
     }
 
-
     function _assertDepositorHasNothingToRedeem() internal view {
         assertEq(vault.maxRedeem(depositor), 0, "expect maxRedeem to be 0");
         assertEq(vault.balanceOf(depositor), 0, "expect share balance to be 0");
@@ -635,10 +600,7 @@ contract ERC4626TestExtra is VaultsLittleHelper {
         vm.stopPrank();
     }
 
-    function _previewMint_afterNoInterest(
-        uint112 _depositAmount,
-        uint112 _shares
-    ) internal {
+    function _previewMint_afterNoInterest(uint112 _depositAmount, uint112 _shares) internal {
         address any = makeAddr("any");
         vm.assume(_depositAmount > 0);
         vm.assume(_shares > 0);
@@ -677,5 +639,4 @@ contract ERC4626TestExtra is VaultsLittleHelper {
 
         assertLe(diff, 2, "diff should be less or equal than 2");
     }
-
 }

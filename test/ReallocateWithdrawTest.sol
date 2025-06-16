@@ -35,15 +35,9 @@ contract ReallocateWithdrawTest is IntegrationTest {
         allocations.push(MarketAllocation(idleVault, type(uint256).max));
 
         vm.expectEmit();
-        emit EventsLib.ReallocateWithdraw(
-            ALLOCATOR, allMarkets[0], CAP2, allMarkets[0].balanceOf(address(vault))
-        );
-        emit EventsLib.ReallocateWithdraw(
-            ALLOCATOR, allMarkets[1], CAP2, allMarkets[1].balanceOf(address(vault))
-        );
-        emit EventsLib.ReallocateWithdraw(
-            ALLOCATOR, allMarkets[2], CAP2, allMarkets[2].balanceOf(address(vault))
-        );
+        emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[0], CAP2, allMarkets[0].balanceOf(address(vault)));
+        emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[1], CAP2, allMarkets[1].balanceOf(address(vault)));
+        emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[2], CAP2, allMarkets[2].balanceOf(address(vault)));
 
         vm.prank(ALLOCATOR);
         vault.reallocate(allocations);
@@ -120,21 +114,9 @@ contract ReallocateWithdrawTest is IntegrationTest {
         vm.prank(ALLOCATOR);
         vault.reallocate(allocations);
 
-        assertEq(
-            allMarkets[0].balanceOf(address(vault)),
-            newAssets[0],
-            "balanceOf(0)"
-        );
-        assertEq(
-            allMarkets[1].balanceOf(address(vault)),
-            newAssets[1],
-            "balanceOf(1)"
-        );
-        assertEq(
-            allMarkets[2].balanceOf(address(vault)),
-            newAssets[2],
-            "balanceOf(2)"
-        );
+        assertEq(allMarkets[0].balanceOf(address(vault)), newAssets[0], "balanceOf(0)");
+        assertEq(allMarkets[1].balanceOf(address(vault)), newAssets[1], "balanceOf(1)");
+        assertEq(allMarkets[2].balanceOf(address(vault)), newAssets[2], "balanceOf(2)");
         assertEq(_idle(), expectedIdle, "idle");
     }
 
@@ -146,26 +128,16 @@ contract ReallocateWithdrawTest is IntegrationTest {
         allocations.push(MarketAllocation(allMarkets[2], 3 * CAP2));
 
         vm.expectEmit();
-        emit EventsLib.ReallocateWithdraw(
-            ALLOCATOR, allMarkets[0], CAP2, allMarkets[0].balanceOf(address(vault))
-        );
-        emit EventsLib.ReallocateWithdraw(
-            ALLOCATOR, allMarkets[1], CAP2, allMarkets[1].balanceOf(address(vault))
-        );
-        emit EventsLib.ReallocateSupply(
-            ALLOCATOR, allMarkets[2], 3 * CAP2, 3 * allMarkets[2].balanceOf(address(vault))
-        );
+        emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[0], CAP2, allMarkets[0].balanceOf(address(vault)));
+        emit EventsLib.ReallocateWithdraw(ALLOCATOR, allMarkets[1], CAP2, allMarkets[1].balanceOf(address(vault)));
+        emit EventsLib.ReallocateSupply(ALLOCATOR, allMarkets[2], 3 * CAP2, 3 * allMarkets[2].balanceOf(address(vault)));
 
         vm.prank(ALLOCATOR);
         vault.reallocate(allocations);
 
         assertEq(allMarkets[0].balanceOf(address(vault)), 0, "balanceOf(0)");
         assertEq(allMarkets[1].balanceOf(address(vault)), 0, "balanceOf(1)");
-        assertEq(
-            allMarkets[2].balanceOf(address(vault)),
-            3 * CAP2,
-            "balanceOf(2)"
-        );
+        assertEq(allMarkets[2].balanceOf(address(vault)), 3 * CAP2, "balanceOf(2)");
     }
 
     function testReallocateUnauthorizedMarket(uint256[3] memory suppliedAssets) public {

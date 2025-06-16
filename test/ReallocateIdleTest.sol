@@ -40,21 +40,9 @@ contract ReallocateIdleTest is IntegrationTest {
         vm.prank(ALLOCATOR);
         vault.reallocate(allocations);
 
-        assertEq(
-            allMarkets[0].balanceOf(address(vault)),
-            suppliedAssets[0],
-            "balanceOf(0)"
-        );
-        assertEq(
-            allMarkets[1].balanceOf(address(vault)),
-            suppliedAssets[1],
-            "balanceOf(1)"
-        );
-        assertEq(
-            allMarkets[2].balanceOf(address(vault)),
-            suppliedAssets[2],
-            "balanceOf(2)"
-        );
+        assertEq(allMarkets[0].balanceOf(address(vault)), suppliedAssets[0], "balanceOf(0)");
+        assertEq(allMarkets[1].balanceOf(address(vault)), suppliedAssets[1], "balanceOf(1)");
+        assertEq(allMarkets[2].balanceOf(address(vault)), suppliedAssets[2], "balanceOf(2)");
 
         uint256 expectedIdle = idleBefore - suppliedAssets[0] - suppliedAssets[1] - suppliedAssets[2];
         assertEq(_idle(), expectedIdle, "idle");
