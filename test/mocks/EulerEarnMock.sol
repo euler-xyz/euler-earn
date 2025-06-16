@@ -18,8 +18,8 @@ contract EulerEarnMock is EulerEarn {
         _setCap(id, supplyCap);
     }
 
-    function mockSimulateWithdrawEuler(uint256 assets) external view returns (uint256) {
-        return _simulateWithdrawEuler(assets);
+    function mockSimulateWithdrawStrategy(uint256 assets) external view returns (uint256) {
+        return _simulateWithdrawStrategy(assets);
     }
 
     function mockSetSupplyQueue(IERC4626[] memory ids) external {

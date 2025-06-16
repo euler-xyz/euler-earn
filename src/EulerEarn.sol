@@ -606,7 +606,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         newTotalSupply = totalSupply() + feeShares;
 
         assets = _convertToAssetsWithTotals(balanceOf(owner), newTotalSupply, newTotalAssets, Math.Rounding.Floor);
-        assets -= _simulateWithdrawEuler(assets);
+        assets -= _simulateWithdrawStrategy(assets);
     }
 
     /// @dev Returns the maximum amount of assets that the Earn vault can supply to the verified vaults.
@@ -673,7 +673,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
         emit Deposit(caller, receiver, assets, shares);
 
-        _supplyEuler(assets);
+        _supplyStrategy(assets);
 
         // `lastTotalAssets + assets` may be a little above `totalAssets()`.
         // This can lead to a small accrual of `lostAssets` at the next interaction.
@@ -695,7 +695,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         // clamp at 0 so the error raised is the more informative NotEnoughLiquidity.
         _updateLastTotalAssets(lastTotalAssets.zeroFloorSub(assets));
 
-        _withdrawEuler(assets);
+        _withdrawStrategy(assets);
 
         super._withdraw(caller, receiver, owner, assets, shares);
     }
@@ -773,7 +773,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     /* LIQUIDITY ALLOCATION */
 
     /// @dev Supplies `assets` to the verified vaults.
-    function _supplyEuler(uint256 assets) internal {
+    function _supplyStrategy(uint256 assets) internal {
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = supplyQueue[i];
 
@@ -799,7 +799,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     }
 
     /// @dev Withdraws `assets` from the verified vaults.
-    function _withdrawEuler(uint256 assets) internal {
+    function _withdrawStrategy(uint256 assets) internal {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
@@ -825,7 +825,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Simulates a withdraw of `assets` from the verified vaults.
     /// @return The remaining assets to be withdrawn.
-    function _simulateWithdrawEuler(uint256 assets) internal view returns (uint256) {
+    function _simulateWithdrawStrategy(uint256 assets) internal view returns (uint256) {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 

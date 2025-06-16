@@ -63,7 +63,7 @@ contract EulerEarnInternalTest is BaseTest {
         _toEVault(allMarkets[0]).borrow(borrowedAmount, BORROWER);
         vm.stopPrank();
 
-        uint256 remaining = eulerEarnMock.mockSimulateWithdrawEuler(assets);
+        uint256 remaining = eulerEarnMock.mockSimulateWithdrawStrategy(assets);
 
         uint256 expectedWithdrawable =
             _expectedSupplyAssets(allMarkets[0], address(eulerEarnMock)) - borrowedAmount;
