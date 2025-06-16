@@ -164,10 +164,10 @@ contract LostAssetsTest is IntegrationTest {
 
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-        uint256 snapshotId = vm.snapshot();
+        uint256 snapshotId = vm.snapshotState();
         vault.deposit(0, ONBEHALF); // update lostAssets.
         uint256 actuallyLost = vault.lostAssets();
-        vm.revertTo(snapshotId);
+        vm.revertToState(snapshotId);
 
         vm.expectEmit();
         emit EventsLib.UpdateLostAssets(actuallyLost);
