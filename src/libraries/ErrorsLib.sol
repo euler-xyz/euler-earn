@@ -129,4 +129,7 @@ library ErrorsLib {
 
     /// @notice Thrown when the maximum uint128 is exceeded.
     error MaxUint128Exceeded();
+
+    /// @notice Thrown when withdrawal is attempted to an address known to be an EVC sub-account
+    error BadAssetReceiver();
 }
