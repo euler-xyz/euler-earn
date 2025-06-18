@@ -145,7 +145,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Reverts if the caller doesn't have the curator role.
     modifier onlyCuratorRole() {
-        address msgSender = _authenticateCallerWithStandardContextState(true);
+        address msgSender = _msgSenderOnlyEVCAccountOwner();
         if (msgSender != curator && msgSender != owner()) revert ErrorsLib.NotCuratorRole();
 
         _;
@@ -153,7 +153,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Reverts if the caller doesn't have the allocator role.
     modifier onlyAllocatorRole() {
-        address msgSender = _authenticateCallerWithStandardContextState(true);
+        address msgSender = _msgSenderOnlyEVCAccountOwner();
         if (!isAllocator[msgSender] && msgSender != curator && msgSender != owner()) {
             revert ErrorsLib.NotAllocatorRole();
         }
@@ -163,7 +163,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Reverts if the caller doesn't have the guardian role.
     modifier onlyGuardianRole() {
-        address msgSender = _authenticateCallerWithStandardContextState(true);
+        address msgSender = _msgSenderOnlyEVCAccountOwner();
         if (msgSender != owner() && msgSender != guardian) revert ErrorsLib.NotGuardianRole();
 
         _;
@@ -171,7 +171,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Reverts if the caller doesn't have the curator nor the guardian role.
     modifier onlyCuratorOrGuardianRole() {
-        address msgSender = _authenticateCallerWithStandardContextState(true);
+        address msgSender = _msgSenderOnlyEVCAccountOwner();
         if (msgSender != guardian && msgSender != curator && msgSender != owner()) {
             revert ErrorsLib.NotCuratorNorGuardianRole();
         }
