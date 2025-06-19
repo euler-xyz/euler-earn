@@ -7,26 +7,29 @@ import "forge-std/Test.sol";
 
 contract AllowedStrategyTest is IntegrationTest {
     IERC4626 strategy;
-    function setUp() public override virtual {
+
+    function setUp() public virtual override {
         super.setUp();
 
         strategy = IERC4626(
-            factory.createProxy(
-                address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount)
-            )
+            factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
         );
     }
 
-   function testSetCapStrategyNotAllowed() public {
+    function testSetCapStrategyNotAllowed() public {
         vm.prank(CURATOR);
         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.UnauthorizedMarket.selector, (address(strategy))));
         vault.submitCap(strategy, 1e18);
-   }
+    }
 
-   function testSetCapNestedEEVault() public {
-        IERC4626 otherVault = IERC4626(address(eeFactory.createEulerEarn(
-            OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(2))
-        )));
+    function testSetCapNestedEEVault() public {
+        IERC4626 otherVault = IERC4626(
+            address(
+                eeFactory.createEulerEarn(
+                    OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(2))
+                )
+            )
+        );
         vm.prank(CURATOR);
         vault.submitCap(otherVault, 1e18);
         vm.warp(block.timestamp + vault.timelock());
@@ -34,9 +37,9 @@ contract AllowedStrategyTest is IntegrationTest {
         vault.acceptCap(otherVault);
 
         assertEq(address(vault.withdrawQueue(vault.withdrawQueueLength() - 1)), address(otherVault));
-   }
+    }
 
-   function testSetCapStrategyUnverifiedDuringTimelock() public {
+    function testSetCapStrategyUnverifiedDuringTimelock() public {
         perspective.perspectiveVerify(address(strategy));
 
         vm.startPrank(CURATOR);
@@ -62,9 +65,9 @@ contract AllowedStrategyTest is IntegrationTest {
         // still can't set new cap
         vm.expectRevert(abi.encodeWithSelector(ErrorsLib.UnauthorizedMarket.selector, (address(strategy))));
         vault.submitCap(strategy, 2e18);
-   }
+    }
 
-   function testSetCapStrategyUnverifiedCanSetLowerCap() public {
+    function testSetCapStrategyUnverifiedCanSetLowerCap() public {
         perspective.perspectiveVerify(address(strategy));
 
         vm.startPrank(CURATOR);
@@ -82,5 +85,5 @@ contract AllowedStrategyTest is IntegrationTest {
         // but can decrease it
         vault.submitCap(strategy, 0.5e18);
         assertEq(vault.config(strategy).cap, 0.5e18);
-   }
+    }
 }
