@@ -686,10 +686,17 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     /// 1. NotEnoughLiquidity when withdrawing more than available liquidity.
     /// 2. ERC20InsufficientAllowance when withdrawing more than `caller`'s allowance.
     /// 3. ERC20InsufficientBalance when withdrawing more than `owner`'s balance.
+    /// @dev The function prevents sending assets to addresses which are known to be EVC sub-accounts
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
         internal
         override
     {
+        // assets sent to EVC sub-accounts would be lost, as the private key for a sub-account is not known
+        address evcOwner = evc.getAccountOwner(receiver);
+        if (evcOwner != address(0) && evcOwner != receiver) {
+            revert ErrorsLib.BadAssetReceiver();
+        }
+
         // `lastTotalAssets - assets` may be a little above `totalAssets()`.
         // This can lead to a small accrual of `lostAssets` at the next interaction.
         // clamp at 0 so the error raised is the more informative NotEnoughLiquidity.
