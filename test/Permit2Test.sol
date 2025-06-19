@@ -10,7 +10,7 @@ contract Permit2Test is IntegrationTest {
     IEulerEarn internal vaultWithPermit2;
     IEulerEarn internal vaultWithoutPermit2;
 
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         vaultWithPermit2 = eeFactory.createEulerEarn(
@@ -46,7 +46,9 @@ contract Permit2Test is IntegrationTest {
         vaultWithPermit2.deposit(1e18, depositor);
 
         loanToken.approve(permit2, type(uint256).max);
-        IAllowanceTransfer(permit2).approve(address(loanToken), address(vaultWithPermit2), type(uint160).max, type(uint48).max);
+        IAllowanceTransfer(permit2).approve(
+            address(loanToken), address(vaultWithPermit2), type(uint160).max, type(uint48).max
+        );
 
         vaultWithPermit2.deposit(1e18, depositor);
         assertEq(vaultWithPermit2.balanceOf(depositor), 1e18);
@@ -63,7 +65,9 @@ contract Permit2Test is IntegrationTest {
         vaultWithPermit2.deposit(1e18, depositor);
 
         loanToken.approve(permit2, type(uint256).max);
-        IAllowanceTransfer(permit2).approve(address(loanToken), address(vaultWithPermit2), type(uint160).max, uint48(block.timestamp + 1));
+        IAllowanceTransfer(permit2).approve(
+            address(loanToken), address(vaultWithPermit2), type(uint160).max, uint48(block.timestamp + 1)
+        );
 
         skip(2);
 
@@ -87,7 +91,9 @@ contract Permit2Test is IntegrationTest {
         vaultWithoutPermit2.deposit(1e18, depositor);
 
         loanToken.approve(permit2, type(uint256).max);
-        IAllowanceTransfer(permit2).approve(address(loanToken), address(vaultWithoutPermit2), type(uint160).max, type(uint48).max);
+        IAllowanceTransfer(permit2).approve(
+            address(loanToken), address(vaultWithoutPermit2), type(uint160).max, type(uint48).max
+        );
 
         vm.expectRevert();
         vaultWithoutPermit2.deposit(1e18, depositor);
@@ -98,7 +104,8 @@ contract Permit2Test is IntegrationTest {
     }
 
     function testSetCapsCreatesAndRemovesPermit2AllowancesForMarketsWithPermit2() public {
-        (uint160 amount, uint48 expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (uint160 amount, uint48 expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);
@@ -106,7 +113,8 @@ contract Permit2Test is IntegrationTest {
 
         _setCap(vaultWithPermit2, allMarkets[0], 100e18);
 
-        (amount, expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (amount, expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, type(uint160).max);
         assertEq(expiration, type(uint48).max);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), type(uint256).max);
@@ -115,7 +123,8 @@ contract Permit2Test is IntegrationTest {
         // remove allowances when setting cap to 0
         _setCap(vaultWithPermit2, allMarkets[0], 0);
 
-        (amount, expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (amount, expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, block.timestamp); // Permit2 sets block.timestamp when called with expiration = 0
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 0);
@@ -124,7 +133,8 @@ contract Permit2Test is IntegrationTest {
     }
 
     function testSetCapsCreatesAndRemovesERC20AllowancesForMarketsWithoutPermit2() public {
-        (uint160 amount, uint48 expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (uint160 amount, uint48 expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);
@@ -133,7 +143,8 @@ contract Permit2Test is IntegrationTest {
         vm.mockCall(address(allMarkets[0]), abi.encodeWithSignature("permit2Address()"), abi.encode(address(0)));
         _setCap(vaultWithPermit2, allMarkets[0], 100e18);
 
-        (amount, expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (amount, expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);
@@ -141,7 +152,8 @@ contract Permit2Test is IntegrationTest {
 
         // remove allowances when setting cap to 0
         _setCap(vaultWithPermit2, allMarkets[0], 0);
-        (amount, expiration,) = IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
+        (amount, expiration,) =
+            IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);

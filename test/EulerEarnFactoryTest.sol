@@ -67,7 +67,7 @@ contract EulerEarnFactoryTest is IntegrationTest {
 
         vm.expectRevert(ErrorsLib.ZeroAddress.selector);
         eeFactory.setPerspective(address(0));
-        
+
         eeFactory.setPerspective(newPerspective);
         assertEq(eeFactory.supportedPerspective(), newPerspective);
     }
@@ -89,9 +89,11 @@ contract EulerEarnFactoryTest is IntegrationTest {
         address[] memory vaultsList = new address[](amountVaults);
 
         for (uint256 i; i < amountVaults; i++) {
-            address vault = address(factory.createEulerEarn(
-                OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(i))
-            ));
+            address vault = address(
+                factory.createEulerEarn(
+                    OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(i))
+                )
+            );
             vaultsList[i] = vault;
         }
 
