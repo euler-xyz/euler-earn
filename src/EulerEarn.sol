@@ -287,7 +287,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     /// @inheritdoc IEulerEarnBase
     function submitCap(IERC4626 id, uint256 newSupplyCap) external nonReentrant onlyCuratorRole {
         if (id.asset() != asset()) revert ErrorsLib.InconsistentAsset(id);
-        if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
         if (pendingCap[id].validAt != 0) revert ErrorsLib.AlreadyPending();
         if (config[id].removableAt != 0) revert ErrorsLib.PendingRemoval();
         uint256 supplyCap = config[id].cap;
@@ -296,6 +295,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         if (newSupplyCap < supplyCap) {
             _setCap(id, newSupplyCap.toUint184());
         } else {
+            if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
+
             pendingCap[id].update(newSupplyCap.toUint184(), timelock);
 
             emit EventsLib.SubmitCap(_msgSender(), id, newSupplyCap);
@@ -487,6 +488,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @inheritdoc IEulerEarnBase
     function acceptCap(IERC4626 id) external afterTimelock(pendingCap[id].validAt) {
+        if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
+
         // Safe "unchecked" cast because pendingCap <= type(uint184).max.
         _setCap(id, uint184(pendingCap[id].value));
     }
