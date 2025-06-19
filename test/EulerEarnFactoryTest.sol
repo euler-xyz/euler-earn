@@ -54,4 +54,81 @@ contract EulerEarnFactoryTest is IntegrationTest {
         assertEq(eulerEarn.name(), name, "name");
         assertEq(eulerEarn.symbol(), symbol, "symbol");
     }
+
+    function testSupportedPerspective() public {
+        assertEq(eeFactory.supportedPerspective(), address(perspective));
+
+        address newPerspective = makeAddr("new perspective");
+        vm.expectRevert();
+        vm.prank(makeAddr("not admin"));
+        eeFactory.setPerspective(newPerspective);
+
+        vm.startPrank(admin);
+
+        vm.expectRevert(ErrorsLib.ZeroAddress.selector);
+        eeFactory.setPerspective(address(0));
+        
+        eeFactory.setPerspective(newPerspective);
+        assertEq(eeFactory.supportedPerspective(), newPerspective);
+    }
+
+    function testIsStrategyAllowed() public {
+        address newStrategy = makeAddr("new strategy");
+
+        assertFalse(eeFactory.isStrategyAllowed(newStrategy));
+
+        perspective.perspectiveVerify(newStrategy);
+
+        assertTrue(eeFactory.isStrategyAllowed(newStrategy));
+    }
+
+    function testGetVaults() public {
+        EulerEarnFactory factory = new EulerEarnFactory(admin, address(evc), address(permit2), address(perspective));
+
+        uint256 amountVaults = 10;
+        address[] memory vaultsList = new address[](amountVaults);
+
+        for (uint256 i; i < amountVaults; i++) {
+            address vault = address(factory.createEulerEarn(
+                OWNER, TIMELOCK, address(loanToken), "EulerEarn Vault", "EEV", bytes32(uint256(i))
+            ));
+            vaultsList[i] = vault;
+        }
+
+        uint256 len = factory.getVaultListLength();
+
+        assertEq(len, amountVaults);
+
+        address[] memory listVaultsTest;
+        address[] memory listFactory;
+
+        // get all vaults
+        uint256 startIndex = 0;
+        uint256 endIndex = type(uint256).max;
+
+        listFactory = factory.getVaultListSlice(startIndex, endIndex);
+
+        listVaultsTest = vaultsList;
+
+        assertEq(listFactory, listVaultsTest);
+
+        //test getvaultsList(3, 10) - get [3,10) slice
+        startIndex = 3;
+        endIndex = 10;
+
+        listFactory = factory.getVaultListSlice(startIndex, endIndex);
+
+        listVaultsTest = new address[](endIndex - startIndex);
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            listVaultsTest[i - startIndex] = vaultsList[i];
+        }
+
+        assertEq(listFactory, listVaultsTest);
+
+        vm.expectRevert(ErrorsLib.BadQuery.selector);
+        factory.getVaultListSlice(endIndex, startIndex);
+
+        vm.expectRevert(ErrorsLib.BadQuery.selector);
+        factory.getVaultListSlice(startIndex, endIndex + 1);
+    }
 }
