@@ -125,36 +125,40 @@ contract IntegrationTest is BaseTest {
         assertEq(vault.fee(), newFee, "_setFee");
     }
 
-    function _setCap(IERC4626 id, uint256 newCap) internal {
-        uint256 cap = vault.config(id).cap;
-        bool isEnabled = vault.config(id).enabled;
+    function _setCap(IEulerEarn _vault, IERC4626 id, uint256 newCap) internal {
+        uint256 cap = _vault.config(id).cap;
+        bool isEnabled = _vault.config(id).enabled;
         if (newCap == cap) return;
 
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint192 memory pendingCap = _vault.pendingCap(id);
         if (pendingCap.validAt == 0 || newCap != pendingCap.value) {
             vm.prank(CURATOR);
-            vault.submitCap(id, newCap);
+            _vault.submitCap(id, newCap);
         }
 
         if (newCap < cap) return;
 
-        vm.warp(block.timestamp + vault.timelock());
+        vm.warp(block.timestamp + _vault.timelock());
 
-        vault.acceptCap(id);
+        _vault.acceptCap(id);
 
-        assertEq(vault.config(id).cap, newCap, "_setCap");
+        assertEq(_vault.config(id).cap, newCap, "_setCap");
 
         if (newCap > 0) {
             if (!isEnabled) {
-                IERC4626[] memory newSupplyQueue = new IERC4626[](vault.supplyQueueLength() + 1);
-                for (uint256 k; k < vault.supplyQueueLength(); k++) {
-                    newSupplyQueue[k] = vault.supplyQueue(k);
+                IERC4626[] memory newSupplyQueue = new IERC4626[](_vault.supplyQueueLength() + 1);
+                for (uint256 k; k < _vault.supplyQueueLength(); k++) {
+                    newSupplyQueue[k] = _vault.supplyQueue(k);
                 }
-                newSupplyQueue[vault.supplyQueueLength()] = id;
+                newSupplyQueue[_vault.supplyQueueLength()] = id;
                 vm.prank(ALLOCATOR);
-                vault.setSupplyQueue(newSupplyQueue);
+                _vault.setSupplyQueue(newSupplyQueue);
             }
         }
+    }
+
+    function _setCap(IERC4626 id, uint256 newCap) internal {
+        _setCap(vault, id, newCap);
     }
 
     function _sortSupplyQueueIdleLast() internal {
