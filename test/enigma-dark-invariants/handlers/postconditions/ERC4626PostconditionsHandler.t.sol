@@ -2,8 +2,7 @@
 pragma solidity ^0.8.19;
 
 // Interfaces
-import {IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IERC4626} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Libraries
 import "forge-std/console.sol";
@@ -22,71 +21,79 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                   PROPERTIES: NON-REVERT                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
-/* 
-    function assert_ERC4626_DEPOSIT_INVARIANT_C() external setup {
+
+    function assert_ERC4626_DEPOSIT_INVARIANT_C(uint8 i) external setup {
+        address target_ = _getRandomEulerEarnVault(i);
+
         address _account = address(actor);
-        uint256 maxDeposit = vault.maxDeposit(_account);
-        uint256 accountBalance = asset.balanceOf(_account);
+        uint256 maxDeposit = IEulerEarn(target_).maxDeposit(_account);
+        uint256 accountBalance = loanToken.balanceOf(_account);
 
         if (accountBalance < maxDeposit) {
-            asset.mint(_account, maxDeposit - asset.balanceOf(_account));
+            loanToken.mint(_account, maxDeposit - loanToken.balanceOf(_account));
         }
 
         if (maxDeposit != 0) {
             vm.prank(_account);
-            try vault.deposit(maxDeposit, _account) returns (uint256 shares) {
+            try IEulerEarn(target_).deposit(maxDeposit, _account) returns (uint256 shares) {
                 /// @dev restore original state to not break invariants
                 vm.prank(_account);
-                vault.redeem(shares, address(0), _account);
+                IEulerEarn(target_).redeem(shares, address(0), _account);
             } catch {
                 assertTrue(false, ERC4626_DEPOSIT_INVARIANT_C);
             }
         }
     }
 
-    function assert_ERC4626_MINT_INVARIANT_C() public setup {
-        address _account = address(actor);
-        uint256 maxMint = vault.maxMint(_account);
-        uint256 accountBalance = asset.balanceOf(_account);
+    function assert_ERC4626_MINT_INVARIANT_C(uint8 i) public setup {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 maxMintToAssets = vault.convertToAssets(maxMint);
+        address _account = address(actor);
+        uint256 maxMint = IEulerEarn(target_).maxMint(_account);
+        uint256 accountBalance = loanToken.balanceOf(_account);
+
+        uint256 maxMintToAssets = IEulerEarn(target_).convertToAssets(maxMint);
 
         if (accountBalance < maxMintToAssets) {
-            asset.mint(_account, maxMintToAssets - asset.balanceOf(_account));
+            loanToken.mint(_account, maxMintToAssets - loanToken.balanceOf(_account));
         }
 
         if (maxMint != 0) {
             vm.prank(_account);
-            try vault.mint(maxMint, _account) {
+            try IEulerEarn(target_).mint(maxMint, _account) {
                 /// @dev restore original state to not break invariants
                 vm.prank(_account);
-                vault.redeem(maxMint, address(0), _account);
+                IEulerEarn(target_).redeem(maxMint, address(0), _account);
             } catch {
                 assertTrue(false, ERC4626_MINT_INVARIANT_C);
             }
         }
     }
 
-    function assert_ERC4626_WITHDRAW_INVARIANT_C() public setup {
+    function assert_ERC4626_WITHDRAW_INVARIANT_C(uint8 i) public setup {
+        address target_ = _getRandomEulerEarnVault(i);
+
         address _account = address(actor);
-        uint256 maxWithdraw = vault.maxWithdraw(_account);
+        uint256 maxWithdraw = IEulerEarn(target_).maxWithdraw(_account);
 
         if (maxWithdraw != 0) {
             vm.prank(_account);
-            try vault.withdraw(maxWithdraw, _account, _account) {}
+            try IEulerEarn(target_).withdraw(maxWithdraw, _account, _account) {}
             catch {
                 assertTrue(false, ERC4626_WITHDRAW_INVARIANT_C);
             }
         }
     }
 
-    function assert_ERC4626_REDEEM_INVARIANT_C() public setup {
+    function assert_ERC4626_REDEEM_INVARIANT_C(uint8 i) public setup {
+        address target_ = _getRandomEulerEarnVault(i);
+
         address _account = address(actor);
-        uint256 maxRedeem = vault.maxRedeem(_account);
+        uint256 maxRedeem = IEulerEarn(target_).maxRedeem(_account);
 
         if (maxRedeem != 0) {
             vm.prank(_account);
-            try vault.redeem(maxRedeem, _account, _account) {}
+            try IEulerEarn(target_).redeem(maxRedeem, _account, _account) {}
             catch {
                 assertTrue(false, ERC4626_REDEEM_INVARIANT_C); //test_replay_assert_ERC4626_REDEEM_INVARIANT_C
             }
@@ -97,100 +104,120 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
     //                                   PROPERTIES: ROUNDTRIP                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_A(uint256 _assets) external {
-        _mintAndApprove(address(vault.asset()), address(this), address(vault), _assets);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_A(uint256 _assets, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 shares = vault.deposit(_assets, address(this));
+        _mintAndApprove(address(IEulerEarn(target_).asset()), address(this), target_, _assets);
 
-        uint256 redeemedAssets = vault.redeem(shares, address(this), address(this));
+        uint256 shares = IEulerEarn(target_).deposit(_assets, address(this));
+
+        uint256 redeemedAssets = IEulerEarn(target_).redeem(shares, address(this), address(this));
 
         assertLe(redeemedAssets, _assets, ERC4626_ROUNDTRIP_INVARIANT_A);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_B(uint256 _assets) external {
-        _mintAndApprove(address(vault.asset()), address(this), address(vault), _assets);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_B(uint256 _assets, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 shares = vault.deposit(_assets, address(this));
+        _mintAndApprove(address(IEulerEarn(target_).asset()), address(this), target_, _assets);
 
-        uint256 withdrawnShares = vault.withdraw(_assets, address(this), address(this));
+        uint256 shares = IEulerEarn(target_).deposit(_assets, address(this));
+
+        uint256 withdrawnShares = IEulerEarn(target_).withdraw(_assets, address(this), address(this));
 
         /// @dev restore original state to not break invariants
-        vault.redeem(vault.balanceOf(address(this)), address(this), address(this));
+        IEulerEarn(target_).redeem(IEulerEarn(target_).balanceOf(address(this)), address(this), address(this));
 
         assertGe(withdrawnShares, shares, ERC4626_ROUNDTRIP_INVARIANT_B);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_C(uint256 _shares) external {
-        _mintApproveAndMint(address(vault), address(this), _shares);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_C(uint256 _shares, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 redeemedAssets = vault.redeem(_shares, address(this), address(this));
+        _mintApproveAndMint(target_, address(this), _shares);
 
-        uint256 mintedShares = vault.deposit(redeemedAssets, address(this));
+        uint256 redeemedAssets = IEulerEarn(target_).redeem(_shares, address(this), address(this));
+
+        uint256 mintedShares = IEulerEarn(target_).deposit(redeemedAssets, address(this));
 
         /// @dev restore original state to not break invariants
-        vault.redeem(mintedShares, address(this), address(this));
+        IEulerEarn(target_).redeem(mintedShares, address(this), address(this));
 
         assertLe(mintedShares, _shares, ERC4626_ROUNDTRIP_INVARIANT_C);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_D(uint256 _shares) external {
-        _mintApproveAndMint(address(vault), address(this), _shares);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_D(uint256 _shares, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 redeemedAssets = vault.redeem(_shares, address(this), address(this));
+        _mintApproveAndMint(target_, address(this), _shares);
 
-        uint256 depositedAssets = vault.mint(_shares, address(this));
+        uint256 redeemedAssets = IEulerEarn(target_).redeem(_shares, address(this), address(this));
+
+        uint256 depositedAssets = IEulerEarn(target_).mint(_shares, address(this));
 
         /// @dev restore original state to not break invariants
-        vault.withdraw(depositedAssets, address(this), address(this));
+        IEulerEarn(target_).withdraw(depositedAssets, address(this), address(this));
 
         assertGe(depositedAssets, redeemedAssets, ERC4626_ROUNDTRIP_INVARIANT_D);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_E(uint256 _shares) external {
-        _mintAndApprove(address(vault.asset()), address(this), address(vault), vault.convertToAssets(_shares));
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_E(uint256 _shares, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 depositedAssets = vault.mint(_shares, address(this));
+        _mintAndApprove(
+            address(IEulerEarn(target_).asset()), address(this), target_, IEulerEarn(target_).convertToAssets(_shares)
+        );
 
-        uint256 withdrawnShares = vault.withdraw(depositedAssets, address(this), address(this));
+        uint256 depositedAssets = IEulerEarn(target_).mint(_shares, address(this));
+
+        uint256 withdrawnShares = IEulerEarn(target_).withdraw(depositedAssets, address(this), address(this));
 
         /// @dev restore original state to not break invariants
-        vault.redeem(vault.balanceOf(address(this)), address(this), address(this));
+        IEulerEarn(target_).redeem(IEulerEarn(target_).balanceOf(address(this)), address(this), address(this));
 
         assertGe(withdrawnShares, _shares, ERC4626_ROUNDTRIP_INVARIANT_E);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_F(uint256 _shares) external {
-        _mintAndApprove(address(vault.asset()), address(this), address(vault), vault.convertToAssets(_shares));
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_F(uint256 _shares, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 depositedAssets = vault.mint(_shares, address(this));
+        _mintAndApprove(
+            address(IEulerEarn(target_).asset()), address(this), target_, IEulerEarn(target_).convertToAssets(_shares)
+        );
 
-        uint256 redeemedAssets = vault.redeem(_shares, address(this), address(this));
+        uint256 depositedAssets = IEulerEarn(target_).mint(_shares, address(this));
+
+        uint256 redeemedAssets = IEulerEarn(target_).redeem(_shares, address(this), address(this));
 
         assertLe(redeemedAssets, depositedAssets, ERC4626_ROUNDTRIP_INVARIANT_F);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_G(uint256 _assets) external {
-        _mintApproveAndDeposit(address(vault), address(this), _assets);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_G(uint256 _assets, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 redeemedShares = vault.withdraw(_assets, address(this), address(this));
+        _mintApproveAndDeposit(target_, address(this), _assets);
 
-        uint256 depositedAssets = vault.mint(redeemedShares, address(this));
+        uint256 redeemedShares = IEulerEarn(target_).withdraw(_assets, address(this), address(this));
+
+        uint256 depositedAssets = IEulerEarn(target_).mint(redeemedShares, address(this));
 
         /// @dev restore original state to not break invariants
-        vault.redeem(vault.balanceOf(address(this)), address(this), address(this));
+        IEulerEarn(target_).redeem(IEulerEarn(target_).balanceOf(address(this)), address(this), address(this));
 
         assertGe(depositedAssets, _assets, ERC4626_ROUNDTRIP_INVARIANT_G);
     }
 
-    function assert_ERC4626_ROUNDTRIP_INVARIANT_H(uint256 _assets) external {
-        _mintApproveAndDeposit(address(vault), address(this), _assets);
+    function assert_ERC4626_ROUNDTRIP_INVARIANT_H(uint256 _assets, uint8 i) external {
+        address target_ = _getRandomEulerEarnVault(i);
 
-        uint256 redeemedShares = vault.withdraw(_assets, address(this), address(this));
+        _mintApproveAndDeposit(target_, address(this), _assets);
 
-        uint256 mintedShares = vault.deposit(_assets, address(this));
+        uint256 redeemedShares = IEulerEarn(target_).withdraw(_assets, address(this), address(this));
+
+        uint256 mintedShares = IEulerEarn(target_).deposit(_assets, address(this));
 
         /// @dev restore original state to not break invariants
-        vault.redeem(vault.balanceOf(address(this)), address(this), address(this));
+        IEulerEarn(target_).redeem(IEulerEarn(target_).balanceOf(address(this)), address(this), address(this));
 
         assertLe(mintedShares, redeemedShares, ERC4626_ROUNDTRIP_INVARIANT_H);
     }
@@ -199,10 +226,6 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
     //                                  PROPERTIES: ACCOUNTING                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_INV_ACCOUNTING_B(uint256 amount) external { // TODO check this property
-            //assertEq(vault.convertToShares(vault.convertToAssets(amount)), amount, INV_ACCOUNTING_B);
-    }
- *///TODO revisit these
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                           HELPERS                                         //
     ///////////////////////////////////////////////////////////////////////////////////////////////

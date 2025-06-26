@@ -39,7 +39,7 @@ contract GovernanceModuleHandler is BaseHandler {
         }
     }
 
-    function setLTV(uint16 borrowLTV, uint16 liquidationLTV, uint24 rampDuration, uint8 i) external {
+    function setLTV(uint16 borrowLTV, uint16 liquidationLTV, uint24 rampDuration, uint8 i) external directCallCleanup {
         address collateral = address(eTST);
         target = _getRandomLoanVault(i);
 
@@ -51,7 +51,7 @@ contract GovernanceModuleHandler is BaseHandler {
         _after();
     }
 
-    function setInterestFee(uint16 interestFee, uint8 i) external {
+    function setInterestFee(uint16 interestFee, uint8 i) external directCallCleanup {
         target = _getRandomLoanVault(i);
 
         _before();
@@ -59,7 +59,7 @@ contract GovernanceModuleHandler is BaseHandler {
         _after();
     }
 
-    function setDebtSocialization(bool status, uint8 i) external {
+    function setDebtSocialization(bool status, uint8 i) external directCallCleanup {
         target = _getRandomLoanVault(i);
 
         uint32 bitmask = IEVault(target).configFlags();
@@ -71,7 +71,7 @@ contract GovernanceModuleHandler is BaseHandler {
         _after();
     }
 
-    function setCaps(uint16 supplyCap, uint16 borrowCap, uint8 i) external {
+    function setCaps(uint16 supplyCap, uint16 borrowCap, uint8 i) external directCallCleanup {
         target = _getRandomEVault(i);
 
         _before();

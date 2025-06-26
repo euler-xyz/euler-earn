@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 // Utils
 import {Base} from "lib/euler-vault-kit/src/EVault/shared/Base.sol";
 import {DeployPermit2} from "./utils/DeployPermit2.sol";
+import "src/libraries/PendingLib.sol";
 
 // Contracts
 import {GenericFactory} from "lib/euler-vault-kit/src/GenericFactory/GenericFactory.sol";
@@ -21,10 +22,13 @@ import {Governance} from "lib/euler-vault-kit/src/EVault/modules/Governance.sol"
 import {EVault} from "lib/euler-vault-kit/src/EVault/EVault.sol";
 import {IRMTestDefault} from "lib/euler-vault-kit/test/mocks/IRMTestDefault.sol";
 import {EulerEarnFactory} from "src/EulerEarnFactory.sol";
+import {PublicAllocator} from "src/PublicAllocator.sol";
 
 // Interfaces
 import {IERC4626} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {IEVault} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
+import {IPublicAllocator} from "src/interfaces/IPublicAllocator.sol";
 
 // Test Contracts
 import {TestERC20} from "./utils/mocks/TestERC20.sol";
@@ -130,7 +134,9 @@ contract Setup is BaseTest {
         );
         vm.label(address(eTST), "eTST (Collateral Vault)");
         eTST.setHookConfig(address(0), 0);
-        _pushEVault(address(eTST), false);
+        allVaults.push(IERC4626(address(eTST)));
+        eVaults.push(IEVault(address(eTST)));
+        allAssets.push(address(eTST));
 
         // Loan Vault eTST2
         eTST2 = IEVault(
@@ -142,7 +148,6 @@ contract Setup is BaseTest {
         eTST2.setMaxLiquidationDiscount(0.2e4);
         eTST2.setLTV(address(eTST), 0.8e4, 0.8e4, 0);
         perspective.perspectiveVerify(address(eTST2));
-        _pushEVault(address(eTST2), true);
 
         // Loan Vault eTST3
         eTST3 = IEVault(
@@ -181,24 +186,38 @@ contract Setup is BaseTest {
         eulerEarn2.setFeeRecipient(FEE_RECIPIENT);
         allAssets.push(address(eulerEarn2));
         allVaults.push(IERC4626(address(eulerEarn2)));
-        allMarkets.push(IERC4626(address(eulerEarn2)));
         eulerEarnVaults.push(address(eulerEarn2));
 
+        _pushEVault(address(eTST2), true);
+        _pushEVault(address(eTST3), true);
+        allMarkets[address(eulerEarn)].push(IERC4626(address(eulerEarn2)));
+
         // Set Infinite Cap for Idle Vault
-        eulerEarn.submitCap(idleVault, type(uint184).max);
-        eulerEarn2.submitCap(idleVault, type(uint184).max);
-        vm.warp(block.timestamp + eulerEarn.timelock());
-        eulerEarn.acceptCap(idleVault);
-        eulerEarn2.acceptCap(idleVault);
+        _setCap(eulerEarn, address(idleVault), type(uint184).max);
+        _setCap(eulerEarn2, address(idleVault), type(uint184).max);
 
         // Idle Vault must be pushed last
         _pushEVault(address(idleVault), false);
 
-        // TODO missing public allocator
+        publicAllocator = IPublicAllocator(address(new PublicAllocator(address(evc))));
+        eulerEarn.setIsAllocator(address(publicAllocator), true);
+
+        // Set initial caps for the supply markets of eulerEarn
+        _setCap(eulerEarn, address(eTST2), CAP2);
+        _setCap(eulerEarn, address(eTST3), CAP3);
+        _setCap(eulerEarn, address(eulerEarn2), CAP1);
+
+        // Set initial caps for the supply markets of eulerEarn2
+        _setCap(eulerEarn2, address(eTST2), CAP2);
+        _setCap(eulerEarn2, address(eTST3), CAP3);
+
+        _sortSupplyQueueIdleLast(eulerEarn);
+        _sortSupplyQueueIdleLast(eulerEarn2);
     }
 
     function _pushEVault(address _eVault, bool _isLoanVault) internal {
-        allMarkets.push(IERC4626(_eVault));
+        allMarkets[address(eulerEarn)].push(IERC4626(_eVault));
+        allMarkets[address(eulerEarn2)].push(IERC4626(_eVault));
         allVaults.push(IERC4626(_eVault));
         eVaults.push(IEVault(_eVault));
         if (_isLoanVault) {
@@ -270,29 +289,58 @@ contract Setup is BaseTest {
     //                                          HELPERS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*     function _sortLoanMarkets() internal {TODO check if this is needed
-        uint256 length = unsortedMarkets.length;
-        address[] memory sortedMarkets = new address[](length);
+    function _setCap(IEulerEarn _vault, address _id, uint256 newCap) internal {
+        IERC4626 id = IERC4626(_id);
+        uint256 cap = _vault.config(id).cap;
+        bool isEnabled = _vault.config(id).enabled;
+        if (newCap == cap) return;
 
-        // Copy unsortedMarkets into sortedMarkets
-        for (uint256 i = 0; i < length; i++) {
-            sortedMarkets[i] = address(unsortedMarkets[i]);
+        PendingUint192 memory pendingCap = _vault.pendingCap(id);
+        if (pendingCap.validAt == 0 || newCap != pendingCap.value) {
+            _vault.submitCap(id, newCap);
         }
 
-        // Sort using Bubble Sort
-        for (uint256 i = 0; i < length - 1; i++) {
-            for (uint256 j = 0; j < length - i - 1; j++) {
-                if (sortedMarkets[j] > sortedMarkets[j + 1]) {
-                    (sortedMarkets[j], sortedMarkets[j + 1]) = (sortedMarkets[j + 1], sortedMarkets[j]);
+        if (newCap < cap) return;
+
+        vm.warp(block.timestamp + _vault.timelock());
+
+        _vault.acceptCap(id);
+
+        assertEq(_vault.config(id).cap, newCap, "_setCap");
+
+        if (newCap > 0) {
+            if (!isEnabled) {
+                IERC4626[] memory newSupplyQueue = new IERC4626[](_vault.supplyQueueLength() + 1);
+                for (uint256 k; k < _vault.supplyQueueLength(); k++) {
+                    newSupplyQueue[k] = _vault.supplyQueue(k);
                 }
+                newSupplyQueue[_vault.supplyQueueLength()] = id;
+                _vault.setSupplyQueue(newSupplyQueue);
             }
         }
+    }
 
-        // Push sorted addresses into the markets array
-        for (uint256 i = 0; i < length; i++) {
-            markets.push(IERC4626(sortedMarkets[i]));
+    function _sortSupplyQueueIdleLast(IEulerEarn _vault) internal {
+        IERC4626[] memory supplyQueue = new IERC4626[](_vault.supplyQueueLength());
+
+        uint256 supplyIndex;
+        for (uint256 i; i < supplyQueue.length; ++i) {
+            IERC4626 id = _vault.supplyQueue(i);
+            if (id == idleVault) continue;
+
+            supplyQueue[supplyIndex] = id;
+            ++supplyIndex;
         }
-    } */
+
+        supplyQueue[supplyIndex] = idleVault;
+        ++supplyIndex;
+
+        assembly {
+            mstore(supplyQueue, supplyIndex)
+        }
+
+        _vault.setSupplyQueue(supplyQueue);
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          LOGGING                                          //

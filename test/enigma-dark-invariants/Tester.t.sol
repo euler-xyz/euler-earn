@@ -26,8 +26,4 @@ contract Tester is Invariants, Setup {
         // Initialize the actor to the first user
         _setUpHooks();
     }
-
-    function testAux() public {
-        console.log("testAux");
-    }
 }

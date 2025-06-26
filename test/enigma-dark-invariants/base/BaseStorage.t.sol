@@ -17,6 +17,7 @@ import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/
 import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 import {IEulerEarnFactory} from "src/interfaces/IEulerEarnFactory.sol";
 import {IEVault} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IPublicAllocator} from "src/interfaces/IPublicAllocator.sol";
 
 // Mock Contracts
 import {TestERC20} from "../utils/mocks/TestERC20.sol";
@@ -108,6 +109,9 @@ abstract contract BaseStorage {
     /// @notice Euler Earn vault factory
     IEulerEarnFactory internal eulerEarnFactory;
 
+    /// @notice Public allocator
+    IPublicAllocator internal publicAllocator;
+
     // TEST ASSETS
 
     /// @notice Collateral token, only used for collateral vault eTST
@@ -172,8 +176,8 @@ abstract contract BaseStorage {
     /// @notice Array of all vaults on the suite; EVaults & EulerEarn
     IERC4626[] internal allVaults;
 
-    /// @notice Array of markets for eulerEarn: eTST, eTST2, eTST3, eulerEarn2, idleVault
-    IERC4626[] internal allMarkets;
+    /// @notice Array of supply markets for eulerEarn: eTST2, eTST3, eulerEarn2, idleVault
+    mapping(address => IERC4626[]) internal allMarkets;
 
     /// @notice Array of all EVaults on the suite: eTST, eTST2, eTST3, idleVault
     IEVault[] internal eVaults;

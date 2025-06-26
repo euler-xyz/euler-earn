@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 // Interfaces
 import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {IEulerEarnHandler} from "../interfaces/IEulerEarnHandler.sol";
 
 // Libraries
 import "forge-std/console.sol";
@@ -13,7 +14,7 @@ import {BaseHandler} from "../../base/BaseHandler.t.sol";
 
 /// @title EulerEarnHandler
 /// @notice Handler test contract for a set of actions
-abstract contract EulerEarnHandler is BaseHandler {
+abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      STATE VARIABLES                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,6 +32,8 @@ abstract contract EulerEarnHandler is BaseHandler {
 
         target = _getRandomEulerEarnVault(j);
 
+        console.log("target", target);
+
         uint256 previewedShares = IERC4626(target).previewDeposit(_assets);
 
         _before();
@@ -41,22 +44,24 @@ abstract contract EulerEarnHandler is BaseHandler {
 
             uint256 shares = abi.decode(returnData, (uint256));
 
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //                                        HSPOST                                     //
-            ///////////////////////////////////////////////////////////////////////////////////////
+            /* HSPOST */
 
-            /* /// @dev ERC4626// TODO revisit properties
+            /// @dev ERC4626
             assertLe(previewedShares, shares, ERC4626_DEPOSIT_INVARIANT_B);
 
             /// @dev USER
             assertEq(
-                defaultVarsBefore.users[receiver].balance + shares,
-                defaultVarsAfter.users[receiver].balance,
+                defaultVarsBefore.eulerEarnVaults[target].users[receiver].eulerEarnBalance + shares,
+                defaultVarsAfter.eulerEarnVaults[target].users[receiver].eulerEarnBalance,
                 HSPOST_USER_E
             );
 
             /// @dev ACCOUNTING
-            assertEq(defaultVarsBefore.totalAssets + _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_C); */
+            assertEq(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_C
+            );
         } else {
             revert("EulerEarnHandler: deposit failed");
         }
@@ -81,22 +86,24 @@ abstract contract EulerEarnHandler is BaseHandler {
 
             uint256 _assets = abi.decode(returnData, (uint256));
 
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //                                        HSPOST                                     //
-            ///////////////////////////////////////////////////////////////////////////////////////
+            /* HSPOST */
 
-            /* /// @dev ERC4626 // TODO revisit properties
+            /// @dev ERC4626
             assertGe(previewedAssets, _assets, ERC4626_MINT_INVARIANT_B);
 
             /// @dev USER
             assertEq(
-                defaultVarsBefore.users[receiver].balance + _shares,
-                defaultVarsAfter.users[receiver].balance,
+                defaultVarsBefore.eulerEarnVaults[target].users[receiver].eulerEarnBalance + _shares,
+                defaultVarsAfter.eulerEarnVaults[target].users[receiver].eulerEarnBalance,
                 HSPOST_USER_E
             );
 
             /// @dev ACCOUNTING
-            assertEq(defaultVarsBefore.totalAssets + _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_C); */
+            assertEq(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_C
+            );
         } else {
             revert("EulerEarnHandler: mint failed");
         }
@@ -111,7 +118,7 @@ abstract contract EulerEarnHandler is BaseHandler {
 
         target = _getRandomEulerEarnVault(j);
 
-        // uint256 previewedShares = IERC4626(target).previewWithdraw(_assets);
+        uint256 previewedShares = IERC4626(target).previewWithdraw(_assets);
 
         _before();
         (success, returnData) =
@@ -122,24 +129,30 @@ abstract contract EulerEarnHandler is BaseHandler {
 
             uint256 _shares = abi.decode(returnData, (uint256));
 
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //                                        HSPOST                                     //
-            ///////////////////////////////////////////////////////////////////////////////////////
+            /* HSPOST */
 
-            /* /// @dev ERC4626 // TODO revisit properties
+            /// @dev ERC4626
             assertGe(previewedShares, _shares, ERC4626_WITHDRAW_INVARIANT_B);
 
             /// @dev USER
             assertEq(
-                defaultVarsBefore.users[address(actor)].balance - _shares,
-                defaultVarsAfter.users[address(actor)].balance,
+                defaultVarsBefore.eulerEarnVaults[target].users[address(actor)].eulerEarnBalance - _shares,
+                defaultVarsAfter.eulerEarnVaults[target].users[address(actor)].eulerEarnBalance,
                 HSPOST_USER_F
             );
 
             /// @dev ACCOUNTING
-            assertGe(defaultVarsBefore.totalAssets - _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_B);
+            assertGe(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets - _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_B
+            );
 
-            assertEq(defaultVarsBefore.totalAssets - _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_D); */
+            assertEq(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets - _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_D
+            );
         } else {
             revert("EulerEarnHandler: withdraw failed");
         }
@@ -154,7 +167,7 @@ abstract contract EulerEarnHandler is BaseHandler {
 
         target = _getRandomEulerEarnVault(j);
 
-        // uint256 previewedAssets = IERC4626(target).previewRedeem(_shares);
+        uint256 previewedAssets = IERC4626(target).previewRedeem(_shares);
 
         _before();
         (success, returnData) =
@@ -165,23 +178,29 @@ abstract contract EulerEarnHandler is BaseHandler {
 
             uint256 _assets = abi.decode(returnData, (uint256));
 
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //                                        HSPOST                                     //
-            ///////////////////////////////////////////////////////////////////////////////////////
+            /* HSPOST */
 
-            /* /// @dev ERC4626 // TODO revisit properties
+            /// @dev ERC4626
             assertLe(previewedAssets, _assets, ERC4626_REDEEM_INVARIANT_B);
 
             /// @dev USER
             assertEq(
-                defaultVarsBefore.users[address(actor)].balance - _shares,
-                defaultVarsAfter.users[address(actor)].balance,
+                defaultVarsBefore.eulerEarnVaults[target].users[address(actor)].eulerEarnBalance - _shares,
+                defaultVarsAfter.eulerEarnVaults[target].users[address(actor)].eulerEarnBalance,
                 HSPOST_USER_F
             );
 
             /// @dev ACCOUNTING
-            assertGe(defaultVarsBefore.totalAssets - _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_B);
-            assertEq(defaultVarsBefore.totalAssets - _assets, defaultVarsAfter.totalAssets, HSPOST_ACCOUNTING_D); */
+            assertGe(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets - _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_B
+            );
+            assertEq(
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets - _assets,
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                HSPOST_ACCOUNTING_D
+            );
         } else {
             revert("EulerEarnHandler: redeem failed");
         }

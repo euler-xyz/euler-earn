@@ -101,7 +101,7 @@ abstract contract BorrowingModuleHandler is BaseHandler {
         }
     }
 
-    function touch(uint8 i) external {
+    function touch(uint8 i) external directCallCleanup {
         target = _getRandomEVault(i);
 
         _before();

@@ -20,23 +20,25 @@ import {ERC4626Handler} from "./handlers/standard/ERC4626Handler.t.sol";
 
 // Simulator Handler contracts
 import {DonationAttackHandler} from "./handlers/simulators/DonationAttackHandler.t.sol";
+import {PriceOracleHandler} from "./handlers/simulators/PriceOracleHandler.t.sol";
 
 // Postcondition Handler contracts
 import {ERC4626PostconditionsHandler} from "./handlers/postconditions/ERC4626PostconditionsHandler.t.sol";
 
 /// @notice Helper contract to aggregate all handler contracts, inherited in BaseInvariants
 abstract contract HandlerAggregator is
-    PublicAllocatorAdminHandler, // Admin handlers
-    EulerEarnAdminHandler,
+    EulerEarnAdminHandler, // Admin handlers
+    PublicAllocatorAdminHandler,
     EulerEarnHandler, // User handlers
     PublicAllocatorHandler,
-    BorrowingModuleHandler,// EVK handlers
+    BorrowingModuleHandler, // EVK handlers
     LiquidationModuleHandler,
     GovernanceModuleHandler,
     ERC20Handler, // Standard handlers
     ERC4626Handler,
     DonationAttackHandler, // Simulator handlers
-    ERC4626PostconditionsHandler
+    PriceOracleHandler,
+    ERC4626PostconditionsHandler // Postcondition handlers
 {
     /// @notice Helper function in case any handler requires additional setup
     function _setUpHandlers() internal {}

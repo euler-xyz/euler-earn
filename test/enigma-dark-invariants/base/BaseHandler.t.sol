@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 // Interfaces
+import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Libraries
 import {EnumerableSet} from "lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
@@ -56,14 +57,14 @@ contract BaseHandler is HookAggregator {
         _approve(token, owner, spender, amount);
     }
 
-/*     function _mintApproveAndDeposit(address _vault, address owner, uint256 amount) internal {
-        _mintAndApprove(address(vault.asset()), owner, _vault, amount * 2);
+    function _mintApproveAndDeposit(address _vault, address owner, uint256 amount) internal {
+        _mintAndApprove(address(IEulerEarn(_vault).asset()), owner, _vault, amount * 2);
         vm.prank(owner);
-        vault.deposit(amount, owner);TODO implement this for evk vaults
+        IEulerEarn(_vault).deposit(amount, owner);
     }
 
     function _mintApproveAndMint(address _vault, address owner, uint256 amount) internal {
-        _mintAndApprove(address(vault.asset()), owner, _vault, vault.previewMint(amount) * 2);
-        vault.mint(amount, owner);
-    } */
+        _mintAndApprove(address(IEulerEarn(_vault).asset()), owner, _vault, IEulerEarn(_vault).previewMint(amount) * 2);
+        IEulerEarn(_vault).mint(amount, owner);
+    }
 }

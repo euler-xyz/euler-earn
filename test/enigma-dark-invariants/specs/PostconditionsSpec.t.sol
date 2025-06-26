@@ -27,10 +27,6 @@ abstract contract PostconditionsSpec {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     /// @notice related to certora Timelock properties
-    string constant GPOST_BASE_A =
-        "GPOST_BASE_A: nextGuardianUpdateTime is increasing with time and that no change of guardian can happen before it";
-
-    /// @notice related to certora Timelock properties
     string constant GPOST_BASE_B =
         "GPOST_BASE_B: nextCapIncreaseTime is increasing with time and that no increase of cap can happen before it";
 
@@ -85,8 +81,7 @@ abstract contract PostconditionsSpec {
     string constant GPOST_ACCOUNTING_A =
         "GPOST_ACCOUNTING_A: totalAssets should always increase unless a withdrawal occurs";
 
-    string constant GPOST_ACCOUNTING_B =
-        "GPOST_ACCOUNTING_B: totalAssets should only increase due to deposits or yield";
+    string constant GPOST_ACCOUNTING_B = "GPOST_ACCOUNTING_B: totalAssets should only increase due to deposits or yield";
 
     string constant GPOST_ACCOUNTING_C =
         "GPOST_ACCOUNTING_C: totalSupply can only be increase with deposits or fee accrual";
@@ -94,6 +89,17 @@ abstract contract PostconditionsSpec {
     string constant GPOST_ACCOUNTING_D = "GPOST_ACCOUNTING_D: totalSupply can only be decrease with withdrawals";
 
     string constant GPOST_ACCOUNTING_E = "GPOST_ACCOUNTING_E: after any transaction lastTotalAssets == totalAssets";
+
+    string constant GPOST_ACCOUNTING_F = "GPOST_ACCOUNTING_F: lostAssets should always increases monotonically";
+
+    string constant GPOST_ACCOUNTING_G =
+        "GPOST_ACCOUNTING_G: if totalAssets > lastTotalAssets, lastTotalAssets should increase by the difference";
+
+    string constant GPOST_ACCOUNTING_H =
+        "GPOST_ACCOUNTING_H: if totalAssets < lastTotalAssets, lostAssets should  by the difference";
+
+    string constant GPOST_ACCOUNTING_I =
+        "GPOST_ACCOUNTING_I: Share price should be non-decreasing except when losses occur (when lostAssets increases)";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                              ACCOUNTING: DEPOSITS & WITHDRAWALS                           //

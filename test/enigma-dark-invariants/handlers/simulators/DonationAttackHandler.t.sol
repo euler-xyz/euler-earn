@@ -19,7 +19,7 @@ contract DonationAttackHandler is BaseHandler {
     //                                      STATE VARIABLES                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    uint256 underlyingAmountDonatedToVault; // TODO do we really need this?
+    uint256 underlyingAmountDonatedToVault;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          ACTIONS                                          //
@@ -30,11 +30,13 @@ contract DonationAttackHandler is BaseHandler {
     function donateUnderlyingToVault(uint256 amount, uint8 i, uint8 j) external {
         TestERC20 _token = TestERC20(_getRandomAsset(i));
 
-        address target = _getRandomVault(j);
+        address target_ = _getRandomVault(j);
 
         _token.mint(address(this), amount);
 
-        _token.transfer(target, amount);
+        _token.transfer(target_, amount);
+
+        underlyingAmountDonatedToVault += amount;
     }
 
     /// @notice This function transfers any amount of Markets shares to any of the EulerEarn contracts simulating
@@ -43,9 +45,9 @@ contract DonationAttackHandler is BaseHandler {
         bool success;
         bytes memory returnData;
 
-        address _token = address(_getRandomMarket(i));
+        address target_ = _getRandomEulerEarnVault(j);
 
-        address target = _getRandomEulerEarnVault(j);
+        address _token = address(_getRandomMarket(target_, i));
 
         (success, returnData) = actor.proxy(_token, abi.encodeCall(IERC20.transfer, (target, amount)));
 

@@ -29,7 +29,9 @@ abstract contract HookAggregator is DefaultBeforeAfterHooks {
         _defaultHooksAfter();
 
         // POST-CONDITIONS
-        _checkPostConditions();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            _checkPostConditions(eulerEarnVaults[i]);
+        }
 
         // Reset the state
         _resetState();
@@ -39,58 +41,43 @@ abstract contract HookAggregator is DefaultBeforeAfterHooks {
     //                                   POSTCONDITION CHECKS                                    //
     /////////////////////////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Postconditions for the handlers
-    function _checkPostConditions() internal {
-        // Check general postconditions
-        _checkGeneralPostConditions();
-
-        // Check user postconditions
-        for (uint256 i; i < actorAddresses.length; i++) {
-            _checkUserPostConditions(actorAddresses[i]);
-        }
-
-        // Check market postconditions
-/*         for (uint256 i; i < markets.length; i++) {TODO we should use other array for this 
-            _checkMarketPostConditions(markets[i]);
-        } */
-    }
-
-    function _checkGeneralPostConditions() internal {
-/*         // Base
-        assert_GPOST_BASE_A();
-        assert_GPOST_BASE_C();
+    /// @notice General postconditions for each euler earn vault
+    function _checkPostConditions(address eulerEarnAddress) internal {
+        // Base
+        assert_GPOST_BASE_C(eulerEarnAddress);
 
         // Fees
-        assert_GPOST_FEES_A();
+        assert_GPOST_FEES_A(eulerEarnAddress);
 
         // Accounting
-        assert_GPOST_ACCOUNTING_A();
-        assert_GPOST_ACCOUNTING_B();
-        assert_GPOST_ACCOUNTING_C();
-        assert_GPOST_ACCOUNTING_D();
-        assert_GPOST_ACCOUNTING_E();
+        assert_GPOST_ACCOUNTING_A(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_B(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_C(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_D(eulerEarnAddress);
+        //assert_GPOST_ACCOUNTING_E(eulerEarnAddress); TODO uncomment
+        assert_GPOST_ACCOUNTING_F(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_G(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_H(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_I(eulerEarnAddress);
 
         // Reentrancy
-        assert_GPOST_REENTRANCY_A(); */
-    }
+        //assert_GPOST_REENTRANCY_A(); TODO: revisit this
 
-    /// @notice Postconditions for each user
-    function _checkUserPostConditions(address user) internal {
-        // Check user postconditions
+        // Markets
+        for (uint256 i; i < allMarkets[eulerEarnAddress].length; i++) {
+            _checkMarketPostConditions(eulerEarnAddress, allMarkets[eulerEarnAddress][i]);
+        }
     }
 
     /// @notice Postconditions for each market
-    function _checkMarketPostConditions(IERC4626 market) internal {
-/*         assert_GPOST_BASE_B(market);
-        assert_GPOST_BASE_D(market); */
+    function _checkMarketPostConditions(address eulerEarnAddress, IERC4626 market) internal {
+        assert_GPOST_BASE_B(eulerEarnAddress, market);
+        assert_GPOST_BASE_D(eulerEarnAddress, market);
     }
 
     /*/////////////////////////////////////////////////////////////////////////////////////////////
     //                                           HELPERS                                         //
     /////////////////////////////////////////////////////////////////////////////////////////////*/
 
-    function _resetState() internal {
-        // Reset the target
-        delete target;
-    }
+    function _resetState() internal {}
 }

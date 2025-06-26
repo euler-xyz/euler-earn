@@ -17,52 +17,70 @@ abstract contract Invariants is BaseInvariants, ERC4626Invariants {
     //                                     BASE INVARIANTS                                       //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    /* function echidna_INV_BASE() public returns (bool) {TODO revisit these
-        for (uint256 i; i < markets.length; i++) {
-            assert_INV_BASE_A(markets[i]);
-            assert_INV_BASE_C(markets[i]);
-            assert_INV_BASE_D(markets[i]);
-            assert_INV_BASE_E(markets[i]);
-        }
+    function echidna_INV_BASE() public returns (bool) {
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            for (uint256 j; j < allMarkets[eulerEarn].length; j++) {
+                IERC4626 market = allMarkets[eulerEarn][j];
+                assert_INV_BASE_A(market, eulerEarn);
+                assert_INV_BASE_C(market, eulerEarn);
+                assert_INV_BASE_D(market, eulerEarn);
+                assert_INV_BASE_E(market, eulerEarn);
+            }
 
-        assert_INV_BASE_F();
+            assert_INV_BASE_F(eulerEarn);
+        }
 
         return true;
     }
 
     function echidna_INV_QUEUES() public returns (bool) {
-        assert_INV_QUEUES_AE();
-        assert_INV_QUEUES_B();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            assert_INV_QUEUES_AE(eulerEarn);
+            assert_INV_QUEUES_B(eulerEarn);
+        }
 
         return true;
     }
 
     function echidna_INV_TIMELOCK() public returns (bool) {
-        assert_INV_TIMELOCK_A();
-        assert_INV_TIMELOCK_D();
-        assert_INV_TIMELOCK_E();
-        assert_INV_TIMELOCK_F();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            assert_INV_TIMELOCK_A(eulerEarn);
+            assert_INV_TIMELOCK_D(eulerEarn);
+            assert_INV_TIMELOCK_E(eulerEarn);
+            assert_INV_TIMELOCK_F(eulerEarn);
+        }
 
         return true;
     }
 
     function echidna_INV_MARKETS() public returns (bool) {
-        for (uint256 i; i < markets.length; i++) {
-            assert_INV_MARKETS_AB(markets[i]);
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            for (uint256 j; j < allMarkets[eulerEarn].length; j++) {
+                assert_INV_MARKETS_AB(allMarkets[eulerEarn][j], eulerEarn);
+            }
         }
 
         return true;
     }
 
     function echidna_INV_FEES() public returns (bool) {
-        assert_INV_FEES_A();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            assert_INV_FEES_A(eulerEarnVaults[i]);
+        }
 
         return true;
     }
 
     function echidna_INV_ACCOUNTING() public returns (bool) {
-        //assert_INV_ACCOUNTING_A();
-        assert_INV_ACCOUNTING_C();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            assert_INV_ACCOUNTING_A(eulerEarn);
+            //assert_INV_ACCOUNTING_C(eulerEarn); TODO revisit this invariant
+        }
 
         return true;
     }
@@ -72,22 +90,28 @@ abstract contract Invariants is BaseInvariants, ERC4626Invariants {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function echidna_ERC4626_ASSETS_INVARIANTS() public returns (bool) {
-        assert_ERC4626_ASSETS_INVARIANT_A();
-        assert_ERC4626_ASSETS_INVARIANT_B();
-        assert_ERC4626_ASSETS_INVARIANT_C();
-        assert_ERC4626_ASSETS_INVARIANT_D();
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            assert_ERC4626_ASSETS_INVARIANT_A(eulerEarn);
+            assert_ERC4626_ASSETS_INVARIANT_B(eulerEarn);
+            assert_ERC4626_ASSETS_INVARIANT_C(eulerEarn);
+            assert_ERC4626_ASSETS_INVARIANT_D(eulerEarn);
+        }
 
         return true;
     }
 
     function echidna_ERC4626_USERS() public returns (bool) {
-        for (uint256 i; i < actorAddresses.length; i++) {
-            assert_ERC4626_DEPOSIT_INVARIANT_A(actorAddresses[i]);
-            assert_ERC4626_MINT_INVARIANT_A(actorAddresses[i]);
-            assert_ERC4626_WITHDRAW_INVARIANT_A(actorAddresses[i]);
-            assert_ERC4626_REDEEM_INVARIANT_A(actorAddresses[i]);
+        for (uint256 i; i < eulerEarnVaults.length; i++) {
+            address eulerEarn = eulerEarnVaults[i];
+            for (uint256 j; j < actorAddresses.length; j++) {
+                assert_ERC4626_DEPOSIT_INVARIANT_A(actorAddresses[j], eulerEarn);
+                assert_ERC4626_MINT_INVARIANT_A(actorAddresses[j], eulerEarn);
+                assert_ERC4626_WITHDRAW_INVARIANT_A(actorAddresses[j], eulerEarn);
+                assert_ERC4626_REDEEM_INVARIANT_A(actorAddresses[j], eulerEarn);
+            }
         }
 
         return true;
-    } */
+    }
 }

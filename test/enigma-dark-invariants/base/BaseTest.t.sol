@@ -11,7 +11,7 @@ import {
     IPublicAllocatorStaticTyping,
     IPublicAllocatorBase
 } from "src/interfaces/IPublicAllocator.sol";
-import {IEVault} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Libraries
 import {Vm} from "forge-std/Base.sol";
@@ -44,16 +44,18 @@ abstract contract BaseTest is BaseStorage, PropertiesConstants, StdAsserts, StdU
         _;
         delete actor;
         delete targetActor;
+        delete target;
+    }
+
+    modifier directCallCleanup() virtual {
+        _;
+        delete target;
     }
 
     /// @dev Solves medusa backward time warp issue
     modifier monotonicTimestamp() virtual {
         // Implement monotonic timestamp if needed
         _;
-    }
-
-    function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4) {
-        return this.onERC721Received.selector; // TODO is this needed?
     }
 
     receive() external payable {}
@@ -106,9 +108,9 @@ abstract contract BaseTest is BaseStorage, PropertiesConstants, StdAsserts, StdU
     }
 
     /// @notice Get a random market from eulerEarn
-    function _getRandomMarket(uint8 i) internal view returns (IERC4626) {
-        uint256 _marketIndex = i % allMarkets.length;
-        return allMarkets[_marketIndex];
+    function _getRandomMarket(address eulerEarnAddress, uint8 i) internal view returns (IERC4626) {
+        uint256 _marketIndex = i % allMarkets[eulerEarnAddress].length;
+        return allMarkets[eulerEarnAddress][_marketIndex];
     }
 
     /// @notice Get a random eVault
@@ -169,17 +171,16 @@ abstract contract BaseTest is BaseStorage, PropertiesConstants, StdAsserts, StdU
     /// @notice Helper function to safely approve an amount of tokens to a spender
     /// @dev This function is used to revert on failed approvals
     function _safeApprove(address token, address spender, uint256 amount) internal {
-        (bool success, bytes memory retdata) =
-            token.call(abi.encodeWithSelector(IERC20.approve.selector, spender, amount));
+        (bool success, bytes memory returnData) = token.call(abi.encodeCall(IERC20.approve, (spender, amount)));
         assert(success);
-        if (retdata.length > 0) assert(abi.decode(retdata, (bool)));
+        if (returnData.length > 0) assert(abi.decode(returnData, (bool)));
     }
 
     /// @notice Helper function to transfer an amount of tokens to an address
     function _transferByActor(address token, address to, uint256 amount) internal {
         bool success;
         bytes memory returnData;
-        (success, returnData) = actor.proxy(token, abi.encodeWithSelector(IERC20.transfer.selector, to, amount));
+        (success, returnData) = actor.proxy(token, abi.encodeCall(IERC20.transfer, (to, amount)));
         require(success, string(returnData));
     }
 
@@ -195,13 +196,22 @@ abstract contract BaseTest is BaseStorage, PropertiesConstants, StdAsserts, StdU
         }
     }
 
-    /*     function _isMarketEnabled(IERC4626 _market) internal view returns (bool) {TODO adapt to eulerEarn
-        return vault.config(_market).enabled;
-    } */
+    function _isMarketEnabled(IERC4626 _market, address _eulerEarnVaultAddress) internal view returns (bool) {
+        return IEulerEarn(_eulerEarnVaultAddress).config(_market).enabled;
+    }
 
-    /*     function _expectedSupplyAssets(IERC4626 _market) internal view virtual returns (uint256 assets) {TODO check if we need this
-        assets = _market.convertToAssets(_market.balanceOf(address(vault)));
-    } */
+    function _expectedSupplyAssets(IERC4626 _market, address _eulerEarnVaultAddress)
+        internal
+        view
+        virtual
+        returns (uint256 assets)
+    {
+        assets = _market.convertToAssets(_market.balanceOf(_eulerEarnVaultAddress));
+    }
+
+    function _isEulerEarnVault(address _eulerEarnVaultAddress) internal view returns (bool) {
+        return _eulerEarnVaultAddress == address(eulerEarn) || _eulerEarnVaultAddress == address(eulerEarn2);
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       PROTOCOL HELPERS                                    //

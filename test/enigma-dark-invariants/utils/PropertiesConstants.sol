@@ -25,8 +25,12 @@ abstract contract PropertiesConstants {
     uint256 internal constant MIN_TIMELOCK = 1 days;
 
     // Suite constants
-    uint256 constant NUM_MARKETS = 3;
+    uint256 constant MAX_NUM_MARKETS = 4;
     uint256 constant WAD = 1e18;
 
     uint256 constant EULER_EARN_VAULTS_NUM = 2;
+
+    uint256 constant CAP1 = 10_000_000e18; // 10M
+    uint256 constant CAP2 = 100_000e18; // 100k
+    uint256 constant CAP3 = 1_000_000e18; // 1M
 }

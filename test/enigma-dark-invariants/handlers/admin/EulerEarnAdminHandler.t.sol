@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 // Interfaces
 import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
+import {IEulerEarnAdminHandler} from "../interfaces/IEulerEarnAdminHandler.sol";
 
 // Libraries
 import "forge-std/console.sol";
@@ -13,7 +14,7 @@ import {BaseHandler} from "../../base/BaseHandler.t.sol";
 
 /// @title EulerEarnAdminHandler
 /// @notice Handler test contract for a set of actions
-abstract contract EulerEarnAdminHandler is BaseHandler {
+abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      STATE VARIABLES                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
     function submitCap(uint256 _newSupplyCap, uint8 i, uint8 j) external {
         target = _getRandomEulerEarnVault(i);
 
-        IERC4626 market = _getRandomMarket(j);
+        IERC4626 market = _getRandomMarket(target, j);
 
         _before();
         IEulerEarn(target).submitCap(market, _newSupplyCap);
@@ -51,7 +52,7 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
     function submitMarketRemoval(uint8 i, uint8 j) external {
         target = _getRandomEulerEarnVault(i);
 
-        IERC4626 market = _getRandomMarket(j);
+        IERC4626 market = _getRandomMarket(target, j);
 
         _before();
         IEulerEarn(target).submitMarketRemoval(market);
@@ -72,7 +73,7 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
 
     function revokePendingCap(uint8 i, uint8 j) external {
         target = _getRandomEulerEarnVault(i);
-        IERC4626 market = _getRandomMarket(j);
+        IERC4626 market = _getRandomMarket(target, j);
 
         _before();
         IEulerEarn(target).revokePendingCap(market);
@@ -81,7 +82,7 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
 
     function revokePendingMarketRemoval(uint8 i, uint8 j) external {
         target = _getRandomEulerEarnVault(i);
-        IERC4626 market = _getRandomMarket(j);
+        IERC4626 market = _getRandomMarket(target, j);
 
         _before();
         IEulerEarn(target).revokePendingMarketRemoval(market);
@@ -103,7 +104,7 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
     function acceptCap(uint8 i, uint8 j) external {
         target = _getRandomEulerEarnVault(i);
 
-        IERC4626 market = _getRandomMarket(i);
+        IERC4626 market = _getRandomMarket(target, j);
 
         _before();
         IEulerEarn(target).acceptCap(market);
@@ -114,58 +115,87 @@ abstract contract EulerEarnAdminHandler is BaseHandler {
     //                                          ALLOCATOR                                        //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*     function setSupplyQueue(uint8 i) external {TODO uncomment when helpers are implemented back
-        IERC4626[] memory _newSupplyQueue = _generateRandomMarketArray(i);
+    function setSupplyQueue(uint8 i, uint8 j) external {
+        // Get a random EulerEarn vault
+        target = _getRandomEulerEarnVault(i);
 
-        vault.setSupplyQueue(_newSupplyQueue);
+        // Generate a random market array
+        IERC4626[] memory _newSupplyQueue = _generateRandomMarketArray(j, target);
 
-        uint256 supplyQueueLength = vault.supplyQueueLength();
+        IEulerEarn(target).setSupplyQueue(_newSupplyQueue);
+
+        uint256 supplyQueueLength = IEulerEarn(target).supplyQueueLength();
 
         // HSPOST
 
         /// @dev QUEUES
-        for (uint256 j; j < supplyQueueLength; j++) {
-            assertGt(vault.config(vault.supplyQueue(j)).cap, 0, HSPOST_QUEUES_F);
+        for (uint256 k; k < supplyQueueLength; k++) {
+            assertGt(IEulerEarn(target).config(IEulerEarn(target).supplyQueue(k)).cap, 0, HSPOST_QUEUES_F);
         }
-    } */
+    }
 
-    /*     function updateWithdrawQueue(uint8[] memory _indexes, uint8 i) external {TODO uncomment when helpers are implemented back
-        uint256[] memory _clampedIndexes = _clampIndexesArray(_indexes, i);
+    function updateWithdrawQueue(uint8[MAX_NUM_MARKETS] memory _indexes, uint8 i, uint8 j) external {
+        // Get a random EulerEarn vault
+        target = _getRandomEulerEarnVault(i);
 
-        vault.updateWithdrawQueue(_clampedIndexes);
-    } */
+        // Clamp the indexes
+        uint256[] memory _clampedIndexes = _clampIndexesArray(_indexes, j, target);
 
-    // TODO direct reallocate call ???
+        // Update the withdraw queue
+        IEulerEarn(target).updateWithdrawQueue(_clampedIndexes);
+    }
+
+    // TODO implement direct reallocate call
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          HELPERS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    /*     function _generateRandomMarketArray(uint8 seed) internal returns (IERC4626[] memory) {
-        uint256 randomLength = clampLe(seed, markets.length);
+    function _generateRandomMarketArray(uint8 seed, address target) internal returns (IERC4626[] memory randomArray) {
+        // First, create array of non-idleVault markets
+        IERC4626[] memory nonIdleMarkets = new IERC4626[](allMarkets[target].length);
+        uint256 nonIdleCount = 0;
 
-        IERC4626[] memory randomArray = new IERC4626[](randomLength);
-
-        for (uint256 i; i < randomLength; i++) {
-            randomArray[i] = IERC4626(markets[(uint256(seed) + i) % markets.length]);
+        for (uint256 i = 0; i < allMarkets[target].length; i++) {
+            if (address(allMarkets[target][i]) != address(idleVault)) {
+                nonIdleMarkets[nonIdleCount] = allMarkets[target][i];
+                nonIdleCount++;
+            }
         }
 
-        assert(randomArray.length <= markets.length);
+        // Determine how many non-idle markets to select (max available)
+        uint256 randomLength = nonIdleCount > 0 ? clampLe(seed, nonIdleCount - 1) : 0;
 
-        return randomArray;
+        randomArray = new IERC4626[](randomLength + 1);
+
+        // Select from non-idle markets only
+        for (uint256 i = 0; i < randomLength; i++) {
+            randomArray[i] = nonIdleMarkets[(uint256(seed) + i) % nonIdleCount];
+        }
+
+        // Always add idleVault at the end
+        randomArray[randomLength] = IERC4626(address(idleVault));
+
+        assert(randomArray.length <= allMarkets[target].length);
     }
 
-    function _clampIndexesArray(uint8[] memory _indexes, uint8 seed) internal returns (uint256[] memory) {
-        require(_indexes.length <= markets.length, "EulerEarnAdminHandler: indexes array too long");
+    function _clampIndexesArray(uint8[MAX_NUM_MARKETS] memory _indexes, uint8 indexesLengthSeed, address target)
+        internal
+        returns (uint256[] memory clampedIndexes)
+    {
+        uint256 withdrawalQueueLength = IEulerEarn(target).withdrawQueueLength();
+        assertLe(
+            withdrawalQueueLength,
+            MAX_NUM_MARKETS,
+            "PublicAllocatorHandler: withdrawalQueueLength exceeds MAX_NUM_MARKETS"
+        );
 
-        uint256 length = clampLe(seed, markets.length);
+        uint256 clampedIndexesLength = clampGe(indexesLengthSeed % (withdrawalQueueLength), 1);
 
-        uint256[] memory clampedIndexes = new uint256[](length);
+        clampedIndexes = new uint256[](clampedIndexesLength);
 
-        for (uint256 i; i < seed; i++) {
-            clampedIndexes[i] = clampLt(seed, markets.length);
+        for (uint256 i; i < clampedIndexesLength; i++) {
+            clampedIndexes[i] = clampLt(_indexes[i], allMarkets[target].length);
         }
-
-        return clampedIndexes;
-    } */
+    }
 }

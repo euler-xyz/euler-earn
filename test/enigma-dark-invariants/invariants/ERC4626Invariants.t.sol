@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 // Libraries
 
 // Interfaces
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Contracts
 import {HandlerAggregator} from "../HandlerAggregator.t.sol";
@@ -19,29 +19,29 @@ abstract contract ERC4626Invariants is HandlerAggregator {
     //                                           ASSET                                           //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*     function assert_ERC4626_ASSETS_INVARIANT_A() internal {
-        try vault.asset() {}
+    function assert_ERC4626_ASSETS_INVARIANT_A(address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).asset() {}
         catch {
             fail(ERC4626_ASSETS_INVARIANT_A);
         }
     }
 
-    function assert_ERC4626_ASSETS_INVARIANT_B() internal {
-        try vault.totalAssets() returns (uint256 totalAssets) {
+    function assert_ERC4626_ASSETS_INVARIANT_B(address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).totalAssets() returns (uint256 totalAssets) {
             totalAssets;
         } catch {
             fail(ERC4626_ASSETS_INVARIANT_B);
         }
     }
 
-    function assert_ERC4626_ASSETS_INVARIANT_C() internal {
-        uint256 _assets = _getRandomValue(_maxAssets());
+    function assert_ERC4626_ASSETS_INVARIANT_C(address eulerEarnAddress) internal {
+        uint256 _assets = _getRandomValue(_maxAssets(eulerEarnAddress));
         uint256 shares;
         bool notFirstLoop;
 
         for (uint256 i; i < NUMBER_OF_ACTORS; i++) {
             vm.prank(actorAddresses[i]);
-            uint256 tempShares = vault.convertToShares(_assets);
+            uint256 tempShares = IEulerEarn(eulerEarnAddress).convertToShares(_assets);
 
             // Compare the shares with the previous iteration expect the first one
             if (notFirstLoop) {
@@ -53,14 +53,14 @@ abstract contract ERC4626Invariants is HandlerAggregator {
         }
     }
 
-    function assert_ERC4626_ASSETS_INVARIANT_D() internal {
-        uint256 _shares = _getRandomValue(_maxShares());
+    function assert_ERC4626_ASSETS_INVARIANT_D(address eulerEarnAddress) internal {
+        uint256 _shares = _getRandomValue(_maxShares(eulerEarnAddress));
         uint256 assets;
         bool notFirstLoop;
 
         for (uint256 i; i < NUMBER_OF_ACTORS; i++) {
             vm.prank(actorAddresses[i]);
-            uint256 tempAssets = vault.convertToAssets(_shares);
+            uint256 tempAssets = IEulerEarn(eulerEarnAddress).convertToAssets(_shares);
 
             // Compare the shares with the previous iteration expect the first one
             if (notFirstLoop) {
@@ -70,14 +70,14 @@ abstract contract ERC4626Invariants is HandlerAggregator {
                 notFirstLoop = true;
             }
         }
-    } */
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                     ACTIONS: DEPOSIT                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*     function assert_ERC4626_DEPOSIT_INVARIANT_A(address _account) internal {
-        try vault.maxDeposit(_account) {}
+    function assert_ERC4626_DEPOSIT_INVARIANT_A(address _account, address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).maxDeposit(_account) {}
         catch {
             fail(ERC4626_DEPOSIT_INVARIANT_A);
         }
@@ -87,8 +87,8 @@ abstract contract ERC4626Invariants is HandlerAggregator {
     //                                      ACTIONS: MINT                                        //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_ERC4626_MINT_INVARIANT_A(address _account) internal {
-        try vault.maxMint(_account) {}
+    function assert_ERC4626_MINT_INVARIANT_A(address _account, address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).maxMint(_account) {}
         catch {
             fail(ERC4626_MINT_INVARIANT_A);
         }
@@ -98,8 +98,8 @@ abstract contract ERC4626Invariants is HandlerAggregator {
     //                                    ACTIONS: WITHDRAW                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_ERC4626_WITHDRAW_INVARIANT_A(address _account) internal {
-        try vault.maxWithdraw(_account) {}
+    function assert_ERC4626_WITHDRAW_INVARIANT_A(address _account, address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).maxWithdraw(_account) {}
         catch {
             fail(ERC4626_WITHDRAW_INVARIANT_A);
         }
@@ -109,33 +109,32 @@ abstract contract ERC4626Invariants is HandlerAggregator {
     //                                    ACTIONS: REDEEM                                        //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_ERC4626_REDEEM_INVARIANT_A(address _account) internal {
-        try vault.maxRedeem(_account) {}
+    function assert_ERC4626_REDEEM_INVARIANT_A(address _account, address eulerEarnAddress) internal {
+        try IEulerEarn(eulerEarnAddress).maxRedeem(_account) {}
         catch {
             fail(ERC4626_REDEEM_INVARIANT_A);
         }
-    } */
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                         UTILS                                             //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*     function _maxShares() internal view returns (uint256 shares) {
-        shares = vault.totalSupply();
+    function _maxShares(address eulerEarnAddress) internal view returns (uint256 shares) {
+        shares = IEulerEarn(eulerEarnAddress).totalSupply();
         shares = shares == 0 ? 1 : shares;
     }
 
-    function _maxAssets() internal view returns (uint256 assets) {
-        assets = vault.totalAssets();
+    function _maxAssets(address eulerEarnAddress) internal view returns (uint256 assets) {
+        assets = IEulerEarn(eulerEarnAddress).totalAssets();
         assets = assets == 0 ? 1 : assets;
     }
 
-    function _max_withdraw(address from) internal view virtual returns (uint256) {
-        return vault.convertToAssets(vault.balanceOf(from)); // may be different from
-            // maxWithdraw(from)
+    function _max_withdraw(address from, address eulerEarnAddress) internal view virtual returns (uint256) {
+        return IEulerEarn(eulerEarnAddress).convertToAssets(IEulerEarn(eulerEarnAddress).balanceOf(from));
     }
 
-    function _max_redeem(address from) internal view virtual returns (uint256) {
-        return vault.balanceOf(from); // may be different from maxRedeem(from)
-    } */
+    function _max_redeem(address from, address eulerEarnAddress) internal view virtual returns (uint256) {
+        return IEulerEarn(eulerEarnAddress).balanceOf(from);
+    }
 }

@@ -22,42 +22,40 @@ import {BaseHandler} from "../../base/BaseHandler.t.sol";
 /// @title PublicAllocatorHandler
 /// @notice Handler test contract for a set of actions
 abstract contract PublicAllocatorHandler is BaseHandler {
-///////////////////////////////////////////////////////////////////////////////////////////////
-//                                      STATE VARIABLES                                      //
-///////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      STATE VARIABLES                                      //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////
-//                                          ACTIONS                                          //
-///////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                          ACTIONS                                          //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*     function reallocateTo(uint8 i, uint128[NUM_MARKETS] memory withdrawals) external setup {TODO revisit once we have a public allocator
+    function reallocateTo(uint8 i, uint8 j, uint128[MAX_NUM_MARKETS] memory amounts) external setup {
         bool success;
         bytes memory returnData;
 
         // Get one of the three markets randomly
-        address supplyMarket = _getRandomMarketAddress(i);
+        address supplyMarket = address(_getRandomMarket(address(eulerEarn), i));
 
-        Withdrawal[] memory _withdrawals = _generateWithdrawalsArray(withdrawals, supplyMarket);
+        Withdrawal[] memory _withdrawals = _generateWithdrawalsArray(amounts, supplyMarket, j);
 
-        _target = address(publicAllocator);
+        target = address(publicAllocator);
 
         _before();
         (success, returnData) = actor.proxy(
-            _target,
-            abi.encodeWithSelector(IPublicAllocatorBase.reallocateTo.selector, vault, _withdrawals, supplyMarket)
+            target,
+            abi.encodeCall(
+                IPublicAllocatorBase.reallocateTo, (address(eulerEarn), _withdrawals, IERC4626(supplyMarket))
+            )
         );
 
         if (success) {
             _after();
 
-            ///////////////////////////////////////////////////////////////////////////////////////
-            //                                        HSPOST                                     //
-            ///////////////////////////////////////////////////////////////////////////////////////
-
             /// @dev BALANCES
-            assertTrue(_balanceHasNotChanged(), HSPOST_BALANCES_A);
+            assertTrue(_balanceHasNotChanged(address(eulerEarn)), HSPOST_BALANCES_A);
         } else {
-            revert("PublicAllocatorHandler: deposit failed");
+            revert("PublicAllocatorHandler: reallocateTo failed");
         }
     }
 
@@ -65,32 +63,43 @@ abstract contract PublicAllocatorHandler is BaseHandler {
     //                                          HELPERS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function _generateWithdrawalsArray(uint128[NUM_MARKETS] memory withdrawals, address excludedAddress)
-        internal
-        returns (Withdrawal[] memory)
-    {
-        // Create a memory array of structs
-        Withdrawal[] memory withdraws = new Withdrawal[](markets.length - 1);
+    function _generateWithdrawalsArray(
+        uint128[MAX_NUM_MARKETS] memory amounts,
+        address excludedAddress,
+        uint256 numWithdrawalsSeed
+    ) internal returns (Withdrawal[] memory withdrawals) {
+        uint256 withdrawalQueueLength = eulerEarn.withdrawQueueLength();
+        assertLe(
+            withdrawalQueueLength,
+            MAX_NUM_MARKETS,
+            "PublicAllocatorHandler: withdrawalQueueLength exceeds MAX_NUM_MARKETS"
+        );
 
-        uint256 index;
+        uint256 numWithdrawals = clampGe(numWithdrawalsSeed % (withdrawalQueueLength - 1), 1);
+
+        // Initialize the withdrawals array
+        withdrawals = new Withdrawal[](numWithdrawals);
+
+        uint256 withdrawalIndex;
 
         // Iterate through the storage array and populate the struct array
-        for (uint256 i; i < markets.length; i++) {
-            if (address(markets[i]) != excludedAddress && _isMarketEnabled(markets[i])) {
-                withdraws[index] = Withdrawal({
-                    market: markets[i],
-                    amount: uint128(clampBetween(withdrawals[index], 1, _expectedSupplyAssets(markets[i]))) // Example random amount
+        for (uint256 i; i < withdrawalQueueLength; i++) {
+            IERC4626 market = eulerEarn.withdrawQueue(i);
+
+            if (address(market) != excludedAddress && _isMarketEnabled(market, address(eulerEarn))) {
+                withdrawals[withdrawalIndex] = Withdrawal({
+                    id: market,
+                    amount: uint128(clampBetween(amounts[i], 1, _expectedSupplyAssets(market, address(eulerEarn))))
                 });
-                index++;
+                withdrawalIndex++;
             }
+            if (withdrawalIndex == numWithdrawals) break;
         }
 
-        if (index != withdraws.length) {
+        if (withdrawalIndex != withdrawals.length) {
             assembly {
-                mstore(withdraws, index)
+                mstore(withdrawals, withdrawalIndex)
             }
         }
-
-        return withdraws;
-    } */
+    }
 }

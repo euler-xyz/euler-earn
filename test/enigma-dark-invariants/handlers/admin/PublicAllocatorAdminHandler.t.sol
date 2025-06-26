@@ -29,32 +29,33 @@ abstract contract PublicAllocatorAdminHandler is BaseHandler {
     //                                          ACTIONS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-/*     function setFeeAllocator(uint256 newFee) external {TODO uncomment when public allocator is impleented
-        publicAllocator.setFee(vault, newFee);
+    function setFee(uint256 newFee) external {
+        publicAllocator.setFee(address(eulerEarn), newFee);
     }
 
-    function setFlowCaps(FlowCaps[NUM_MARKETS + 1] memory _flowCaps) external {
+    function setFlowCaps(FlowCaps[MAX_NUM_MARKETS] memory _flowCaps) external {
         FlowCapsConfig[] memory flowCapsConfig = _getFlowCaps(_flowCaps);
 
-        publicAllocator.setFlowCaps(vault, flowCapsConfig);
+        publicAllocator.setFlowCaps(address(eulerEarn), flowCapsConfig);
     }
 
-    function setFee() external {
-        publicAllocator.transferFee(vault, FEE_RECIPIENT);
+    function transferFee() external {
+        publicAllocator.transferFee(address(eulerEarn), FEE_RECIPIENT);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          HELPERS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function _getFlowCaps(FlowCaps[NUM_MARKETS + 1] memory _flowcaps) internal view returns (FlowCapsConfig[] memory) {
+    function _getFlowCaps(FlowCaps[MAX_NUM_MARKETS] memory _flowcaps) internal view returns (FlowCapsConfig[] memory) {
         // Create a memory array of FlowCapsConfig structs
-        FlowCapsConfig[] memory flowCapsConfigs = new FlowCapsConfig[](NUM_MARKETS + 1);
+        FlowCapsConfig[] memory flowCapsConfigs = new FlowCapsConfig[](MAX_NUM_MARKETS);
 
         uint256 enabledMarkets;
-        for (uint256 i; i < NUM_MARKETS; i++) {
-            if (_isMarketEnabled(markets[i])) {
-                flowCapsConfigs[enabledMarkets++] = FlowCapsConfig({market: IERC4626(markets[i]), caps: _flowcaps[i]});
+        for (uint256 i; i < MAX_NUM_MARKETS; i++) {
+            if (_isMarketEnabled(allMarkets[address(eulerEarn)][i], address(eulerEarn))) {
+                flowCapsConfigs[enabledMarkets++] =
+                    FlowCapsConfig({id: IERC4626(allMarkets[address(eulerEarn)][i]), caps: _flowcaps[i]});
             }
         }
 
@@ -65,5 +66,5 @@ abstract contract PublicAllocatorAdminHandler is BaseHandler {
         }
 
         return flowCapsConfigs;
-    } */
+    }
 }
