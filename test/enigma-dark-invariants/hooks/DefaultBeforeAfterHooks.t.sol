@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 // Libraries
 import {UtilsLib} from "src/libraries/UtilsLib.sol";
 import {IEulerEarnHandler} from "../handlers/interfaces/IEulerEarnHandler.sol";
+import {ConstantsLib} from "src/libraries/ConstantsLib.sol";
 import "forge-std/console.sol";
 
 // Test Contracts
@@ -43,6 +44,8 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         // Fees
         uint256 fee;
         uint256 feeRecipientBalance;
+        address feeRecipient;
+        uint256 feeRecipientSharesBalance;
         // Times
         uint256 nextGuardianUpdateTime;
         uint256 nextTimelockDecreaseTime;
@@ -111,9 +114,12 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         _eulerEarnData.lastTotalAssets = _vault.lastTotalAssets();
         _eulerEarnData.lostAssets = _vault.lostAssets();
         // Fees
-        //_eulerEarnData.fee = _getAccruedFee(_eulerEarnData.yield); TODO: revisit these, check which one we still need
-        _eulerEarnData.feeRecipientBalance = loanToken.balanceOf(_vault.feeRecipient());
-
+        _eulerEarnData.fee = _vault.fee();
+        _eulerEarnData.feeRecipient = _vault.feeRecipient();
+        _eulerEarnData.feeRecipientBalance =
+            loanToken.balanceOf(defaultVarsBefore.eulerEarnVaults[address(_vault)].feeRecipient);
+        _eulerEarnData.feeRecipientSharesBalance =
+            _vault.balanceOf(defaultVarsBefore.eulerEarnVaults[address(_vault)].feeRecipient);
         // Times
         _eulerEarnData.nextGuardianUpdateTime = _vault.pendingGuardian().validAt;
         _eulerEarnData.nextTimelockDecreaseTime = _vault.pendingTimelock().validAt;
@@ -234,14 +240,20 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
     }
 
     function assert_GPOST_ACCOUNTING_B(address eulerEarnAddress) internal {
-        if (
-            defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets
-                > defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets
-        ) {
-            assertTrue(
-                (msg.sig == IEulerEarnHandler.depositEEV.selector || msg.sig == IEulerEarnHandler.mintEEV.selector),
-                GPOST_ACCOUNTING_B
-            );
+        if (_isEulerEarnVault(target)) {
+            if (
+                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets
+                    > defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets
+            ) {
+                assertTrue(
+                    (
+                        msg.sig == IEulerEarnHandler.depositEEV.selector
+                            || msg.sig == IEulerEarnHandler.mintEEV.selector
+                            || msg.sig == IEulerEarnAdminHandler.acceptCap.selector
+                    ),
+                    GPOST_ACCOUNTING_B
+                );
+            }
         }
     }
 
@@ -293,15 +305,20 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
     }
 
     function assert_GPOST_ACCOUNTING_G(address eulerEarnAddress) internal {
-        if (_isEulerEarnVault(target)) {
+        if (_isEulerEarnVaultAndTarget(eulerEarnAddress) && _functionAccruesInterest(msg.sig)) {
             uint256 lastTotalAssetsPositiveDelta = UtilsLib.zeroFloorSub(
                 defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets,
                 defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].lastTotalAssets
             );
+
             if (lastTotalAssetsPositiveDelta != 0) {
-                assertGe(
+                int256 realActionAssetDelta = actionAssetDelta + int256(lastTotalAssetsPositiveDelta);
+                assertEq(
                     defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].lastTotalAssets,
-                    defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].lastTotalAssets + lastTotalAssetsPositiveDelta,
+                    uint256(
+                        int256(defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].lastTotalAssets)
+                            + realActionAssetDelta
+                    ),
                     GPOST_ACCOUNTING_G
                 );
             }
@@ -309,7 +326,7 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
     }
 
     function assert_GPOST_ACCOUNTING_H(address eulerEarnAddress) internal {
-        if (_isEulerEarnVault(target)) {
+        if (_isEulerEarnVaultAndTarget(eulerEarnAddress) && _functionAccruesInterest(msg.sig)) {
             uint256 lastTotalAssetsNegativeDelta = UtilsLib.zeroFloorSub(
                 defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].lastTotalAssets,
                 defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets
@@ -326,20 +343,20 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
 
     function assert_GPOST_ACCOUNTING_I(address eulerEarnAddress) internal {
         if (_isEulerEarnVault(target)) {
-            uint256 sharePriceBefore = (defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalSupply == 0)
-                ? 0
-                : (defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets * WAD)
-                    / defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalSupply;
-            uint256 sharePriceAfter = (defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalSupply == 0)
-                ? 0
-                : (defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets * WAD)
-                    / defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalSupply;
-            if (sharePriceAfter < sharePriceBefore) {
-                assertGt(
-                    defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].lostAssets,
-                    defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].lostAssets,
-                    GPOST_ACCOUNTING_I
-                );
+            uint256 sharePriceBefore = _getSharePrice(
+                defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalSupply,
+                defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets
+            );
+            uint256 sharePriceAfter = _getSharePrice(
+                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalSupply,
+                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets
+            );
+
+            if (
+                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].feeRecipientSharesBalance
+                    == defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].feeRecipientSharesBalance && sharePriceAfter != 0
+            ) {
+                assertGe(sharePriceAfter, sharePriceBefore, GPOST_ACCOUNTING_I);
             }
         }
     }
@@ -382,5 +399,20 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         }
 
         return true;
+    }
+
+    function _functionAccruesInterest(bytes4 functionSelector) internal pure returns (bool) {
+        return functionSelector == IEulerEarnHandler.depositEEV.selector
+            || functionSelector == IEulerEarnHandler.mintEEV.selector
+            || functionSelector == IEulerEarnHandler.withdrawEEV.selector
+            || functionSelector == IEulerEarnHandler.redeemEEV.selector
+            || functionSelector == IEulerEarnAdminHandler.setFee.selector
+            || functionSelector == IEulerEarnAdminHandler.setFeeRecipient.selector;
+    }
+
+    function _getSharePrice(uint256 totalSupply, uint256 totalAssets) internal pure returns (uint256) {
+        return (totalSupply == 0)
+            ? 0
+            : (totalAssets + ConstantsLib.VIRTUAL_AMOUNT) * 1e18 / (totalSupply + ConstantsLib.VIRTUAL_AMOUNT);
     }
 }

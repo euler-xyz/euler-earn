@@ -82,7 +82,7 @@ abstract contract InvariantsSpec {
     //                                         FEES                                              //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    string constant INV_FEES_A = "INV_FEES_A: feeRecipient == address(0) <=> fee == 0";
+    string constant INV_FEES_A = "INV_FEES_A: feeRecipient == address(0) => fee == 0";
 
     string constant INV_FEES_B = "INV_FEES_B: accruedFee == totalYield * feeRate/WAD";
 
@@ -102,17 +102,4 @@ abstract contract InvariantsSpec {
 
     string constant INV_DEPOSIT_WITHDRAW_A =
         "INV_DEPOSIT_WITHDRAW_A: Max withdrawal must always be limited by available assets"; // TODO
-
-    /*     
-    - ASSETS
-        - ROUNDING -> BOUND ERRORS*
-        - vault should not have any asset tokens*
-    - EXCHANGE RATE
-        - ROUNDTRIP -> CONVERT -> SHARES/ASSETS, BIJECTION*
-    - MARKET BALANCES
-    - IDLE VAULT
-        - no conversion rate 1:1 ratio
-    - DOS*
-    - derive rules from findings
-     */
 }

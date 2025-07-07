@@ -213,6 +213,10 @@ abstract contract BaseTest is BaseStorage, PropertiesConstants, StdAsserts, StdU
         return _eulerEarnVaultAddress == address(eulerEarn) || _eulerEarnVaultAddress == address(eulerEarn2);
     }
 
+    function _isEulerEarnVaultAndTarget(address _eulerEarnVaultAddress) internal view returns (bool) {
+        return _isEulerEarnVault(_eulerEarnVaultAddress) && _eulerEarnVaultAddress == target;
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       PROTOCOL HELPERS                                    //
     ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -7,6 +7,7 @@ import {BaseHandler} from "../../base/BaseHandler.t.sol";
 
 // Interfaces
 import {IEVault, ILiquidation} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IEVC} from "lib/ethereum-vault-connector/src/interfaces/IEthereumVaultConnector.sol";
 
 /// @title LiquidationModuleHandler
 /// @notice Handler test contract for the VaultRegularBorrowable actions
@@ -33,6 +34,10 @@ contract LiquidationModuleHandler is BaseHandler {
 
         target = _getRandomLoanVault(j);
 
+        if (repayAssets != 0) {
+            (success, returnData) = actor.proxy(address(evc), abi.encodeCall(IEVC.enableController, (violator, target)));
+        }
+
         (success, returnData) = _liquidate(violator, IEVault(target), repayAssets, minYieldBalance);
 
         if (success) {} else {
@@ -50,7 +55,7 @@ contract LiquidationModuleHandler is BaseHandler {
     {
         bool success;
 
-        (uint256 maxRepay, uint256 maxYield) = targetVault.checkLiquidation(address(actor), violator, address(eTST2));
+        (uint256 maxRepay, uint256 maxYield) = targetVault.checkLiquidation(address(actor), violator, address(eTST));
 
         {
             (, uint256 liabilityValue) = targetVault.accountLiquidity(violator, true);
@@ -64,7 +69,7 @@ contract LiquidationModuleHandler is BaseHandler {
 
         _before();
         (success, returnData) = actor.proxy(
-            target, abi.encodeCall(ILiquidation.liquidate, (violator, address(eTST2), repayAssets, minYieldBalance))
+            target, abi.encodeCall(ILiquidation.liquidate, (violator, address(eTST), repayAssets, minYieldBalance))
         );
 
         if (success && (maxRepay != 0 && minYieldBalance != 0)) {

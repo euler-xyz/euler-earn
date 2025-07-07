@@ -23,7 +23,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
     //                                          SUBMIT                                           //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function submitTimelock(uint256 _newTimelock, uint8 i) external {
+    function submitTimelock(uint256 _newTimelock, uint8 i) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         _before();
@@ -31,7 +31,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function setFee(uint256 _newTimelock, uint8 i) external {
+    function setFee(uint256 _newTimelock, uint8 i) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         _before();
@@ -39,7 +39,15 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function submitCap(uint256 _newSupplyCap, uint8 i, uint8 j) external {
+    function setFeeRecipient(bool zeroFeeRecipient, uint8 i) external directCallCleanup {
+        target = _getRandomEulerEarnVault(i);
+        address newFeeRecipient = zeroFeeRecipient ? address(0) : address(FEE_RECIPIENT);
+        _before();
+        IEulerEarn(target).setFeeRecipient(newFeeRecipient);
+        _after();
+    }
+
+    function submitCap(uint256 _newSupplyCap, uint8 i, uint8 j) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         IERC4626 market = _getRandomMarket(target, j);
@@ -49,7 +57,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function submitMarketRemoval(uint8 i, uint8 j) external {
+    function submitMarketRemoval(uint8 i, uint8 j) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         IERC4626 market = _getRandomMarket(target, j);
@@ -63,7 +71,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
     //                                          REVOKE                                           //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function revokePendingTimelock(uint8 i) external {
+    function revokePendingTimelock(uint8 i) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         _before();
@@ -71,7 +79,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function revokePendingCap(uint8 i, uint8 j) external {
+    function revokePendingCap(uint8 i, uint8 j) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
         IERC4626 market = _getRandomMarket(target, j);
 
@@ -80,7 +88,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function revokePendingMarketRemoval(uint8 i, uint8 j) external {
+    function revokePendingMarketRemoval(uint8 i, uint8 j) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
         IERC4626 market = _getRandomMarket(target, j);
 
@@ -93,7 +101,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
     //                                          EXTERNAL                                         //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function acceptTimelock(uint8 i) external {
+    function acceptTimelock(uint8 i) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         _before();
@@ -101,7 +109,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         _after();
     }
 
-    function acceptCap(uint8 i, uint8 j) external {
+    function acceptCap(uint8 i, uint8 j) external directCallCleanup {
         target = _getRandomEulerEarnVault(i);
 
         IERC4626 market = _getRandomMarket(target, j);
@@ -144,8 +152,6 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         // Update the withdraw queue
         IEulerEarn(target).updateWithdrawQueue(_clampedIndexes);
     }
-
-    // TODO implement direct reallocate call
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          HELPERS                                          //

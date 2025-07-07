@@ -49,7 +49,7 @@ contract DonationAttackHandler is BaseHandler {
 
         address _token = address(_getRandomMarket(target_, i));
 
-        (success, returnData) = actor.proxy(_token, abi.encodeCall(IERC20.transfer, (target, amount)));
+        (success, returnData) = actor.proxy(_token, abi.encodeCall(IERC20.transfer, (target_, amount)));
 
         if (!success) {
             revert("DonationAttackHandler: donateSharesToEulerEarn failed");

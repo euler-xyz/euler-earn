@@ -99,7 +99,7 @@ abstract contract PostconditionsSpec {
         "GPOST_ACCOUNTING_H: if totalAssets < lastTotalAssets, lostAssets should  by the difference";
 
     string constant GPOST_ACCOUNTING_I =
-        "GPOST_ACCOUNTING_I: Share price should be non-decreasing except when losses occur (when lostAssets increases)";
+        "GPOST_ACCOUNTING_I: Share price should monotonically increase except when feeShares are minted";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                              ACCOUNTING: DEPOSITS & WITHDRAWALS                           //

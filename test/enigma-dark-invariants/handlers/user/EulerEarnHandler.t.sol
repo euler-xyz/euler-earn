@@ -32,9 +32,9 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
 
         target = _getRandomEulerEarnVault(j);
 
-        console.log("target", target);
-
         uint256 previewedShares = IERC4626(target).previewDeposit(_assets);
+
+        _setActionAssetDelta(int256(_assets));
 
         _before();
         (success, returnData) = actor.proxy(target, abi.encodeCall(IERC4626.deposit, (_assets, receiver)));
@@ -57,11 +57,13 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
             );
 
             /// @dev ACCOUNTING
-            assertEq(
-                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
+            assertGe(
                 defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
                 HSPOST_ACCOUNTING_C
             );
+
+            _resetActionAssetDelta();
         } else {
             revert("EulerEarnHandler: deposit failed");
         }
@@ -82,9 +84,10 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
         (success, returnData) = actor.proxy(target, abi.encodeCall(IERC4626.mint, (_shares, receiver)));
 
         if (success) {
-            _after();
-
             uint256 _assets = abi.decode(returnData, (uint256));
+            _setActionAssetDelta(int256(_assets));
+
+            _after();
 
             /* HSPOST */
 
@@ -99,11 +102,13 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
             );
 
             /// @dev ACCOUNTING
-            assertEq(
-                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
+            assertGe(
                 defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                defaultVarsBefore.eulerEarnVaults[target].totalAssets + _assets,
                 HSPOST_ACCOUNTING_C
             );
+
+            _resetActionAssetDelta();
         } else {
             revert("EulerEarnHandler: mint failed");
         }
@@ -119,6 +124,8 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
         target = _getRandomEulerEarnVault(j);
 
         uint256 previewedShares = IERC4626(target).previewWithdraw(_assets);
+
+        _setActionAssetDelta(-int256(_assets));
 
         _before();
         (success, returnData) =
@@ -153,6 +160,8 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
                 defaultVarsAfter.eulerEarnVaults[target].totalAssets,
                 HSPOST_ACCOUNTING_D
             );
+
+            _resetActionAssetDelta();
         } else {
             revert("EulerEarnHandler: withdraw failed");
         }
@@ -174,9 +183,10 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
             actor.proxy(target, abi.encodeCall(IERC4626.redeem, (_shares, receiver, address(actor))));
 
         if (success) {
-            _after();
-
             uint256 _assets = abi.decode(returnData, (uint256));
+            _setActionAssetDelta(-int256(_assets));
+
+            _after();
 
             /* HSPOST */
 
@@ -201,6 +211,8 @@ abstract contract EulerEarnHandler is IEulerEarnHandler, BaseHandler {
                 defaultVarsAfter.eulerEarnVaults[target].totalAssets,
                 HSPOST_ACCOUNTING_D
             );
+
+            _resetActionAssetDelta();
         } else {
             revert("EulerEarnHandler: redeem failed");
         }

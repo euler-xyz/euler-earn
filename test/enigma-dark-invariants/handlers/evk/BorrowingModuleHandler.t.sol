@@ -2,9 +2,8 @@
 pragma solidity ^0.8.19;
 
 // Interfaces
-import {IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IERC4626} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {IBorrowing} from "lib/euler-vault-kit/src/EVault/modules/Borrowing.sol";
+import {IEVC} from "lib/ethereum-vault-connector/src/interfaces/IEthereumVaultConnector.sol";
 import {IEVault} from "lib/euler-vault-kit/src/EVault/IEVault.sol";
 
 // Libraries
@@ -33,6 +32,9 @@ abstract contract BorrowingModuleHandler is BaseHandler {
         address receiver = _getRandomActor(i);
 
         target = _getRandomLoanVault(j);
+
+        (success, returnData) =
+            actor.proxy(address(evc), abi.encodeCall(IEVC.enableController, (address(actor), target)));
 
         _before();
         (success, returnData) = actor.proxy(target, abi.encodeCall(IBorrowing.borrow, (assets, receiver)));

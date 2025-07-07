@@ -5,6 +5,9 @@ pragma solidity ^0.8.19;
 import {EulerEarnAdminHandler} from "./handlers/admin/EulerEarnAdminHandler.t.sol";
 import {PublicAllocatorAdminHandler} from "./handlers/admin/PublicAllocatorAdminHandler.t.sol";
 
+// EVC Handler contracts
+import {EVCHandler} from "./handlers/evc/EVCHandler.t.sol";
+
 // EVK Modules Handler contracts
 import {BorrowingModuleHandler} from "./handlers/evk/BorrowingModuleHandler.t.sol";
 import {LiquidationModuleHandler} from "./handlers/evk/LiquidationModuleHandler.t.sol";
@@ -31,6 +34,7 @@ abstract contract HandlerAggregator is
     PublicAllocatorAdminHandler,
     EulerEarnHandler, // User handlers
     PublicAllocatorHandler,
+    EVCHandler, // EVC handlers
     BorrowingModuleHandler, // EVK handlers
     LiquidationModuleHandler,
     GovernanceModuleHandler,

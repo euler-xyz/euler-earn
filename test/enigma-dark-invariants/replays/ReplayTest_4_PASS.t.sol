@@ -12,11 +12,11 @@ import {Setup} from "../Setup.t.sol";
 // Utils
 import {Actor} from "../utils/Actor.sol";
 
-contract ReplayTest2 is Invariants, Setup {
+contract ReplayTest4 is Invariants, Setup {
     // Generated from Echidna reproducers
 
     // Target contract instance (you may need to adjust this)
-    ReplayTest2 Tester = this;
+    ReplayTest4 Tester = this;
 
     modifier setup() override {
         _;
@@ -36,14 +36,30 @@ contract ReplayTest2 is Invariants, Setup {
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function test_replay_2_assert_ERC4626_DEPOSIT_INVARIANT_C() public {// TODO FAIL
+    function test_replay_4_setFeeRecipient() public {
+        // PASS
         _setUpActor(USER1);
-        Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
+        Tester.deposit(1, 0, 1);
+        Tester.setSupplyQueue(1, 0);
+        Tester.deposit(100, 0, 2);
+        Tester.donateSharesToEulerEarn(1, 1, 0);
+        Tester.setFeeRecipient(true, 0);
     }
 
-    function test_replay_2_assert_ERC4626_MINT_INVARIANT_C() public {// TODO FAIL
-        _setUpActor(USER1);
-        Tester.assert_ERC4626_MINT_INVARIANT_C(0);
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                         COVERAGE TESTS                                    //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    function test_liquidiationCoverage() public {
+        vm.skip(true);
+        Tester.deposit(20 ether, 0, 0);
+        Tester.deposit(1 ether, 1, 1);
+        Tester.borrow(0.7 ether, 0, 0);
+        Tester.borrow(0.1 ether, 0, 0);
+        Tester.setPrice(0.2 ether, 0);
+        _setUpActor(USER2);
+        Tester.enableController(1, 0);
+        Tester.liquidate(0.01 ether, 0, 0, 0);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

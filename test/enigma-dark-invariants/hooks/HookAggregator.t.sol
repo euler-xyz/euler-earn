@@ -7,6 +7,8 @@ import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/
 // Hook Contracts
 import {DefaultBeforeAfterHooks} from "./DefaultBeforeAfterHooks.t.sol";
 
+import {console} from "forge-std/console.sol";
+
 /// @title HookAggregator
 /// @notice Helper contract to aggregate all before / after hook contracts, inherited on each handler
 abstract contract HookAggregator is DefaultBeforeAfterHooks {

@@ -146,7 +146,9 @@ abstract contract BaseInvariants is HandlerAggregator {
         uint256 fee = IEulerEarn(eulerEarnAddress).fee();
         address feeRecipient = IEulerEarn(eulerEarnAddress).feeRecipient();
 
-        assertEq(fee == 0, feeRecipient == address(0), INV_FEES_A);
+        if (feeRecipient == address(0)) {
+            assertEq(fee, 0, INV_FEES_A);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

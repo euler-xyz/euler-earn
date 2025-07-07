@@ -77,7 +77,7 @@ abstract contract ERC4626PropertiesSpec {
 
     /// ERC4626Handler.sol
     string constant ERC4626_WITHDRAW_INVARIANT_C =
-        "ERC4626_WITHDRAW_INVARIANT_C: maxWithdraw MUST return the maximum amount of assets that could be transferred from owner through withdraw and not cause a revert";
+        "ERC4626_WITHDRAW_INVARIANT_C: maxWithdraw MUST return the maximum amount of assets that could be withdrawn and not cause a revert";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                           REDEEM                                          //
@@ -92,7 +92,7 @@ abstract contract ERC4626PropertiesSpec {
 
     /// ERC4626Handler.sol
     string constant ERC4626_REDEEM_INVARIANT_C =
-        "ERC4626_REDEEM_INVARIANT_C: maxRedeem MUST return the maximum amount of shares that could be transferred from owner through redeem and not cause a revert";
+        "ERC4626_REDEEM_INVARIANT_C: maxRedeem MUST return the maximum amount of shares that could be redeemed and not cause a revert";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                     ROUNDTRIP PROPERTIES                                  //
@@ -115,7 +115,8 @@ abstract contract ERC4626PropertiesSpec {
     string constant ERC4626_ROUNDTRIP_INVARIANT_E = "ERC4626_ROUNDTRIP_INVARIANT_E: withdraw(mint(s)) >= s";
 
     /// ERC4626Handler.sol::ROUNDTRIP PROPERTIES
-    string constant ERC4626_ROUNDTRIP_INVARIANT_F = "ERC4626_ROUNDTRIP_INVARIANT_F: a = mint(s), a' = redeem(s), a' <= a";
+    string constant ERC4626_ROUNDTRIP_INVARIANT_F =
+        "ERC4626_ROUNDTRIP_INVARIANT_F: a = mint(s), a' = redeem(s), a' <= a";
 
     /// ERC4626Handler.sol::ROUNDTRIP PROPERTIES
     string constant ERC4626_ROUNDTRIP_INVARIANT_G = "ERC4626_ROUNDTRIP_INVARIANT_G: mint(withdraw(a)) >= a";

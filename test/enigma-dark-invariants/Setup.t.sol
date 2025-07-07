@@ -159,7 +159,6 @@ contract Setup is BaseTest {
         eTST3.setMaxLiquidationDiscount(0.2e4);
         eTST3.setLTV(address(eTST), 0.85e4, 0.85e4, 0);
         perspective.perspectiveVerify(address(eTST3));
-        _pushEVault(address(eTST3), true);
 
         // DEPLOY EULER EARN CONTRACTS
         eulerEarnFactory = new EulerEarnFactory(OWNER, address(evc), permit2, address(perspective));
@@ -213,6 +212,10 @@ contract Setup is BaseTest {
 
         _sortSupplyQueueIdleLast(eulerEarn);
         _sortSupplyQueueIdleLast(eulerEarn2);
+
+        // Set initial price of collateral token to 0.5 ether & loan token to 1 ether
+        MockPriceOracle(address(oracle)).setPrice(address(collateralToken), address(unitOfAccount), 0.5 ether);
+        MockPriceOracle(address(oracle)).setPrice(address(loanToken), address(unitOfAccount), 1 ether);
     }
 
     function _pushEVault(address _eVault, bool _isLoanVault) internal {
@@ -261,6 +264,9 @@ contract Setup is BaseTest {
                 _token.mint(_actor, INITIAL_BALANCE);
             }
             actorAddresses.push(_actor);
+
+            vm.prank(_actor);
+            evc.enableCollateral(_actor, address(eTST));
         }
     }
 

@@ -12,11 +12,11 @@ import {Setup} from "../Setup.t.sol";
 // Utils
 import {Actor} from "../utils/Actor.sol";
 
-contract ReplayTest2 is Invariants, Setup {
+contract ReplayTest3 is Invariants, Setup {
     // Generated from Echidna reproducers
 
     // Target contract instance (you may need to adjust this)
-    ReplayTest2 Tester = this;
+    ReplayTest3 Tester = this;
 
     modifier setup() override {
         _;
@@ -36,14 +36,14 @@ contract ReplayTest2 is Invariants, Setup {
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function test_replay_2_assert_ERC4626_DEPOSIT_INVARIANT_C() public {// TODO FAIL
+    function test_replay_3_depositEEV() public {
+        // PASS
         _setUpActor(USER1);
-        Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
-    }
-
-    function test_replay_2_assert_ERC4626_MINT_INVARIANT_C() public {// TODO FAIL
-        _setUpActor(USER1);
-        Tester.assert_ERC4626_MINT_INVARIANT_C(0);
+        Tester.mint(1, 0, 2);
+        Tester.deposit(1, 0, 1);
+        Tester.setSupplyQueue(0, 0);
+        Tester.donateSharesToEulerEarn(1, 0, 0);
+        Tester.depositEEV(0, 0, 1);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

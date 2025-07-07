@@ -12,11 +12,11 @@ import {Setup} from "../Setup.t.sol";
 // Utils
 import {Actor} from "../utils/Actor.sol";
 
-contract ReplayTest2 is Invariants, Setup {
+contract ReplayTest6 is Invariants, Setup {
     // Generated from Echidna reproducers
 
     // Target contract instance (you may need to adjust this)
-    ReplayTest2 Tester = this;
+    ReplayTest6 Tester = this;
 
     modifier setup() override {
         _;
@@ -36,14 +36,17 @@ contract ReplayTest2 is Invariants, Setup {
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function test_replay_2_assert_ERC4626_DEPOSIT_INVARIANT_C() public {// TODO FAIL
+    function test_replay_6_assert_ERC4626_REDEEM_INVARIANT_C() public {
+        // TODO ERC4626_REDEEM_INVARIANT_C: maxRedeem MUST return the maximum amount of shares that could be redeemed and not cause a rever
         _setUpActor(USER1);
-        Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
-    }
-
-    function test_replay_2_assert_ERC4626_MINT_INVARIANT_C() public {// TODO FAIL
-        _setUpActor(USER1);
-        Tester.assert_ERC4626_MINT_INVARIANT_C(0);
+        Tester.depositEEV(1, 0, 0);// deposit 1 asset for actor 1 on euler earn 1
+        Tester.submitCap(0, 0, 1);// submit cap 0 for market 0 on euler earn 1
+        Tester.deposit(4, 0, 0); // deposit 4 assets for actor 1 on eVault 0
+        Tester.setPrice(1, 1); // set price 1 for loanToken
+        Tester.borrow(1, 0, 0); // borrow 1 assets for actor 1 on eVault 0
+        Tester.submitCap(0, 0, 0); // submit cap 0 for market 0 on euler earn 0
+        Tester.mintEEV(1, 0, 0); // mint 1 shares for actor 1 on euler earn 0
+        Tester.assert_ERC4626_REDEEM_INVARIANT_C(0);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -165,7 +165,7 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
         address target_ = _getRandomEulerEarnVault(i);
 
         _mintAndApprove(
-            address(IEulerEarn(target_).asset()), address(this), target_, IEulerEarn(target_).convertToAssets(_shares)
+            address(IEulerEarn(target_).asset()), address(this), target_, IEulerEarn(target_).convertToAssets(_shares) + 1
         );
 
         uint256 depositedAssets = IEulerEarn(target_).mint(_shares, address(this));

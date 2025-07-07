@@ -6,6 +6,8 @@ interface IEulerEarnAdminHandler {
 
     function setFee(uint256 _newTimelock, uint8 i) external;
 
+    function setFeeRecipient(bool zeroFeeRecipient, uint8 i) external;
+
     function submitCap(uint256 _newSupplyCap, uint8 i, uint8 j) external;
 
     function submitMarketRemoval(uint8 i, uint8 j) external;
