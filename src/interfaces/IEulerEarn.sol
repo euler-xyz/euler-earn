@@ -164,7 +164,7 @@ interface IEulerEarnBase {
 
     /// @notice Reallocates the vault's liquidity so as to reach a given allocation of assets on each given vault.
     /// @dev The behavior of the reallocation can be altered by state changes, including:
-    /// - Deposits on the Eanr vault that supplies to vaults that are expected to be supplied to during reallocation.
+    /// - Deposits on the Earn vault that supplies to vaults that are expected to be supplied to during reallocation.
     /// - Withdrawals from the Earn vault that withdraws from vaults that are expected to be withdrawn from during
     /// reallocation.
     /// - Donations to the vault on vaults that are expected to be supplied to during reallocation.
