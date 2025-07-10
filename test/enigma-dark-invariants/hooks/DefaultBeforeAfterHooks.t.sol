@@ -15,6 +15,7 @@ import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/
 import {IERC20Handler} from "../handlers/interfaces/IERC20Handler.sol";
 import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 import {IEulerEarnAdminHandler} from "../handlers/interfaces/IEulerEarnAdminHandler.sol";
+import {IPublicAllocatorHandler} from "../handlers/interfaces/IPublicAllocatorHandler.sol";
 
 /// @title Default Before After Hooks
 /// @notice Helper contract for before and after hooks
@@ -239,17 +240,21 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         }
     }
 
-    function assert_GPOST_ACCOUNTING_B(address eulerEarnAddress) internal {
+    function assert_GPOST_ACCOUNTING_B() internal {
         if (_isEulerEarnVault(target)) {
             if (
-                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets
-                    > defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets
+                defaultVarsAfter.eulerEarnVaults[target].totalAssets
+                    > defaultVarsBefore.eulerEarnVaults[target].totalAssets
             ) {
                 assertTrue(
                     (
                         msg.sig == IEulerEarnHandler.depositEEV.selector
                             || msg.sig == IEulerEarnHandler.mintEEV.selector
                             || msg.sig == IEulerEarnAdminHandler.acceptCap.selector
+                            || (
+                                defaultVarsBefore.eulerEarnVaults[target].totalAssets
+                                    > defaultVarsBefore.eulerEarnVaults[target].lastTotalAssets
+                            )
                     ),
                     GPOST_ACCOUNTING_B
                 );
@@ -264,7 +269,9 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         ) {
             assertTrue(
                 (msg.sig == IEulerEarnHandler.depositEEV.selector || msg.sig == IEulerEarnHandler.mintEEV.selector)
-                    || defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].fee != 0,
+                    || defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].fee != 0
+                    || msg.sig == IPublicAllocatorHandler.reallocateTo.selector,
+                /// @dev eulerEarn is also a depositor on eulerEarn2
                 GPOST_ACCOUNTING_C
             );
         }

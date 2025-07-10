@@ -11,6 +11,7 @@ import {
     IPublicAllocatorStaticTyping,
     IPublicAllocatorBase
 } from "src/interfaces/IPublicAllocator.sol";
+import {IPublicAllocatorHandler} from "../interfaces/IPublicAllocatorHandler.sol";
 
 // Libraries
 import "forge-std/console.sol";
@@ -21,7 +22,7 @@ import {BaseHandler} from "../../base/BaseHandler.t.sol";
 
 /// @title PublicAllocatorHandler
 /// @notice Handler test contract for a set of actions
-abstract contract PublicAllocatorHandler is BaseHandler {
+abstract contract PublicAllocatorHandler is IPublicAllocatorHandler, BaseHandler {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      STATE VARIABLES                                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////

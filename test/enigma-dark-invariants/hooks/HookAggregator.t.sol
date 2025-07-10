@@ -53,7 +53,7 @@ abstract contract HookAggregator is DefaultBeforeAfterHooks {
 
         // Accounting
         assert_GPOST_ACCOUNTING_A(eulerEarnAddress);
-        assert_GPOST_ACCOUNTING_B(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_B();
         assert_GPOST_ACCOUNTING_C(eulerEarnAddress);
         assert_GPOST_ACCOUNTING_D(eulerEarnAddress);
         //assert_GPOST_ACCOUNTING_E(eulerEarnAddress); TODO uncomment
