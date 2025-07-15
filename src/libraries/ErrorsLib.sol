@@ -118,6 +118,9 @@ library ErrorsLib {
     /// @notice Thrown when attempting to set max inflow/outflow above the MAX_SETTABLE_FLOW_CAP.
     error MaxSettableFlowCapExceeded();
 
+    /// @notice Thrown when the fee transfer fails.
+    error FeeTransferFailed(address feeRecipient);
+
     /// @notice Thrown when attempting to withdraw more than the available supply of a vault.
     error NotEnoughSupply(IERC4626 id);
 
