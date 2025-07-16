@@ -15,10 +15,6 @@ struct MarketAllocation {
     uint256 assets;
 }
 
-interface IMulticall {
-    function multicall(bytes[] calldata) external returns (bytes[] memory);
-}
-
 interface IOwnable {
     function owner() external view returns (address);
     function transferOwnership(address) external;
@@ -199,7 +195,7 @@ interface IEulerEarnStaticTyping is IEulerEarnBase {
 /// @custom:contact security@euler.xyz
 /// @dev Use this interface for IEulerEarn to have access to all the functions with the appropriate function
 /// signatures.
-interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable, IMulticall {
+interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable {
     /// @notice Returns the address of the Ethereum Vault Connector (EVC) used by this contract.
     function EVC() external view returns (address);
 

@@ -22,7 +22,6 @@ import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/token/ERC2
 
 import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import {Multicall} from "../lib/openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {Ownable2Step, Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {
     IERC20,
@@ -39,7 +38,7 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 /// @custom:contact security@morpho.org
 /// @custom:contact security@euler.xyz
 /// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 vault verified by the supported perspective.
-contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil, IEulerEarnStaticTyping {
+contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEarnStaticTyping {
     using Math for uint256;
     using UtilsLib for uint256;
     using SafeCast for uint256;
