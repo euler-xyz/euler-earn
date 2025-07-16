@@ -14,7 +14,7 @@ contract EulerEarnMock is EulerEarn {
         string memory __symbol
     ) EulerEarn(owner, evc, permit2, initialTimelock, _asset, __name, __symbol) {}
 
-    function mockSetCap(IERC4626 id, uint184 supplyCap) external {
+    function mockSetCap(IERC4626 id, uint136 supplyCap) external {
         _setCap(id, supplyCap);
     }
 

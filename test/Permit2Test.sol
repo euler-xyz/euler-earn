@@ -38,7 +38,7 @@ contract Permit2Test is IntegrationTest {
     function testPermit2DepositWithPermit2() public {
         address depositor = makeAddr("permit2depositor");
         loanToken.setBalance(depositor, 1e18);
-        _setCap(vaultWithPermit2, idleVault, type(uint184).max);
+        _setCap(vaultWithPermit2, idleVault, type(uint136).max);
 
         vm.startPrank(depositor);
 
@@ -57,7 +57,7 @@ contract Permit2Test is IntegrationTest {
     function testPermit2DepositExpired() public {
         address depositor = makeAddr("permit2depositor");
         loanToken.setBalance(depositor, 1e18);
-        _setCap(vaultWithPermit2, idleVault, type(uint184).max);
+        _setCap(vaultWithPermit2, idleVault, type(uint136).max);
 
         vm.startPrank(depositor);
 
@@ -83,7 +83,7 @@ contract Permit2Test is IntegrationTest {
     function testPermit2DepositWithoutPermit2() public {
         address depositor = makeAddr("permit2depositor");
         loanToken.setBalance(depositor, 1e18);
-        _setCap(vaultWithoutPermit2, idleVault, type(uint184).max);
+        _setCap(vaultWithoutPermit2, idleVault, type(uint136).max);
 
         vm.startPrank(depositor);
 

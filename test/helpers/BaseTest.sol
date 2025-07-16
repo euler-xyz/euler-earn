@@ -32,9 +32,9 @@ import "../../lib/forge-std/src/Test.sol";
 import "../../lib/forge-std/src/console2.sol";
 
 uint256 constant BLOCK_TIME = 1;
-uint256 constant MIN_TEST_ASSETS = 1e8;
+uint256 constant MIN_TEST_ASSETS = 1e9;
 uint256 constant MAX_TEST_ASSETS = 1e28;
-uint184 constant CAP = type(uint112).max;
+uint136 constant CAP = type(uint112).max;
 uint256 constant NB_MARKETS = ConstantsLib.MAX_QUEUE_LENGTH + 1;
 
 contract BaseTest is EVaultTestBase {

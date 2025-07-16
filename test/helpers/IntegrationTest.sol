@@ -26,7 +26,7 @@ contract IntegrationTest is BaseTest {
 
         vm.stopPrank();
 
-        _setCap(idleVault, type(uint184).max);
+        _setCap(idleVault, type(uint136).max);
 
         loanToken.approve(address(vault), type(uint256).max);
         collateralToken.approve(address(vault), type(uint256).max);
@@ -81,7 +81,7 @@ contract IntegrationTest is BaseTest {
         // block.timestamp defaults to 1 which may lead to an unrealistic state: block.timestamp < timelock.
         if (block.timestamp < timelock) vm.warp(block.timestamp + timelock);
 
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
         if (pendingTimelock.validAt == 0 || newTimelock != pendingTimelock.value) {
             vm.prank(OWNER);
             vault.submitTimelock(newTimelock);
@@ -130,7 +130,7 @@ contract IntegrationTest is BaseTest {
         bool isEnabled = _vault.config(id).enabled;
         if (newCap == cap) return;
 
-        PendingUint192 memory pendingCap = _vault.pendingCap(id);
+        PendingUint136 memory pendingCap = _vault.pendingCap(id);
         if (pendingCap.validAt == 0 || newCap != pendingCap.value) {
             vm.prank(CURATOR);
             _vault.submitCap(id, newCap);
