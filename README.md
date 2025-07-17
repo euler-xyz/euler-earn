@@ -16,7 +16,7 @@
 
 ## Overview
 
-EulerEarn is a protocol for noncustodial risk management on top of accepted [ERC-4626 vaults](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/), especially the [EVK vaults](https://github.com/euler-xyz/euler-vault-kit). EulerEarn allows only accepted ERC4626 vaults to be used as stratiegies. This is because empty non-EVK vaults may not be safely integrated with EulerEarn if they do not have sufficient first depositor and stealth donation protection that prevents manipulation of the potential strategy exchange rate. Other EulerEarn vaults can safely be used as strategies.
+EulerEarn is a protocol for noncustodial risk management on top of accepted [ERC-4626 vaults](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/), especially the [EVK vaults](https://github.com/euler-xyz/euler-vault-kit). EulerEarn allows only accepted ERC4626 vaults to be used as strategies. This is because empty non-EVK vaults may not be safely integrated with EulerEarn if they do not have sufficient first depositor and stealth donation protection that prevents manipulation of the potential strategy exchange rate. Other EulerEarn vaults can safely be used as strategies.
 EulerEarn enables anyone to create a vault depositing liquidity into multiple ERC-4626 vaults.
 EulerEarn offers a seamless experience similar to [Morpho Vaults](https://docs.morpho.org/overview/concepts/vault/).
 
@@ -93,7 +93,7 @@ It can:
   - Upon a withdrawal, the vault will withdraw up to the liquidity of each ERC-4626 strategy in the `withdrawQueue` in the order set.
   - The `supplyQueue` only contains strategy vaults which cap has previously been non-zero.
   - The `withdrawQueue` contains all strategy vaults that have a non-zero cap or a non-zero vault allocation.
-- Instantaneously reallocate funds by supplying on strategy vaults of the `withdrawQueue` and withdrawing from stratiegies that have the same loan asset as the vault's asset.
+- Instantaneously reallocate funds by supplying on strategy vaults of the `withdrawQueue` and withdrawing from strategies that have the same loan asset as the vault's asset.
 
 > **Warning**
 > If `supplyQueue` is empty, depositing to the vault is disabled.
