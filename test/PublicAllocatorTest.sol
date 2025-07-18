@@ -384,7 +384,7 @@ contract PublicAllocatorTest is IntegrationTest {
         publicAllocator.reallocateTo{value: 0.001 ether}(address(vault), withdrawals, allMarkets[0]);
 
         CantReceive cr = new CantReceive();
-        vm.expectRevert("cannot receive");
+        vm.expectRevert(abi.encodeWithSelector(ErrorsLib.FeeTransferFailed.selector, address(cr)));
         vm.prank(OWNER);
         publicAllocator.transferFee(address(vault), payable(address(cr)));
     }

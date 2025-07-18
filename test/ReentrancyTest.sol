@@ -59,7 +59,7 @@ contract ReentrancyTest is IntegrationTest, IERC1820Implementer {
         vault.setFeeRecipient(FEE_RECIPIENT);
         vm.stopPrank();
 
-        _setCap(idleVault, type(uint184).max);
+        _setCap(idleVault, type(uint136).max);
         reentrantToken.approve(address(vault), type(uint256).max);
     }
 

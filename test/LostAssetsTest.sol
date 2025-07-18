@@ -18,6 +18,12 @@ contract LostAssetsTest is IntegrationTest {
         LIQUIDATOR = makeAddr("Liquidator");
     }
 
+    function accrueInterestBySettingFeeRecipient() internal {
+        vm.startPrank(OWNER);
+        vault.setFeeRecipient(address(uint160(uint256(keccak256(abi.encode(vault.feeRecipient()))))));
+        vm.stopPrank();
+    }
+
     function testWriteTotalSupplyAssets(uint112 newValue) public {
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(newValue);
 
@@ -56,7 +62,7 @@ contract LostAssetsTest is IntegrationTest {
 
         uint256 lastTotalAssetsBefore = vault.lastTotalAssets();
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
         uint256 lastTotalAssetsAfter = vault.lastTotalAssets();
 
         assertGe(lastTotalAssetsAfter, lastTotalAssetsBefore, "totalAssets decreased");
@@ -70,7 +76,7 @@ contract LostAssetsTest is IntegrationTest {
 
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(0.5 ether);
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         // virtual deposit will be entitled to part of the remaining assets
         assertApproxEqAbs(vault.lostAssets(), 0.5 ether, 0.5e6, "expected lostAssets");
@@ -89,7 +95,7 @@ contract LostAssetsTest is IntegrationTest {
 
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertApproxEqAbs(
             vault.lostAssets(),
@@ -141,7 +147,7 @@ contract LostAssetsTest is IntegrationTest {
 
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVaultSecond - secondLostAssets));
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertApproxEqAbs(
             vault.lostAssets(),
@@ -165,13 +171,13 @@ contract LostAssetsTest is IntegrationTest {
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
         uint256 snapshotId = vm.snapshotState();
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
         uint256 actuallyLost = vault.lostAssets();
         vm.revertToState(snapshotId);
 
         vm.expectEmit();
         emit EventsLib.UpdateLostAssets(actuallyLost);
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertApproxEqAbs(
             vault.lostAssets(),
@@ -196,7 +202,7 @@ contract LostAssetsTest is IntegrationTest {
 
         _toEVaultMock(allMarkets[0]).mockSetTotalSupply(uint112(totalAssetsBeforeVault - expectedLostAssets));
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertApproxEqAbs(vault.maxWithdraw(ONBEHALF), totalAssetsBeforeVault - expectedLostAssets, 1);
     }
@@ -234,7 +240,8 @@ contract LostAssetsTest is IntegrationTest {
 
         uint256 totalAssetsAfter = vault.totalAssets();
 
-        assertEq(totalAssetsAfter, totalAssetsBefore + donation);
+        // internal balance tracking does not recognize the donation
+        assertApproxEqAbs(totalAssetsAfter, totalAssetsBefore, 1);
     }
 
     function testForcedMarketRemoval(uint256 assets0, uint256 assets1) public {
@@ -275,7 +282,7 @@ contract LostAssetsTest is IntegrationTest {
 
         uint256 totalAssetsAfter = vault.totalAssets();
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertEq(totalAssetsBefore, totalAssetsAfter);
         assertEq(vault.lostAssets(), assets0);
@@ -320,7 +327,7 @@ contract LostAssetsTest is IntegrationTest {
 
         assertEq(vault.lostAssets(), 0);
 
-        vault.deposit(0, ONBEHALF); // update lostAssets.
+        accrueInterestBySettingFeeRecipient(); // update lostAssets.
 
         assertApproxEqAbs(vault.lostAssets(), borrowed, 1e6);
         assertEq(totalAssetsBefore, vault.totalAssets());
@@ -376,7 +383,7 @@ contract LostAssetsTest is IntegrationTest {
         loanToken.setBalance(address(this), 2);
         vault.deposit(2, address(this));
 
-        vault.deposit(0, address(this));
+        accrueInterestBySettingFeeRecipient();
 
         assertEq(vault.lostAssets(), 1);
     }
@@ -401,7 +408,7 @@ contract LostAssetsTest is IntegrationTest {
         vault.withdraw(maxWithdraw, address(this), address(this));
 
         // Call to update lostAssets.
-        vault.deposit(0, address(this));
+        accrueInterestBySettingFeeRecipient();
 
         assertEq(vault.lostAssets(), 1);
     }

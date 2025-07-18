@@ -24,7 +24,7 @@ library SafeERC20Permit2Lib {
 
     function revokeApprovalWithPermit2(IERC20 token, address spender, address permit2) internal {
         if (permit2 == address(0)) {
-            SafeERC20.forceApprove(token, spender, 1);
+            try token.approve(spender, 1) {} catch {}
         } else {
             IAllowanceTransfer(permit2).approve(address(token), spender, 0, 0);
         }
