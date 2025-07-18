@@ -762,6 +762,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         address permit2 = success && result.length >= 32 ? abi.decode(result, (address)) : address(0);
 
         if (supplyCap > 0) {
+            IERC20(asset()).forceApproveMaxWithPermit2(address(id), permit2);
+
             if (!marketConfig.enabled) {
                 withdrawQueue.push(id);
 
@@ -771,8 +773,6 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
                 // Take into account assets of the new vault without applying a fee.
                 _updateLastTotalAssets(lastTotalAssets + _expectedSupplyAssets(id));
-
-                IERC20(asset()).forceApproveMaxWithPermit2(address(id), permit2);
 
                 emit EventsLib.SetWithdrawQueue(msgSender, withdrawQueue);
             }
