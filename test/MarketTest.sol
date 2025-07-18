@@ -45,12 +45,24 @@ contract MarketTest is IntegrationTest {
         vault.deposit(1, RECEIVER);
     }
 
-    function testSubmitCapOverflow(uint256 seed, uint256 cap) public {
+    function testSubmitCapBackwardsCompatibility(uint256 seed) public {
         IERC4626 id = _randomMarket(seed);
-        cap = bound(cap, uint256(type(uint184).max) + 1, type(uint256).max);
+        uint256 cap = type(uint184).max;
 
         vm.prank(CURATOR);
-        vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, uint8(184), cap));
+        vault.submitCap(id, cap);
+
+        assertEq(vault.pendingCap(id).value, type(uint136).max);
+    }
+
+    function testSubmitCapOverflow(uint256 seed, uint256 cap) public {
+        IERC4626 id = _randomMarket(seed);
+        cap = bound(cap, uint256(type(uint136).max) + 1, type(uint256).max);
+
+        vm.prank(CURATOR);
+        if (cap != type(uint184).max) {
+            vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, uint8(136), cap));
+        }
         vault.submitCap(id, cap);
     }
 

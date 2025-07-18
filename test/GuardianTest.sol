@@ -38,7 +38,7 @@ contract GuardianTest is IntegrationTest {
         vault.revokePendingTimelock();
 
         uint256 newTimelock = vault.timelock();
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
 
         assertEq(newTimelock, TIMELOCK, "newTimelock");
         assertEq(pendingTimelock.value, 0, "pendingTimelock.value");
@@ -60,7 +60,7 @@ contract GuardianTest is IntegrationTest {
         vault.revokePendingTimelock();
 
         uint256 newTimelock = vault.timelock();
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
 
         assertEq(newTimelock, TIMELOCK, "newTimelock");
         assertEq(pendingTimelock.value, 0, "value");
@@ -70,7 +70,7 @@ contract GuardianTest is IntegrationTest {
     function testGuardianRevokePendingCapIncreased(uint256 seed, uint256 cap, uint256 elapsed) public {
         IERC4626 id = _randomMarket(seed);
         elapsed = bound(elapsed, 0, TIMELOCK - 1);
-        cap = bound(cap, 1, type(uint184).max);
+        cap = bound(cap, 1, type(uint136).max);
 
         vm.prank(OWNER);
         vault.submitCap(id, cap);
@@ -83,7 +83,7 @@ contract GuardianTest is IntegrationTest {
         vault.revokePendingCap(id);
 
         MarketConfig memory marketConfig = vault.config(id);
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint136 memory pendingCap = vault.pendingCap(id);
 
         assertEq(marketConfig.cap, 0, "marketConfig.cap");
         assertEq(marketConfig.enabled, false, "marketConfig.enabled");

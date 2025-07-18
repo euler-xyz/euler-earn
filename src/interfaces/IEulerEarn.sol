@@ -6,17 +6,13 @@ import {IEulerEarnFactory} from "./IEulerEarnFactory.sol";
 import {IERC4626} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import {IERC20Permit} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-import {MarketConfig, PendingUint192, PendingAddress} from "../libraries/PendingLib.sol";
+import {MarketConfig, PendingUint136, PendingAddress} from "../libraries/PendingLib.sol";
 
 struct MarketAllocation {
     /// @notice The vault to allocate.
     IERC4626 id;
     /// @notice The amount of assets to allocate.
     uint256 assets;
-}
-
-interface IMulticall {
-    function multicall(bytes[] calldata) external returns (bytes[] memory);
 }
 
 interface IOwnable {
@@ -93,6 +89,7 @@ interface IEulerEarnBase {
     /// @dev Warning: Reverts if a cap is already pending. Revoke the pending cap to overwrite it.
     /// @dev Warning: Reverts if a vault removal is pending.
     /// @dev In case the new cap is lower than the current one, the cap is set immediately.
+    /// @dev For the sake of backwards compatibility, the max allowed cap can either be set to type(uint184).max or type(uint136).max.
     function submitCap(IERC4626 id, uint256 newSupplyCap) external;
 
     /// @notice Accepts the pending cap of the vault.
@@ -180,16 +177,16 @@ interface IEulerEarnBase {
 /// @dev Consider using the IEulerEarn interface instead of this one.
 interface IEulerEarnStaticTyping is IEulerEarnBase {
     /// @notice Returns the current configuration of each vault.
-    function config(IERC4626) external view returns (uint184 cap, bool enabled, uint64 removableAt);
+    function config(IERC4626) external view returns (uint112 balance, uint136 cap, bool enabled, uint64 removableAt);
 
     /// @notice Returns the pending guardian.
     function pendingGuardian() external view returns (address guardian, uint64 validAt);
 
     /// @notice Returns the pending cap for each vault.
-    function pendingCap(IERC4626) external view returns (uint192 value, uint64 validAt);
+    function pendingCap(IERC4626) external view returns (uint136 value, uint64 validAt);
 
     /// @notice Returns the pending timelock.
-    function pendingTimelock() external view returns (uint192 value, uint64 validAt);
+    function pendingTimelock() external view returns (uint136 value, uint64 validAt);
 }
 
 /// @title IEulerEarn
@@ -198,7 +195,7 @@ interface IEulerEarnStaticTyping is IEulerEarnBase {
 /// @custom:contact security@euler.xyz
 /// @dev Use this interface for IEulerEarn to have access to all the functions with the appropriate function
 /// signatures.
-interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable, IMulticall {
+interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable {
     /// @notice Returns the address of the Ethereum Vault Connector (EVC) used by this contract.
     function EVC() external view returns (address);
 
@@ -209,8 +206,8 @@ interface IEulerEarn is IEulerEarnBase, IERC4626, IERC20Permit, IOwnable, IMulti
     function pendingGuardian() external view returns (PendingAddress memory);
 
     /// @notice Returns the pending cap for each vault.
-    function pendingCap(IERC4626) external view returns (PendingUint192 memory);
+    function pendingCap(IERC4626) external view returns (PendingUint136 memory);
 
     /// @notice Returns the pending timelock.
-    function pendingTimelock() external view returns (PendingUint192 memory);
+    function pendingTimelock() external view returns (PendingUint136 memory);
 }

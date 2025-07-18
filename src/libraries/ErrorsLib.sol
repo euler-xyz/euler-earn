@@ -112,11 +112,20 @@ library ErrorsLib {
     /// @notice Thrown when the deposit vault is in `withdrawals`.
     error DepositMarketInWithdrawals();
 
+    /// @notice Thrown when attempting to deposit amount of assets corresponding to zero shares.
+    error ZeroShares();
+
+    /// @notice Thrown when attempting to redeem amount of shares corresponding to zero assets.
+    error ZeroAssets();
+
     /// @notice Thrown when attempting to withdraw zero from a vault.
     error WithdrawZero(IERC4626 id);
 
     /// @notice Thrown when attempting to set max inflow/outflow above the MAX_SETTABLE_FLOW_CAP.
     error MaxSettableFlowCapExceeded();
+
+    /// @notice Thrown when the fee transfer fails.
+    error FeeTransferFailed(address feeRecipient);
 
     /// @notice Thrown when attempting to withdraw more than the available supply of a vault.
     error NotEnoughSupply(IERC4626 id);

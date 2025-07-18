@@ -177,7 +177,7 @@ contract ReallocateWithdrawTest is IntegrationTest {
 
         loanToken.setBalance(address(vault), rewards);
 
-        _setCap(allMarkets[0], type(uint184).max);
+        _setCap(allMarkets[0], type(uint136).max);
 
         allocations.push(MarketAllocation(idleVault, 0));
         allocations.push(MarketAllocation(allMarkets[0], 2 * CAP2 + rewards));

@@ -67,8 +67,13 @@ contract ERC4626Test is IntegrationTest {
 
         redeemed = bound(redeemed, 0, shares);
 
-        vm.expectEmit();
-        emit EventsLib.UpdateLastTotalAssets(vault.totalAssets() - vault.convertToAssets(redeemed));
+        if (vault.previewRedeem(redeemed) == 0) {
+            vm.expectRevert(ErrorsLib.ZeroAssets.selector);
+        } else {
+            vm.expectEmit();
+            emit EventsLib.UpdateLastTotalAssets(vault.totalAssets() - vault.convertToAssets(redeemed));
+        }
+
         vm.prank(ONBEHALF);
         vault.redeem(redeemed, RECEIVER, ONBEHALF);
 
