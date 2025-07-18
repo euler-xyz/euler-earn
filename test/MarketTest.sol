@@ -373,8 +373,7 @@ contract MarketTest is IntegrationTest {
 
         _setCap(allMarkets[3], CAP);
 
-        // internal balance tracking does not recognize the donation
-        assertEq(vault.lastTotalAssets(), deposited);
+        assertEq(vault.lastTotalAssets(), deposited + additionalSupply);
     }
 
     function testRevokeNoRevert() public {

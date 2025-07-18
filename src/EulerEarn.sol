@@ -770,6 +770,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 if (withdrawQueue.length > ConstantsLib.MAX_QUEUE_LENGTH) revert ErrorsLib.MaxQueueLengthExceeded();
 
                 marketConfig.enabled = true;
+                marketConfig.balance = id.balanceOf(address(this)).toUint112();
 
                 // Take into account assets of the new vault without applying a fee.
                 _updateLastTotalAssets(lastTotalAssets + _expectedSupplyAssets(id));
