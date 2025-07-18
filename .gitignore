@@ -13,3 +13,6 @@ broadcast/
 
 # System Files
 .DS_Store
+
+# certora generated files
+.certora_internal
