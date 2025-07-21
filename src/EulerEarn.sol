@@ -37,7 +37,7 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org
 /// @custom:contact security@euler.xyz
-/// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 vault verified by the supported perspective.
+/// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 strategy vault allowed by the factory.
 contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEarnStaticTyping {
     using Math for uint256;
     using UtilsLib for uint256;
@@ -596,7 +596,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IERC4626
-    /// @dev totalAssets is the sum of the vault's assets on the verified vaults plus the lost assets (see corresponding
+    /// @dev totalAssets is the sum of the vault's assets on the strategy vaults plus the lost assets (see corresponding
     /// docs in IEulerEarn.sol).
     function totalAssets() public view override returns (uint256) {
         (, uint256 newTotalAssets,) = _accruedFeeAndAssets();
@@ -621,7 +621,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         assets -= _simulateWithdrawStrategy(assets);
     }
 
-    /// @dev Returns the maximum amount of assets that the Earn vault can supply to the verified vaults.
+    /// @dev Returns the maximum amount of assets that the Earn vault can supply to the strategy vaults.
     function _maxDeposit() internal view returns (uint256 totalSuppliable) {
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = supplyQueue[i];
@@ -678,7 +678,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc ERC4626
-    /// @dev Used in mint or deposit to deposit the underlying asset to verified vaults.
+    /// @dev Used in mint or deposit to deposit the underlying asset to strategy vaults.
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         IERC20(asset()).safeTransferFromWithPermit2(caller, address(this), assets, permit2Address);
         _mint(receiver, shares);
@@ -693,7 +693,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc ERC4626
-    /// @dev Used in redeem or withdraw to withdraw the underlying asset from the verified vaults.
+    /// @dev Used in redeem or withdraw to withdraw the underlying asset from the strategy vaults.
     /// @dev Depending on 3 cases, reverts when withdrawing "too much" with:
     /// 1. NotEnoughLiquidity when withdrawing more than available liquidity.
     /// 2. ERC20InsufficientAllowance when withdrawing more than `caller`'s allowance.
@@ -792,7 +792,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
     /* LIQUIDITY ALLOCATION */
 
-    /// @dev Supplies `assets` to the verified vaults.
+    /// @dev Supplies `assets` to the strategy vaults.
     function _supplyStrategy(uint256 assets) internal {
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = supplyQueue[i];
@@ -819,12 +819,13 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         if (assets != 0) revert ErrorsLib.AllCapsReached();
     }
 
-    /// @dev Withdraws `assets` from the verified vaults.
+    /// @dev Withdraws `assets` from the strategy vaults.
     function _withdrawStrategy(uint256 assets) internal {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            uint256 toWithdraw = UtilsLib.min(id.maxWithdraw(address(this)), assets);
+            uint256 toWithdraw =
+                UtilsLib.min(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)), assets);
 
             if (toWithdraw > 0) {
                 // Using try/catch to skip vaults that revert.
@@ -845,13 +846,14 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         return id.previewRedeem(config[id].balance);
     }
 
-    /// @dev Simulates a withdraw of `assets` from the verified vaults.
+    /// @dev Simulates a withdraw of `assets` from the strategy vaults.
     /// @return The remaining assets to be withdrawn.
     function _simulateWithdrawStrategy(uint256 assets) internal view returns (uint256) {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            assets = assets.zeroFloorSub(id.maxWithdraw(address(this)));
+            assets =
+                assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
 
             if (assets == 0) break;
         }
@@ -890,7 +892,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         view
         returns (uint256 feeShares, uint256 newTotalAssets, uint256 newLostAssets)
     {
-        // The assets that the Earn vault has on the verified vaults.
+        // The assets that the Earn vault has on the strategy vaults.
         uint256 realTotalAssets;
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
