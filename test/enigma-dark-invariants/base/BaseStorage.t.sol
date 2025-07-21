@@ -75,30 +75,37 @@ abstract contract BaseStorage {
 
     /// @notice Vault Hierarchy:
     ///
-    ///                    ┌─────────────────┐
-    ///                    │   eulerEarn     │  ← Main Euler Earn vault
-    ///                    │  (Top Level)    │
-    ///                    └─────────────────┘
-    ///                            │
-    ///                            ▼
-    ///         ┌──────────────────┬─────────────────┬──────────────────┐
-    ///         │                  │                 │                  │
-    ///         ▼                  │                 │                  │
-    /// ┌─────────────┐            │                 │                  │
-    /// │ eulerEarn2  │────── > ───┼─────────── > ───┼─────────── > ────┤
-    /// │  (Nested)   │            │                 │                  │
-    /// └─────────────┘            │                 │                  │
-    ///                            ▼                 ▼                  ▼
-    ///                   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-    ///                   │   eTST2     │   │   eTST3     │   │ idleVault   │
-    ///                   │ (Loan Vault)│   │ (Loan Vault)│   │   (Idle)    │
-    ///                   └─────────────┘   └─────────────┘   └─────────────┘
-    ///                           │                 │
-    ///                           ▼                 ▼
+    ///                                      ┌─────────────────┐
+    ///                                      │   eulerEarn     │  ← Main Euler Earn vault
+    ///                                      │  (Top Level)    │
+    ///                                      └─────────────────┘
+    ///                                              │
+    ///                                              ▼
+    ///           ┌───────────────────────────────────┬─────────────────┬─────────────────┐
+    ///           │                                   │                 │                 │
+    ///           │                                   │                 │                 │
+    ///           ▼                                   ▼                 ▼                 ▼
+    ///    ┌─────────────┐                   ┌──────────────    ┌──────────────┐   ┌─────────────┐
+    ///    │ eulerEarn2  │                   │    eTST2     │   │    eTST3     │   │  idleVault  │
+    ///    │  (Nested)   │                   │ (Loan Vault) │   │ (Loan Vault) │   │   (Idle)    │
+    ///    └─────────────┘                   └──────────────┘   └──────────────┘   └─────────────┘
+    ///           │ ──────────┐                │                  │                
+    ///           │           │                │                  │               
+    ///           ▼           ▼                │                  │               
+    ///    ┌─────────────┐  ┌─────────────┐    │                  │               
+    ///    │   eTST4     │  │  idleVault2 │    │                  │               
+    ///    │ (Loan Vault)│  │   (Idle)    │    │                  │               
+    ///    └─────────────┘  └─────────────┘    │                  │               
+    ///           │                            │                  │               
+    ///           │                            │                  │               
+    ///           └────────────┐               │         ┌────────┘                  
+    ///                        ▼               ▼         ▼                   
     ///                   ┌─────────────────────────────────┐
     ///                   │           eTST                  │  ← Collateral vault
     ///                   │    (Collateral Vault)           │     (acts as collateral vault for eTST2 and eTST3)
     ///                   └─────────────────────────────────┘
+    ///
+    ///
 
     /// EULER EARN VAULTS
 
@@ -121,14 +128,19 @@ abstract contract BaseStorage {
 
     // MARKETS
 
-    /// @notice Idle vault
+    /// @notice Idle vault: eulerEarn
     IERC4626 internal idleVault;
+    /// @notice Idle vault: eulerEarn2
+    IERC4626 internal idleVault2;
+
     /// @notice Collateral vault
     IEVault eTST;
-    /// @notice Loan vault
+    /// @notice Loan vault: eulerEarn
     IEVault eTST2;
-    /// @notice Loan vault
+    /// @notice Loan vault: eulerEarn
     IEVault eTST3;
+    /// @notice Loan vault: eulerEarn2
+    IEVault eTST4;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       EULER CONTRACTS                                     //
@@ -176,13 +188,13 @@ abstract contract BaseStorage {
     /// @notice Array of all vaults on the suite; EVaults & EulerEarn
     IERC4626[] internal allVaults;
 
-    /// @notice Array of supply markets for eulerEarn: eTST2, eTST3, eulerEarn2, idleVault
+    /// @notice Array of supply markets by Euler Earn vault
     mapping(address => IERC4626[]) internal allMarkets;
 
-    /// @notice Array of all EVaults on the suite: eTST, eTST2, eTST3, idleVault
+    /// @notice Array of all EVaults on the suite: eTST, eTST2, eTST3, eTST4, idleVault, idleVault2
     IEVault[] internal eVaults;
 
-    /// @notice Array of all borrowable loan EVaults on the suite: eTST2, eTST3
+    /// @notice Array of all borrowable loan EVaults on the suite: eTST2, eTST3, eTST4
     IEVault[] internal loanVaults;
 
     /// @notice Array of all Euler Earn vaults on the suite: eulerEarn, eulerEarn2

@@ -126,6 +126,14 @@ contract Setup is BaseTest {
         perspective.perspectiveVerify(address(idleVault));
         vm.label(address(idleVault), "IdleVault");
 
+        // Idle Vault 2
+        idleVault2 = IERC4626(
+            factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
+        );
+        IEVault(address(idleVault2)).setHookConfig(address(0), 0);
+        perspective.perspectiveVerify(address(idleVault2));
+        vm.label(address(idleVault2), "IdleVault2");
+
         // Collateral Vault eTST
         eTST = IEVault(
             factory.createProxy(
@@ -160,6 +168,17 @@ contract Setup is BaseTest {
         eTST3.setLTV(address(eTST), 0.85e4, 0.85e4, 0);
         perspective.perspectiveVerify(address(eTST3));
 
+        // Loan Vault eTST4
+        eTST4 = IEVault(
+            factory.createProxy(address(0), true, abi.encodePacked(address(loanToken), address(oracle), unitOfAccount))
+        );
+        vm.label(address(eTST4), "eTST4 (Loan Vault)");
+        eTST4.setHookConfig(address(0), 0);
+        eTST4.setInterestRateModel(address(new IRMTestDefault()));
+        eTST4.setMaxLiquidationDiscount(0.2e4);
+        eTST4.setLTV(address(eTST), 0.85e4, 0.85e4, 0);
+        perspective.perspectiveVerify(address(eTST4));
+
         // DEPLOY EULER EARN CONTRACTS
         eulerEarnFactory = new EulerEarnFactory(OWNER, address(evc), permit2, address(perspective));
 
@@ -187,16 +206,20 @@ contract Setup is BaseTest {
         allVaults.push(IERC4626(address(eulerEarn2)));
         eulerEarnVaults.push(address(eulerEarn2));
 
-        _pushEVault(address(eTST2), true);
-        _pushEVault(address(eTST3), true);
-        allMarkets[address(eulerEarn)].push(IERC4626(address(eulerEarn2)));
+        // STORE MARKETS & VAULTS IN STORAGE
+
+        _pushEVault(address(eulerEarn), address(eTST2), true);///@dev: eulerEarn market
+        _pushEVault(address(eulerEarn), address(eTST3), true);///@dev: eulerEarn market
+        allMarkets[address(eulerEarn)].push(IERC4626(address(eulerEarn2)));///@dev: eulerEarn market
+        _pushEVault(address(eulerEarn2), address(eTST4), true);///@dev: eulerEarn2 market
 
         // Set Infinite Cap for Idle Vault
         _setCap(eulerEarn, address(idleVault), type(uint184).max);
-        _setCap(eulerEarn2, address(idleVault), type(uint184).max);
+        _setCap(eulerEarn2, address(idleVault2), type(uint184).max);
 
         // Idle Vault must be pushed last
-        _pushEVault(address(idleVault), false);
+        _pushEVault(address(eulerEarn), address(idleVault), false);
+        _pushEVault(address(eulerEarn2), address(idleVault2), false);
 
         publicAllocator = IPublicAllocator(address(new PublicAllocator(address(evc))));
         eulerEarn.setIsAllocator(address(publicAllocator), true);
@@ -207,20 +230,18 @@ contract Setup is BaseTest {
         _setCap(eulerEarn, address(eulerEarn2), CAP1);
 
         // Set initial caps for the supply markets of eulerEarn2
-        _setCap(eulerEarn2, address(eTST2), CAP2);
-        _setCap(eulerEarn2, address(eTST3), CAP3);
+        _setCap(eulerEarn2, address(eTST4), CAP2);
 
-        _sortSupplyQueueIdleLast(eulerEarn);
-        _sortSupplyQueueIdleLast(eulerEarn2);
+        _sortSupplyQueueIdleLast(eulerEarn, idleVault);
+        _sortSupplyQueueIdleLast(eulerEarn2, idleVault2);
 
         // Set initial price of collateral token to 0.5 ether & loan token to 1 ether
         MockPriceOracle(address(oracle)).setPrice(address(collateralToken), address(unitOfAccount), 0.5 ether);
         MockPriceOracle(address(oracle)).setPrice(address(loanToken), address(unitOfAccount), 1 ether);
     }
 
-    function _pushEVault(address _eVault, bool _isLoanVault) internal {
-        allMarkets[address(eulerEarn)].push(IERC4626(_eVault));
-        allMarkets[address(eulerEarn2)].push(IERC4626(_eVault));
+    function _pushEVault(address _eulerEarn, address _eVault, bool _isLoanVault) internal {
+        allMarkets[_eulerEarn].push(IERC4626(_eVault));
         allVaults.push(IERC4626(_eVault));
         eVaults.push(IEVault(_eVault));
         if (_isLoanVault) {
@@ -246,11 +267,13 @@ contract Setup is BaseTest {
         tokens[0] = address(loanToken);
         tokens[1] = address(collateralToken);
 
-        address[] memory contracts_ = new address[](6);
+        address[] memory contracts_ = new address[](8);
         contracts_[0] = address(idleVault);
-        contracts_[1] = address(eTST);
-        contracts_[2] = address(eTST2);
-        contracts_[3] = address(eTST3);
+        contracts_[1] = address(idleVault2);
+        contracts_[2] = address(eTST);
+        contracts_[3] = address(eTST2);
+        contracts_[4] = address(eTST3);
+        contracts_[5] = address(eTST4);
         contracts_[4] = address(eulerEarn);
         contracts_[5] = address(eulerEarn2);
 
@@ -326,19 +349,19 @@ contract Setup is BaseTest {
         }
     }
 
-    function _sortSupplyQueueIdleLast(IEulerEarn _vault) internal {
+    function _sortSupplyQueueIdleLast(IEulerEarn _vault, IERC4626 _idleVault) internal {
         IERC4626[] memory supplyQueue = new IERC4626[](_vault.supplyQueueLength());
 
         uint256 supplyIndex;
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = _vault.supplyQueue(i);
-            if (id == idleVault) continue;
+            if (id == _idleVault) continue;
 
             supplyQueue[supplyIndex] = id;
             ++supplyIndex;
         }
 
-        supplyQueue[supplyIndex] = idleVault;
+        supplyQueue[supplyIndex] = _idleVault;
         ++supplyIndex;
 
         assembly {

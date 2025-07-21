@@ -157,22 +157,19 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
     //                                          HELPERS                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function _generateRandomMarketArray(uint8 seed, address target) internal returns (IERC4626[] memory randomArray) {
+    function _generateRandomMarketArray(uint8 seed, address _target) internal returns (IERC4626[] memory randomArray) {
         // First, create array of non-idleVault markets
-        IERC4626[] memory nonIdleMarkets = new IERC4626[](allMarkets[target].length);
-        uint256 nonIdleCount = 0;
+        uint256 nonIdleCount = allMarkets[_target].length - 1;
+        IERC4626[] memory nonIdleMarkets = new IERC4626[](nonIdleCount);
 
-        for (uint256 i = 0; i < allMarkets[target].length; i++) {
-            if (address(allMarkets[target][i]) != address(idleVault)) {
-                nonIdleMarkets[nonIdleCount] = allMarkets[target][i];
-                nonIdleCount++;
-            }
+        for (uint256 i = 0; i < nonIdleCount; i++) {
+            nonIdleMarkets[i] = allMarkets[_target][i];
         }
 
         // Determine how many non-idle markets to select (max available)
-        uint256 randomLength = nonIdleCount > 0 ? clampLe(seed, nonIdleCount - 1) : 0;
+        uint256 randomLength = clampLe(seed, nonIdleCount);
 
-        randomArray = new IERC4626[](randomLength + 1);
+        randomArray = new IERC4626[](randomLength + 1); // +1 for idleVault
 
         // Select from non-idle markets only
         for (uint256 i = 0; i < randomLength; i++) {
@@ -180,16 +177,16 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         }
 
         // Always add idleVault at the end
-        randomArray[randomLength] = IERC4626(address(idleVault));
+        randomArray[randomLength] = IERC4626(address(allMarkets[_target][nonIdleCount]));
 
-        assert(randomArray.length <= allMarkets[target].length);
+        assert(randomArray.length <= allMarkets[_target].length);
     }
 
-    function _clampIndexesArray(uint8[MAX_NUM_MARKETS] memory _indexes, uint8 indexesLengthSeed, address target)
+    function _clampIndexesArray(uint8[MAX_NUM_MARKETS] memory _indexes, uint8 indexesLengthSeed, address _target)
         internal
         returns (uint256[] memory clampedIndexes)
     {
-        uint256 withdrawalQueueLength = IEulerEarn(target).withdrawQueueLength();
+        uint256 withdrawalQueueLength = IEulerEarn(_target).withdrawQueueLength();
         assertLe(
             withdrawalQueueLength,
             MAX_NUM_MARKETS,
@@ -201,7 +198,7 @@ abstract contract EulerEarnAdminHandler is IEulerEarnAdminHandler, BaseHandler {
         clampedIndexes = new uint256[](clampedIndexesLength);
 
         for (uint256 i; i < clampedIndexesLength; i++) {
-            clampedIndexes[i] = clampLt(_indexes[i], allMarkets[target].length);
+            clampedIndexes[i] = clampLt(_indexes[i], allMarkets[_target].length);
         }
     }
 }
