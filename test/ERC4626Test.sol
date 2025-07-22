@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IERC20Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
+import {UtilsLib} from "../src/libraries/UtilsLib.sol";
 
 import "./helpers/IntegrationTest.sol";
 
@@ -175,6 +176,86 @@ contract ERC4626Test is IntegrationTest {
         assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
     }
 
+    function testWithdrawAllWithUntrackedBalance(uint256 assets, uint256 marketIndex, uint256 untrackedAssets) public {
+        uint256 cap = MAX_TEST_ASSETS / 2;
+        _setCap(allMarkets[0], cap);
+
+        assets = bound(assets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        marketIndex = bound(marketIndex, 0, vault.supplyQueueLength() - 1);
+        untrackedAssets = bound(untrackedAssets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+
+        IERC4626 market = IERC4626(vault.supplyQueue(marketIndex));
+
+        loanToken.setBalance(SUPPLIER, assets + untrackedAssets);
+
+        vm.startPrank(SUPPLIER);
+        uint256 minted = vault.deposit(assets, ONBEHALF);
+
+        // deposit directly to strategy for vault - untracked shares balance
+        loanToken.approve(address(market), untrackedAssets);
+        uint256 maxBefore = market.maxWithdraw(address(vault));
+        uint256 mintedUntracked = market.deposit(untrackedAssets, address(vault));
+        uint256 maxAfter = market.maxWithdraw(address(vault));
+        assertEq(maxAfter - maxBefore, untrackedAssets, "maxWithdraw(vault)");
+
+        // untracked shares are not included in maxWithdraw
+        assertEq(vault.maxWithdraw(ONBEHALF), assets, "maxWithdraw(ONBEHALF)");
+
+        vm.startPrank(ONBEHALF);
+        uint256 shares = vault.withdraw(assets, RECEIVER, ONBEHALF);
+
+        assertEq(shares, minted, "shares");
+        assertEq(vault.balanceOf(ONBEHALF), 0, "balanceOf(ONBEHALF)");
+        assertEq(loanToken.balanceOf(RECEIVER), assets, "loanToken.balanceOf(RECEIVER)");
+
+        // untracked shares remain in the vault
+        assertEq(market.balanceOf(address(vault)), mintedUntracked);
+        if (address(market) != address(allMarkets[0])) {
+            assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
+        }
+    }
+
+    function testRedeemAllWithUntrackedBalance(uint256 deposited, uint256 marketIndex, uint256 untrackedAssets)
+        public
+    {
+        uint256 cap = MAX_TEST_ASSETS / 2;
+        _setCap(allMarkets[0], cap);
+
+        deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        marketIndex = bound(marketIndex, 0, vault.supplyQueueLength() - 1);
+        untrackedAssets = bound(untrackedAssets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+
+        IERC4626 market = IERC4626(vault.supplyQueue(marketIndex));
+
+        loanToken.setBalance(SUPPLIER, deposited + untrackedAssets);
+
+        vm.startPrank(SUPPLIER);
+        uint256 minted = vault.deposit(deposited, ONBEHALF);
+
+        // deposit directly to strategy for vault - untracked shares balance
+        loanToken.approve(address(market), untrackedAssets);
+        uint256 maxBefore = market.maxWithdraw(address(vault));
+        uint256 mintedUntracked = market.deposit(untrackedAssets, address(vault));
+        uint256 maxAfter = market.maxWithdraw(address(vault));
+        assertEq(maxAfter - maxBefore, untrackedAssets, "maxWithdraw(vault)");
+
+        // untracked shares are not included in maxRedeem
+        assertEq(vault.maxRedeem(ONBEHALF), minted, "maxRedeem(ONBEHALF)");
+
+        vm.startPrank(ONBEHALF);
+        uint256 assets = vault.redeem(minted, RECEIVER, ONBEHALF);
+
+        assertEq(assets, deposited, "assets");
+        assertEq(vault.balanceOf(ONBEHALF), 0, "balanceOf(ONBEHALF)");
+        assertEq(loanToken.balanceOf(RECEIVER), deposited, "loanToken.balanceOf(RECEIVER)");
+
+        // untracked shares remain in the vault
+        assertEq(market.balanceOf(address(vault)), mintedUntracked);
+        if (address(market) != address(allMarkets[0])) {
+            assertEq(_expectedSupplyAssets(allMarkets[0], address(vault)), 0, "expectedSupplyAssets(vault)");
+        }
+    }
+
     function testRedeemNotDeposited(uint256 deposited) public {
         deposited = bound(deposited, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
 
@@ -344,6 +425,44 @@ contract ERC4626Test is IntegrationTest {
         _toEVault(allMarkets[0]).borrow(borrowedAssets, BORROWER);
 
         assertEq(vault.maxWithdraw(ONBEHALF), depositedAssets - borrowedAssets, "maxWithdraw(ONBEHALF)");
+    }
+
+    function testMaxWithdrawWithUntrackedBalance(
+        uint256 depositedAssets,
+        uint256 borrowedAssets,
+        uint256 marketIndex,
+        uint256 untrackedAssets
+    ) public {
+        uint256 cap = MAX_TEST_ASSETS / 2;
+        _setCap(allMarkets[0], cap);
+
+        depositedAssets = bound(depositedAssets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+        borrowedAssets = bound(borrowedAssets, MIN_TEST_ASSETS, UtilsLib.min(depositedAssets, cap));
+        marketIndex = bound(marketIndex, 0, vault.supplyQueueLength() - 1);
+        untrackedAssets = bound(untrackedAssets, MIN_TEST_ASSETS, MAX_TEST_ASSETS);
+
+        IERC4626 market = IERC4626(vault.supplyQueue(marketIndex));
+
+        loanToken.setBalance(SUPPLIER, depositedAssets + untrackedAssets);
+
+        vm.startPrank(SUPPLIER);
+        vault.deposit(depositedAssets, ONBEHALF);
+
+        // deposit directly to strategy for vault - untracked shares balance
+        loanToken.approve(address(market), untrackedAssets);
+        market.deposit(untrackedAssets, address(vault));
+
+        collateralToken.setBalance(BORROWER, MAX_SANE_AMOUNT);
+
+        vm.startPrank(BORROWER);
+        collateralVault.deposit(type(uint256).max, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+        _toEVault(allMarkets[0]).borrow(borrowedAssets, BORROWER);
+
+        uint256 expectedValue = market == allMarkets[0]
+            ? UtilsLib.min(depositedAssets, depositedAssets - borrowedAssets + untrackedAssets)
+            : depositedAssets - borrowedAssets;
+        assertEq(vault.maxWithdraw(ONBEHALF), expectedValue, "maxWithdraw(ONBEHALF)");
     }
 
     function testMaxDeposit() public {
