@@ -86,7 +86,8 @@ contract PublicAllocator is EVCUtil, IPublicAllocatorStaticTyping {
     function transferFee(address vault, address payable feeRecipient) external onlyAdminOrVaultOwner(vault) {
         uint256 claimed = accruedFee[vault];
         accruedFee[vault] = 0;
-        feeRecipient.transfer(claimed);
+        (bool success,) = feeRecipient.call{value: claimed}("");
+        if (!success) revert ErrorsLib.FeeTransferFailed(feeRecipient);
         emit EventsLib.TransferAllocationFee(_msgSender(), vault, claimed, feeRecipient);
     }
 

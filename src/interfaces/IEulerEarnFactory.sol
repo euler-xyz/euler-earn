@@ -35,6 +35,7 @@ interface IEulerEarnFactory {
     /// @notice Whether a strategy is allowed to be used by the Earn vault.
     /// @dev Warning: Only allow trusted, correctly implemented ERC4626 strategies to be used by the Earn vault.
     /// @dev Warning: Allowed strategies must not be prone to the first-depositor attack.
+    /// @dev Warning: To prevent exchange rate manipulation, it is recommended that the allowed strategies are not empty or have sufficient protection.
     function isStrategyAllowed(address id) external view returns (bool);
 
     /// @notice Creates a new EulerEarn vault.

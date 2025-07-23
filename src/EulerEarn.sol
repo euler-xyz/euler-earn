@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {
     MarketConfig,
-    PendingUint192,
+    PendingUint136,
     PendingAddress,
     MarketAllocation,
     IEulerEarnBase,
@@ -22,7 +22,6 @@ import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/token/ERC2
 
 import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import {Multicall} from "../lib/openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {Ownable2Step, Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {
     IERC20,
@@ -38,15 +37,15 @@ import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
 /// @custom:contact security@morpho.org
 /// @custom:contact security@euler.xyz
-/// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 vault verified by the supported perspective.
-contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil, IEulerEarnStaticTyping {
+/// @notice ERC4626 compliant vault allowing users to deposit assets to any ERC4626 strategy vault allowed by the factory.
+contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEarnStaticTyping {
     using Math for uint256;
     using UtilsLib for uint256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
     using SafeERC20Permit2Lib for IERC20;
     using PendingLib for MarketConfig;
-    using PendingLib for PendingUint192;
+    using PendingLib for PendingUint136;
     using PendingLib for PendingAddress;
 
     /* IMMUTABLES */
@@ -78,10 +77,10 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     PendingAddress public pendingGuardian;
 
     /// @inheritdoc IEulerEarnStaticTyping
-    mapping(IERC4626 => PendingUint192) public pendingCap;
+    mapping(IERC4626 => PendingUint136) public pendingCap;
 
     /// @inheritdoc IEulerEarnStaticTyping
-    PendingUint192 public pendingTimelock;
+    PendingUint136 public pendingTimelock;
 
     /// @inheritdoc IEulerEarnBase
     uint96 public fee;
@@ -234,7 +233,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
             _setTimelock(newTimelock);
         } else {
             // Safe "unchecked" cast because newTimelock <= MAX_TIMELOCK.
-            pendingTimelock.update(uint184(newTimelock), timelock);
+            pendingTimelock.update(uint136(newTimelock), timelock);
 
             emit EventsLib.SubmitTimelock(newTimelock);
         }
@@ -292,12 +291,14 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         uint256 supplyCap = config[id].cap;
         if (newSupplyCap == supplyCap) revert ErrorsLib.AlreadySet();
 
+        newSupplyCap = newSupplyCap == type(uint184).max ? type(uint136).max : newSupplyCap;
+
         if (newSupplyCap < supplyCap) {
-            _setCap(id, newSupplyCap.toUint184());
+            _setCap(id, newSupplyCap.toUint136());
         } else {
             if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
 
-            pendingCap[id].update(newSupplyCap.toUint184(), timelock);
+            pendingCap[id].update(newSupplyCap.toUint136(), timelock);
 
             emit EventsLib.SubmitCap(_msgSender(), id, newSupplyCap);
         }
@@ -359,7 +360,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
                 if (config[id].cap != 0) revert ErrorsLib.InvalidMarketRemovalNonZeroCap(id);
                 if (pendingCap[id].validAt != 0) revert ErrorsLib.PendingCap(id);
 
-                if (id.balanceOf(address(this)) != 0) {
+                if (config[id].balance != 0) {
                     if (config[id].removableAt == 0) revert ErrorsLib.InvalidMarketRemovalNonZeroSupply(id);
 
                     if (block.timestamp < config[id].removableAt) {
@@ -386,7 +387,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
             IERC4626 id = allocation.id;
             if (!config[id].enabled) revert ErrorsLib.MarketNotEnabled(id);
 
-            uint256 supplyShares = id.balanceOf(address(this));
+            uint256 supplyShares = config[id].balance;
             uint256 supplyAssets = id.previewRedeem(supplyShares);
             uint256 withdrawn = supplyAssets.zeroFloorSub(allocation.assets);
 
@@ -409,6 +410,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
                     withdrawnShares = shares;
                 }
 
+                config[id].balance = uint112(supplyShares - withdrawnShares);
+
                 emit EventsLib.ReallocateWithdraw(msgSender, id, withdrawnAssets, withdrawnShares);
 
                 totalWithdrawn += withdrawnAssets;
@@ -424,6 +427,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
                 // The vaults's underlying asset is guaranteed to be the vault's asset because it has a non-zero supply cap.
                 uint256 suppliedShares = id.deposit(suppliedAssets, address(this));
+
+                config[id].balance = (supplyShares + suppliedShares).toUint112();
 
                 emit EventsLib.ReallocateSupply(msgSender, id, suppliedAssets, suppliedShares);
 
@@ -490,8 +495,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     function acceptCap(IERC4626 id) external afterTimelock(pendingCap[id].validAt) {
         if (!IEulerEarnFactory(creator).isStrategyAllowed(address(id))) revert ErrorsLib.UnauthorizedMarket(id);
 
-        // Safe "unchecked" cast because pendingCap <= type(uint184).max.
-        _setCap(id, uint184(pendingCap[id].value));
+        // Safe "unchecked" cast because pendingCap <= type(uint136).max.
+        _setCap(id, uint136(pendingCap[id].value));
     }
 
     /* ERC4626 (PUBLIC) */
@@ -542,6 +547,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
         shares = _convertToSharesWithTotals(assets, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
 
+        if (shares == 0) revert ErrorsLib.ZeroShares();
+
         _deposit(_msgSender(), receiver, assets, shares);
     }
 
@@ -583,11 +590,13 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
         assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
 
+        if (assets == 0) revert ErrorsLib.ZeroAssets();
+
         _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     /// @inheritdoc IERC4626
-    /// @dev totalAssets is the sum of the vault's assets on the verified vaults plus the lost assets (see corresponding
+    /// @dev totalAssets is the sum of the vault's assets on the strategy vaults plus the lost assets (see corresponding
     /// docs in IEulerEarn.sol).
     function totalAssets() public view override returns (uint256) {
         (, uint256 newTotalAssets,) = _accruedFeeAndAssets();
@@ -612,7 +621,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         assets -= _simulateWithdrawStrategy(assets);
     }
 
-    /// @dev Returns the maximum amount of assets that the Earn vault can supply to the verified vaults.
+    /// @dev Returns the maximum amount of assets that the Earn vault can supply to the strategy vaults.
     function _maxDeposit() internal view returns (uint256 totalSuppliable) {
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = supplyQueue[i];
@@ -669,7 +678,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     }
 
     /// @inheritdoc ERC4626
-    /// @dev Used in mint or deposit to deposit the underlying asset to verified vaults.
+    /// @dev Used in mint or deposit to deposit the underlying asset to strategy vaults.
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         IERC20(asset()).safeTransferFromWithPermit2(caller, address(this), assets, permit2Address);
         _mint(receiver, shares);
@@ -684,7 +693,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     }
 
     /// @inheritdoc ERC4626
-    /// @dev Used in redeem or withdraw to withdraw the underlying asset from the verified vaults.
+    /// @dev Used in redeem or withdraw to withdraw the underlying asset from the strategy vaults.
     /// @dev Depending on 3 cases, reverts when withdrawing "too much" with:
     /// 1. NotEnoughLiquidity when withdrawing more than available liquidity.
     /// 2. ERC20InsufficientAllowance when withdrawing more than `caller`'s allowance.
@@ -745,7 +754,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
     }
 
     /// @dev Sets the cap of the vault to `supplyCap`.
-    function _setCap(IERC4626 id, uint184 supplyCap) internal {
+    function _setCap(IERC4626 id, uint136 supplyCap) internal {
         address msgSender = _msgSender();
         MarketConfig storage marketConfig = config[id];
 
@@ -753,17 +762,18 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         address permit2 = success && result.length >= 32 ? abi.decode(result, (address)) : address(0);
 
         if (supplyCap > 0) {
+            IERC20(asset()).forceApproveMaxWithPermit2(address(id), permit2);
+
             if (!marketConfig.enabled) {
                 withdrawQueue.push(id);
 
                 if (withdrawQueue.length > ConstantsLib.MAX_QUEUE_LENGTH) revert ErrorsLib.MaxQueueLengthExceeded();
 
                 marketConfig.enabled = true;
+                marketConfig.balance = id.balanceOf(address(this)).toUint112();
 
                 // Take into account assets of the new vault without applying a fee.
                 _updateLastTotalAssets(lastTotalAssets + _expectedSupplyAssets(id));
-
-                IERC20(asset()).forceApproveMaxWithPermit2(address(id), permit2);
 
                 emit EventsLib.SetWithdrawQueue(msgSender, withdrawQueue);
             }
@@ -782,7 +792,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /* LIQUIDITY ALLOCATION */
 
-    /// @dev Supplies `assets` to the verified vaults.
+    /// @dev Supplies `assets` to the strategy vaults.
     function _supplyStrategy(uint256 assets) internal {
         for (uint256 i; i < supplyQueue.length; ++i) {
             IERC4626 id = supplyQueue[i];
@@ -797,7 +807,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
             if (toSupply > 0) {
                 // Using try/catch to skip vaults that revert.
-                try id.deposit(toSupply, address(this)) {
+                try id.deposit(toSupply, address(this)) returns (uint256 suppliedShares) {
+                    config[id].balance = (config[id].balance + suppliedShares).toUint112();
                     assets -= toSupply;
                 } catch {}
             }
@@ -808,16 +819,18 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         if (assets != 0) revert ErrorsLib.AllCapsReached();
     }
 
-    /// @dev Withdraws `assets` from the verified vaults.
+    /// @dev Withdraws `assets` from the strategy vaults.
     function _withdrawStrategy(uint256 assets) internal {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            uint256 toWithdraw = UtilsLib.min(id.maxWithdraw(address(this)), assets);
+            uint256 toWithdraw =
+                UtilsLib.min(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)), assets);
 
             if (toWithdraw > 0) {
                 // Using try/catch to skip vaults that revert.
-                try id.withdraw(toWithdraw, address(this), address(this)) {
+                try id.withdraw(toWithdraw, address(this), address(this)) returns (uint256 withdrawnShares) {
+                    config[id].balance = uint112(config[id].balance - withdrawnShares);
                     assets -= toWithdraw;
                 } catch {}
             }
@@ -830,16 +843,16 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
 
     /// @dev Returns the amount of assets expected to be supplied to the vault.
     function _expectedSupplyAssets(IERC4626 id) internal view returns (uint256) {
-        return id.previewRedeem(id.balanceOf(address(this)));
+        return id.previewRedeem(config[id].balance);
     }
 
-    /// @dev Simulates a withdraw of `assets` from the verified vaults.
+    /// @dev Simulates a withdraw of `assets` from the strategy vaults.
     /// @return The remaining assets to be withdrawn.
     function _simulateWithdrawStrategy(uint256 assets) internal view returns (uint256) {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            assets = assets.zeroFloorSub(id.maxWithdraw(address(this)));
+            assets = assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
 
             if (assets == 0) break;
         }
@@ -878,20 +891,24 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, Multicall, EVCUtil
         view
         returns (uint256 feeShares, uint256 newTotalAssets, uint256 newLostAssets)
     {
-        // The assets that the Earn vault has on the verified vaults.
+        // The assets that the Earn vault has on the strategy vaults.
         uint256 realTotalAssets;
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
             realTotalAssets += _expectedSupplyAssets(id);
         }
 
-        // If the vault lost some assets (realTotalAssets decreased), lostAssets is increased.
-        if (realTotalAssets < lastTotalAssets - lostAssets) newLostAssets = lastTotalAssets - realTotalAssets;
-        // If it did not, lostAssets stays the same.
-        else newLostAssets = lostAssets;
+        uint256 lastTotalAssetsCached = lastTotalAssets;
+        if (realTotalAssets < lastTotalAssetsCached - lostAssets) {
+            // If the vault lost some assets (realTotalAssets decreased), lostAssets is increased.
+            newLostAssets = lastTotalAssetsCached - realTotalAssets;
+        } else {
+            // If it did not, lostAssets stays the same.
+            newLostAssets = lostAssets;
+        }
 
         newTotalAssets = realTotalAssets + newLostAssets;
-        uint256 totalInterest = newTotalAssets - lastTotalAssets;
+        uint256 totalInterest = newTotalAssets - lastTotalAssetsCached;
         if (totalInterest != 0 && fee != 0) {
             // It is acknowledged that `feeAssets` may be rounded down to 0 if `totalInterest * fee < WAD`.
             uint256 feeAssets = totalInterest.mulDiv(fee, WAD);

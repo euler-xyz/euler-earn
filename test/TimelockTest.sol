@@ -24,7 +24,7 @@ contract TimelockTest is IntegrationTest {
         vault.submitTimelock(timelock);
 
         uint256 newTimelock = vault.timelock();
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
 
         assertEq(newTimelock, timelock, "newTimelock");
         assertEq(pendingTimelock.value, 0, "pendingTimelock.value");
@@ -40,7 +40,7 @@ contract TimelockTest is IntegrationTest {
         vault.submitTimelock(timelock);
 
         uint256 newTimelock = vault.timelock();
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
 
         assertEq(newTimelock, TIMELOCK, "newTimelock");
         assertEq(pendingTimelock.value, timelock, "pendingTimelock.value");
@@ -107,7 +107,7 @@ contract TimelockTest is IntegrationTest {
         vault.acceptTimelock();
 
         uint256 newTimelock = vault.timelock();
-        PendingUint192 memory pendingTimelock = vault.pendingTimelock();
+        PendingUint136 memory pendingTimelock = vault.pendingTimelock();
 
         assertEq(newTimelock, timelock, "newTimelock");
         assertEq(pendingTimelock.value, 0, "pendingTimelock.value");
@@ -284,7 +284,7 @@ contract TimelockTest is IntegrationTest {
         vault.submitCap(id, cap);
 
         MarketConfig memory marketConfig = vault.config(id);
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint136 memory pendingCap = vault.pendingCap(id);
 
         assertEq(marketConfig.cap, cap, "marketConfig.cap");
         assertEq(marketConfig.enabled, true, "marketConfig.enabled");
@@ -294,7 +294,7 @@ contract TimelockTest is IntegrationTest {
     }
 
     function testSubmitCapIncreased(uint256 cap) public {
-        cap = bound(cap, 1, type(uint184).max);
+        cap = bound(cap, 1, type(uint136).max);
 
         IERC4626 id = allMarkets[1];
 
@@ -304,7 +304,7 @@ contract TimelockTest is IntegrationTest {
         vault.submitCap(id, cap);
 
         MarketConfig memory marketConfig = vault.config(id);
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint136 memory pendingCap = vault.pendingCap(id);
 
         assertEq(marketConfig.cap, 0, "marketConfig.cap");
         assertEq(marketConfig.enabled, false, "marketConfig.enabled");
@@ -316,7 +316,7 @@ contract TimelockTest is IntegrationTest {
     }
 
     function testSubmitCapAlreadyPending(uint256 cap) public {
-        cap = bound(cap, 1, type(uint184).max);
+        cap = bound(cap, 1, type(uint136).max);
 
         IERC4626 id = allMarkets[1];
 
@@ -329,7 +329,7 @@ contract TimelockTest is IntegrationTest {
     }
 
     function testAcceptCapIncreased(uint256 cap) public {
-        cap = bound(cap, CAP + 1, type(uint184).max);
+        cap = bound(cap, CAP + 1, type(uint136).max);
 
         IERC4626 id = allMarkets[0];
 
@@ -343,7 +343,7 @@ contract TimelockTest is IntegrationTest {
         vault.acceptCap(id);
 
         MarketConfig memory marketConfig = vault.config(id);
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint136 memory pendingCap = vault.pendingCap(id);
 
         assertEq(marketConfig.cap, cap, "marketConfig.cap");
         assertEq(marketConfig.enabled, true, "marketConfig.enabled");
@@ -355,7 +355,7 @@ contract TimelockTest is IntegrationTest {
     }
 
     function testAcceptCapIncreasedTimelockIncreased(uint256 cap, uint256 timelock, uint256 elapsed) public {
-        cap = bound(cap, CAP + 1, type(uint184).max);
+        cap = bound(cap, CAP + 1, type(uint136).max);
         timelock = bound(timelock, TIMELOCK + 1, ConstantsLib.MAX_TIMELOCK);
         elapsed = bound(elapsed, TIMELOCK + 1, timelock);
 
@@ -373,7 +373,7 @@ contract TimelockTest is IntegrationTest {
         vault.acceptCap(id);
 
         MarketConfig memory marketConfig = vault.config(id);
-        PendingUint192 memory pendingCap = vault.pendingCap(id);
+        PendingUint136 memory pendingCap = vault.pendingCap(id);
 
         assertEq(marketConfig.cap, cap, "marketConfig.cap");
         assertEq(marketConfig.enabled, true, "marketConfig.enabled");
@@ -385,7 +385,7 @@ contract TimelockTest is IntegrationTest {
     }
 
     function testAcceptCapIncreasedTimelockDecreased(uint256 cap, uint256 timelock, uint256 elapsed) public {
-        cap = bound(cap, CAP + 1, type(uint184).max);
+        cap = bound(cap, CAP + 1, type(uint136).max);
         timelock = _boundTimelock(timelock);
         elapsed = bound(elapsed, 1, TIMELOCK - 1);
 
