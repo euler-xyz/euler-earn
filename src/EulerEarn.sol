@@ -852,8 +852,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            assets =
-                assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
+            assets = assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
 
             if (assets == 0) break;
         }
@@ -899,13 +898,17 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
             realTotalAssets += _expectedSupplyAssets(id);
         }
 
-        // If the vault lost some assets (realTotalAssets decreased), lostAssets is increased.
-        if (realTotalAssets < lastTotalAssets - lostAssets) newLostAssets = lastTotalAssets - realTotalAssets;
-        // If it did not, lostAssets stays the same.
-        else newLostAssets = lostAssets;
+        uint256 lastTotalAssetsCached = lastTotalAssets;
+        if (realTotalAssets < lastTotalAssetsCached - lostAssets) {
+            // If the vault lost some assets (realTotalAssets decreased), lostAssets is increased.
+            newLostAssets = lastTotalAssetsCached - realTotalAssets;
+        } else {
+            // If it did not, lostAssets stays the same.
+            newLostAssets = lostAssets;
+        }
 
         newTotalAssets = realTotalAssets + newLostAssets;
-        uint256 totalInterest = newTotalAssets - lastTotalAssets;
+        uint256 totalInterest = newTotalAssets - lastTotalAssetsCached;
         if (totalInterest != 0 && fee != 0) {
             // It is acknowledged that `feeAssets` may be rounded down to 0 if `totalInterest * fee < WAD`.
             uint256 feeAssets = totalInterest.mulDiv(fee, WAD);
