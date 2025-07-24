@@ -288,10 +288,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         if (id.asset() != asset()) revert ErrorsLib.InconsistentAsset(id);
         if (pendingCap[id].validAt != 0) revert ErrorsLib.AlreadyPending();
         if (config[id].removableAt != 0) revert ErrorsLib.PendingRemoval();
+
+        // For the sake of backwards compatibility, the max allowed cap can either be set to type(uint184).max or type(uint136).max.
+        newSupplyCap = newSupplyCap == type(uint184).max ? type(uint136).max : newSupplyCap;
+
         uint256 supplyCap = config[id].cap;
         if (newSupplyCap == supplyCap) revert ErrorsLib.AlreadySet();
-
-        newSupplyCap = newSupplyCap == type(uint184).max ? type(uint136).max : newSupplyCap;
 
         if (newSupplyCap < supplyCap) {
             _setCap(id, newSupplyCap.toUint136());
