@@ -214,8 +214,8 @@ contract Setup is BaseTest {
         _pushEVault(address(eulerEarn2), address(eTST4), true);///@dev: eulerEarn2 market
 
         // Set Infinite Cap for Idle Vault
-        _setCap(eulerEarn, address(idleVault), type(uint184).max);
-        _setCap(eulerEarn2, address(idleVault2), type(uint184).max);
+        _setCap(eulerEarn, address(idleVault), type(uint136).max);
+        _setCap(eulerEarn2, address(idleVault2), type(uint136).max);
 
         // Idle Vault must be pushed last
         _pushEVault(address(eulerEarn), address(idleVault), false);
@@ -324,7 +324,7 @@ contract Setup is BaseTest {
         bool isEnabled = _vault.config(id).enabled;
         if (newCap == cap) return;
 
-        PendingUint192 memory pendingCap = _vault.pendingCap(id);
+        PendingUint136 memory pendingCap = _vault.pendingCap(id);
         if (pendingCap.validAt == 0 || newCap != pendingCap.value) {
             _vault.submitCap(id, newCap);
         }

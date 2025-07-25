@@ -8,7 +8,7 @@ RUN forge --version
 ##################
 ## RUNNER
 ##################
-FROM trailofbits/echidna:v2.2.6 AS run
+FROM trailofbits/echidna:v2.2.7 AS run
 
 RUN apt-get update && apt-get install -y make && rm -rf /var/lib/apt/lists/*
 

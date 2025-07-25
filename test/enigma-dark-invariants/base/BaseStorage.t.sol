@@ -89,20 +89,20 @@ abstract contract BaseStorage {
     ///    │ eulerEarn2  │                   │    eTST2     │   │    eTST3     │   │  idleVault  │
     ///    │  (Nested)   │                   │ (Loan Vault) │   │ (Loan Vault) │   │   (Idle)    │
     ///    └─────────────┘                   └──────────────┘   └──────────────┘   └─────────────┘
-    ///           │ ──────────┐                │                  │                
-    ///           │           │                │                  │               
-    ///           ▼           ▼                │                  │               
-    ///    ┌─────────────┐  ┌─────────────┐    │                  │               
-    ///    │   eTST4     │  │  idleVault2 │    │                  │               
-    ///    │ (Loan Vault)│  │   (Idle)    │    │                  │               
-    ///    └─────────────┘  └─────────────┘    │                  │               
-    ///           │                            │                  │               
-    ///           │                            │                  │               
-    ///           └────────────┐               │         ┌────────┘                  
-    ///                        ▼               ▼         ▼                   
+    ///           │ ──────────┐                │                  │
+    ///           │           │                │                  │
+    ///           ▼           ▼                │                  │
+    ///    ┌─────────────┐  ┌─────────────┐    │                  │
+    ///    │   eTST4     │  │  idleVault2 │    │                  │
+    ///    │ (Loan Vault)│  │   (Idle)    │    │                  │
+    ///    └─────────────┘  └─────────────┘    │                  │
+    ///           │                            │                  │
+    ///           │                            │                  │
+    ///           └────────────┐               │         ┌────────┘
+    ///                        ▼               ▼         ▼
     ///                   ┌─────────────────────────────────┐
     ///                   │           eTST                  │  ← Collateral vault
-    ///                   │    (Collateral Vault)           │     (acts as collateral vault for eTST2 and eTST3)
+    ///                   │    (Collateral Vault)           │     (acts as collateral vault for eTST2, eTST3 and eTST4)
     ///                   └─────────────────────────────────┘
     ///
     ///

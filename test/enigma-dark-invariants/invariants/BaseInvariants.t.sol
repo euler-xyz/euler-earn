@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 
 // Interfaces
 import {IERC4626, IERC20} from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import {MarketConfig, PendingUint192} from "src/interfaces/IEulerEarn.sol";
+import {MarketConfig, PendingUint136} from "src/interfaces/IEulerEarn.sol";
 import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Contracts
@@ -37,7 +37,7 @@ abstract contract BaseInvariants is HandlerAggregator {
     }
 
     function assert_INV_BASE_E(IERC4626 market, address eulerEarnAddress) internal {
-        PendingUint192 memory pendingCap = IEulerEarn(eulerEarnAddress).pendingCap(market);
+        PendingUint136 memory pendingCap = IEulerEarn(eulerEarnAddress).pendingCap(market);
         if (pendingCap.value != 0 || pendingCap.validAt != 0) {
             assertEq(IEulerEarn(eulerEarnAddress).config(market).removableAt, 0, INV_BASE_E);
         }
@@ -111,15 +111,15 @@ abstract contract BaseInvariants is HandlerAggregator {
     function assert_INV_TIMELOCK_E(address eulerEarnAddress) internal {
         uint256 pendingTimelock = IEulerEarn(eulerEarnAddress).pendingTimelock().value;
         if (pendingTimelock != 0) {
-            assertLt(pendingTimelock, MAX_TIMELOCK, INV_TIMELOCK_E);
-            assertGt(pendingTimelock, MIN_TIMELOCK, INV_TIMELOCK_E);
+            assertLe(pendingTimelock, MAX_TIMELOCK, INV_TIMELOCK_E);
+            assertGe(pendingTimelock, MIN_TIMELOCK, INV_TIMELOCK_E);
         }
     }
 
     function assert_INV_TIMELOCK_F(address eulerEarnAddress) internal {
         uint256 timelock = IEulerEarn(eulerEarnAddress).timelock();
-        assertLt(timelock, MAX_TIMELOCK, INV_TIMELOCK_F);
-        assertGt(timelock, MIN_TIMELOCK, INV_TIMELOCK_F);
+        assertLe(timelock, MAX_TIMELOCK, INV_TIMELOCK_F);
+        assertGe(timelock, MIN_TIMELOCK, INV_TIMELOCK_F);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
