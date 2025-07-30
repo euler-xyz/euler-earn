@@ -115,9 +115,6 @@ library ErrorsLib {
     /// @notice Thrown when attempting to deposit amount of assets corresponding to zero shares.
     error ZeroShares();
 
-    /// @notice Thrown when attempting to redeem amount of shares corresponding to zero assets.
-    error ZeroAssets();
-
     /// @notice Thrown when attempting to withdraw zero from a vault.
     error WithdrawZero(IERC4626 id);
 

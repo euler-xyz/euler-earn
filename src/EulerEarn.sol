@@ -515,8 +515,11 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
     /// @inheritdoc IERC4626
     /// @dev Warning: May be higher than the actual max deposit due to duplicate vaults in the supplyQueue.
+    /// @dev If deposit would throw ZeroShares error, function returns 0.
     function maxDeposit(address) public view override returns (uint256) {
-        return _maxDeposit();
+        uint256 suppliable = _maxDeposit();
+
+        return _convertToShares(suppliable, Math.Rounding.Floor) == 0 ? 0 : suppliable;
     }
 
     /// @inheritdoc IERC4626
@@ -592,7 +595,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
         assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
 
-        if (assets == 0) revert ErrorsLib.ZeroAssets();
+        // Since losses are not realized, exchange rate is never < 1 and zero assets check is not needed.
 
         _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
