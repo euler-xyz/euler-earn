@@ -117,7 +117,7 @@ contract PublicAllocator is EVCUtil, IPublicAllocatorStaticTyping {
             if (address(id) <= address(prevId)) revert ErrorsLib.InconsistentWithdrawals();
             if (address(id) == address(supplyId)) revert ErrorsLib.DepositMarketInWithdrawals();
 
-            uint256 assets = id.maxWithdraw(vault);
+            uint256 assets = IEulerEarn(vault).expectedSupplyAssets(id);
 
             if (flowCaps[vault][id].maxOut < withdrawnAssets) revert ErrorsLib.MaxOutflowExceeded(id);
             if (assets < withdrawnAssets) revert ErrorsLib.NotEnoughSupply(id);
