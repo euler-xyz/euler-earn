@@ -240,7 +240,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
-    function setFee(uint256 newFee) external onlyOwner {
+    function setFee(uint256 newFee) external nonReentrant onlyOwner {
         if (newFee == fee) revert ErrorsLib.AlreadySet();
         if (newFee > ConstantsLib.MAX_FEE) revert ErrorsLib.MaxFeeExceeded();
         if (newFee != 0 && feeRecipient == address(0)) revert ErrorsLib.ZeroFeeRecipient();
@@ -255,7 +255,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
-    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+    function setFeeRecipient(address newFeeRecipient) external nonReentrant onlyOwner {
         if (newFeeRecipient == feeRecipient) revert ErrorsLib.AlreadySet();
         if (newFeeRecipient == address(0) && fee != 0) revert ErrorsLib.ZeroFeeRecipient();
 

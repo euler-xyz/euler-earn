@@ -28,7 +28,9 @@ contract ReentrancyTest is IntegrationTest, IERC1820Implementer {
         Mint,
         Deposit,
         Reallocate,
-        SubmitCap
+        SubmitCap,
+        SetFee,
+        SetFeeRecipient
     }
 
     function setUp() public override {
@@ -86,6 +88,8 @@ contract ReentrancyTest is IntegrationTest, IERC1820Implementer {
         vault.deposit(uint256(ReenterMethod.Deposit), attacker);
         vault.deposit(uint256(ReenterMethod.Reallocate), attacker);
         vault.deposit(uint256(ReenterMethod.SubmitCap), attacker);
+        vault.deposit(uint256(ReenterMethod.SetFee), attacker);
+        vault.deposit(uint256(ReenterMethod.SetFeeRecipient), attacker);
     }
 
     function tokensToSend(address, address, address, uint256 amount, bytes calldata, bytes calldata) external {
@@ -108,6 +112,12 @@ contract ReentrancyTest is IntegrationTest, IERC1820Implementer {
         } else if (amount == uint256(ReenterMethod.SubmitCap)) {
             vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
             vault.submitCap(IERC4626(address(1)), 1);
+        } else if (amount == uint256(ReenterMethod.SetFee)) {
+            vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+            vault.setFee(1);
+        } else if (amount == uint256(ReenterMethod.SetFeeRecipient)) {
+            vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+            vault.setFeeRecipient(address(1));
         }
     }
 
