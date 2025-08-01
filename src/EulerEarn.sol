@@ -484,6 +484,11 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
+    function maxWithdrawFromStrategy(IERC4626 id) public view returns (uint256) {
+        return UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id));
+    }
+
+    /// @inheritdoc IEulerEarnBase
     function acceptTimelock() external afterTimelock(pendingTimelock.validAt) {
         _setTimelock(pendingTimelock.value);
     }
@@ -826,8 +831,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            uint256 toWithdraw =
-                UtilsLib.min(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)), assets);
+            uint256 toWithdraw = UtilsLib.min(maxWithdrawFromStrategy(id), assets);
 
             if (toWithdraw > 0) {
                 // Using try/catch to skip vaults that revert.
@@ -854,7 +858,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            assets = assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
+            assets = assets.zeroFloorSub(maxWithdrawFromStrategy(id));
 
             if (assets == 0) break;
         }
