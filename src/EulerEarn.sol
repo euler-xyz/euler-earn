@@ -362,7 +362,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 if (config[id].cap != 0) revert ErrorsLib.InvalidMarketRemovalNonZeroCap(id);
                 if (pendingCap[id].validAt != 0) revert ErrorsLib.PendingCap(id);
 
-                if (config[id].balance != 0) {
+                if (expectedSupplyAssets(id) != 0) {
                     if (config[id].removableAt == 0) revert ErrorsLib.InvalidMarketRemovalNonZeroSupply(id);
 
                     if (block.timestamp < config[id].removableAt) {
