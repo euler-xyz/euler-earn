@@ -153,14 +153,15 @@ contract Permit2Test is IntegrationTest {
         uint256 snapshot = vm.snapshotState();
 
         // remove allowances when setting cap to 0
+        vm.mockCall(address(allMarkets[0]), abi.encodeWithSignature("permit2Address()"), abi.encode(address(0)));
         _setCap(vaultWithPermit2, allMarkets[0], 0);
         (amount, expiration,) =
             IAllowanceTransfer(permit2).allowance(address(vaultWithPermit2), address(loanToken), address(allMarkets[0]));
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);
-        // allowance is reduced to 1 to avoid issues with tokens reverting on 0 approvals
-        assertEq(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 1);
+
+        assertEq(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 0);
 
         // try again with the approve call reverting
         vm.revertToState(snapshot);
@@ -173,7 +174,27 @@ contract Permit2Test is IntegrationTest {
         assertEq(amount, 0);
         assertEq(expiration, 0);
         assertEq(loanToken.allowance(address(vaultWithPermit2), address(permit2)), 0);
-        // allowance is reduced to 1 to avoid issues with tokens reverting on 0 approvals
-        assertGt(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 0);
+
+        // allowance was not removed
+        assertGt(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 1);
+    }
+
+    function testSetCapsCreatesAndRemovesERC20AllowancesForMarketsWithoutPermit2TokenReturnsVoid() public {
+        loanToken.configure("approve/return-void", bytes("0"));
+
+        testSetCapsCreatesAndRemovesERC20AllowancesForMarketsWithoutPermit2();
+    }
+
+
+    function testSetCapsRemovesERC20AllowancesForMarketsWithoutPermit2TokenRevertsOnZeroAllowance() public {
+        loanToken.configure("approve/require-non-zero-allowance", bytes("0"));
+
+        vm.mockCall(address(allMarkets[0]), abi.encodeWithSignature("permit2Address()"), abi.encode(address(0)));
+        _setCap(vaultWithPermit2, allMarkets[0], 100e18);
+
+        vm.mockCall(address(allMarkets[0]), abi.encodeWithSignature("permit2Address()"), abi.encode(address(0)));
+        _setCap(vaultWithPermit2, allMarkets[0], 0);
+
+        assertEq(loanToken.allowance(address(vaultWithPermit2), address(allMarkets[0])), 1);
     }
 }
