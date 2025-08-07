@@ -68,12 +68,8 @@ contract ERC4626Test is IntegrationTest {
 
         redeemed = bound(redeemed, 0, shares);
 
-        if (vault.previewRedeem(redeemed) == 0) {
-            vm.expectRevert(ErrorsLib.ZeroAssets.selector);
-        } else {
-            vm.expectEmit();
-            emit EventsLib.UpdateLastTotalAssets(vault.totalAssets() - vault.convertToAssets(redeemed));
-        }
+        vm.expectEmit();
+        emit EventsLib.UpdateLastTotalAssets(vault.totalAssets() - vault.convertToAssets(redeemed));
 
         vm.prank(ONBEHALF);
         vault.redeem(redeemed, RECEIVER, ONBEHALF);
@@ -495,11 +491,51 @@ contract ERC4626Test is IntegrationTest {
 
         // since exchange rate in the market is >1, deposit will lose 1 wei due to rounding,
         // which reports max deposit as 1. It's not consumable though on Euler vaults,
-        // due to zero shares error
+        // due to zero shares error. The 1 wei is recorded in lostAssets, so caps are reached.
         assertEq(vault.maxDeposit(SUPPLIER), 1);
 
         vm.prank(SUPPLIER);
         vm.expectRevert(ErrorsLib.AllCapsReached.selector);
+        vault.deposit(1, ONBEHALF);
+    }
+
+    function testMaxDepositWithZeroShares() public {
+        // The vault will receive a deposit into a strategy which accrues interest.
+        // Set the cap to 1 wei above total assets after interest is accrued.
+        // This 1 wei would throw ZeroShares if deposited, therefore maxDeposit should return 0 instead
+        uint256 expectedAccruedInterest = 1359118751534;
+        uint256 cap = 1 ether + expectedAccruedInterest + 1;
+        _setCap(allMarkets[0], cap);
+
+        IERC4626[] memory supplyQueue = new IERC4626[](1);
+        supplyQueue[0] = allMarkets[0];
+
+        vm.prank(ALLOCATOR);
+        vault.setSupplyQueue(supplyQueue);
+
+        loanToken.setBalance(SUPPLIER, 3 ether);
+        collateralToken.setBalance(BORROWER, 2 ether);
+
+        vm.startPrank(SUPPLIER);
+        allMarkets[0].deposit(1 ether, SUPPLIER);
+        vault.deposit(1 ether, ONBEHALF);
+
+        vm.startPrank(BORROWER);
+        collateralVault.deposit(2 ether, BORROWER);
+        evc.enableController(BORROWER, address(allMarkets[0]));
+
+        _toEVault(allMarkets[0]).borrow(1 ether, BORROWER);
+        vm.stopPrank();
+
+        _forward(1_000);
+
+        // max deposit is 0
+        assertEq(vault.maxDeposit(SUPPLIER), 0);
+        // although cap still allows 1 wei 
+        assertEq(vault.totalAssets(), cap - 1);
+        // because depositing 1 wei would throw zero shares
+        vm.prank(SUPPLIER);
+        vm.expectRevert(ErrorsLib.ZeroShares.selector);
         vault.deposit(1, ONBEHALF);
     }
 }
