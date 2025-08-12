@@ -7,7 +7,7 @@
 > - adds [EVC](https://github.com/euler-xyz/ethereum-vault-connector) and EulerEarn strategy compatibility;
 > - adds [permit2](https://github.com/Uniswap/permit2) compatibility;
 > - implements [EVK](https://github.com/euler-xyz/euler-vault-kit/blob/master/docs/whitepaper.md#accounting)-style `VIRTUAL_AMOUNT` conversions;
-> - implements zero shares and zero assets protection on deposits and redeems;
+> - implements zero shares protection on deposits;
 > - implements internal balance tracking that prevents EulerEarn share inflation;
 > - adds reentrancy protection;
 > - removes the `skim` function and related functionality;
