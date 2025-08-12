@@ -10,7 +10,7 @@ description: |-
 on:
   pull_request:
     branches:
-      - master
+      - certora_test
   workflow_dispatch:
 
 jobs:
