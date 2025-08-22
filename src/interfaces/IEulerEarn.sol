@@ -65,6 +65,14 @@ interface IEulerEarnBase {
     /// @notice Returns the length of the withdraw queue.
     function withdrawQueueLength() external view returns (uint256);
 
+    /// @notice Returns the amount of assets that can be withdrawn from given strategy vault.
+    /// @dev Accounts for internally tracked balance, ignoring direct shares transfer and for assets available in the strategy.
+    function maxWithdrawFromStrategy(IERC4626 id) external view returns (uint256);
+
+    /// @notice Returns the amount of assets expected to be supplied to the strategy vault.
+    /// @dev Accounts for internally tracked balance, ignoring direct shares transfer.
+    function expectedSupplyAssets(IERC4626 id) external view returns (uint256);
+
     /// @notice Stores the total assets managed by this vault when the fee was last accrued.
     function lastTotalAssets() external view returns (uint256);
 

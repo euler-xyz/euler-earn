@@ -614,4 +614,41 @@ contract PublicAllocatorTest is IntegrationTest {
         vm.expectRevert(ErrorsLib.InconsistentWithdrawals.selector);
         publicAllocator.reallocateTo(address(vault), withdrawals, idleVault);
     }
+
+    function testRellocateToWithDirectStrategySharesTransfer() public {
+        flowCaps.push(FlowCapsConfig(idleVault, FlowCaps(100e18, 100e18)));
+        flowCaps.push(FlowCapsConfig(allMarkets[0], FlowCaps(100e18, 100e18)));
+        vm.prank(OWNER);
+        publicAllocator.setFlowCaps(address(vault), flowCaps);
+        // Initial deposit through PublicAllocator (tracked internally)
+        withdrawals.push(Withdrawal(idleVault, 50e18));
+        publicAllocator.reallocateTo(address(vault), withdrawals, allMarkets[0]);
+
+        // Mint strategy shares directly and transfer to vault
+        // This creates the discrepancy between internal tracking and real balance
+        loanToken.setBalance(address(this), 20e18);
+        loanToken.approve(address(allMarkets[0]), 20e18);
+        allMarkets[0].deposit(20e18, address(vault)); // Mint shares directly to vault
+
+        FlowCaps memory withdrawFlowCapsBefore = publicAllocator.flowCaps(address(vault), allMarkets[0]);
+
+        delete withdrawals;
+        uint256 requestedWithdraw = 30e18;
+        withdrawals.push(Withdrawal(allMarkets[0], uint128(requestedWithdraw)));
+
+        uint256 beforeAssets = allMarkets[0].maxWithdraw(address(vault));
+
+        publicAllocator.reallocateTo(address(vault), withdrawals, idleVault);
+
+        FlowCaps memory withdrawFlowCapsAfter = publicAllocator.flowCaps(address(vault), allMarkets[0]);
+        uint256 afterAssets = allMarkets[0].maxWithdraw(address(vault));
+        uint256 actualWithdrawn = beforeAssets - afterAssets;
+
+        // extra shares did not interfere in reallocation
+        assertEq(actualWithdrawn, requestedWithdraw);
+
+        // flow caps updated correctly
+        uint256 flowCapChange = withdrawFlowCapsAfter.maxIn - withdrawFlowCapsBefore.maxIn;
+        assertEq(actualWithdrawn, flowCapChange);
+    }
 }

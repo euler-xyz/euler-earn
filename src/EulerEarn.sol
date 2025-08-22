@@ -240,7 +240,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
-    function setFee(uint256 newFee) external onlyOwner {
+    function setFee(uint256 newFee) external nonReentrant onlyOwner {
         if (newFee == fee) revert ErrorsLib.AlreadySet();
         if (newFee > ConstantsLib.MAX_FEE) revert ErrorsLib.MaxFeeExceeded();
         if (newFee != 0 && feeRecipient == address(0)) revert ErrorsLib.ZeroFeeRecipient();
@@ -255,7 +255,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
-    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+    function setFeeRecipient(address newFeeRecipient) external nonReentrant onlyOwner {
         if (newFeeRecipient == feeRecipient) revert ErrorsLib.AlreadySet();
         if (newFeeRecipient == address(0) && fee != 0) revert ErrorsLib.ZeroFeeRecipient();
 
@@ -288,10 +288,12 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         if (id.asset() != asset()) revert ErrorsLib.InconsistentAsset(id);
         if (pendingCap[id].validAt != 0) revert ErrorsLib.AlreadyPending();
         if (config[id].removableAt != 0) revert ErrorsLib.PendingRemoval();
+
+        // For the sake of backwards compatibility, the max allowed cap can either be set to type(uint184).max or type(uint136).max.
+        newSupplyCap = newSupplyCap == type(uint184).max ? type(uint136).max : newSupplyCap;
+
         uint256 supplyCap = config[id].cap;
         if (newSupplyCap == supplyCap) revert ErrorsLib.AlreadySet();
-
-        newSupplyCap = newSupplyCap == type(uint184).max ? type(uint136).max : newSupplyCap;
 
         if (newSupplyCap < supplyCap) {
             _setCap(id, newSupplyCap.toUint136());
@@ -360,7 +362,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 if (config[id].cap != 0) revert ErrorsLib.InvalidMarketRemovalNonZeroCap(id);
                 if (pendingCap[id].validAt != 0) revert ErrorsLib.PendingCap(id);
 
-                if (config[id].balance != 0) {
+                if (expectedSupplyAssets(id) != 0) {
                     if (config[id].removableAt == 0) revert ErrorsLib.InvalidMarketRemovalNonZeroSupply(id);
 
                     if (block.timestamp < config[id].removableAt) {
@@ -482,6 +484,16 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /// @inheritdoc IEulerEarnBase
+    function maxWithdrawFromStrategy(IERC4626 id) public view returns (uint256) {
+        return UtilsLib.min(id.maxWithdraw(address(this)), expectedSupplyAssets(id));
+    }
+
+    /// @inheritdoc IEulerEarnBase
+    function expectedSupplyAssets(IERC4626 id) public view returns (uint256) {
+        return id.previewRedeem(config[id].balance);
+    }
+
+    /// @inheritdoc IEulerEarnBase
     function acceptTimelock() external afterTimelock(pendingTimelock.validAt) {
         _setTimelock(pendingTimelock.value);
     }
@@ -513,8 +525,11 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
     /// @inheritdoc IERC4626
     /// @dev Warning: May be higher than the actual max deposit due to duplicate vaults in the supplyQueue.
+    /// @dev If deposit would throw ZeroShares error, function returns 0.
     function maxDeposit(address) public view override returns (uint256) {
-        return _maxDeposit();
+        uint256 suppliable = _maxDeposit();
+
+        return _convertToShares(suppliable, Math.Rounding.Floor) == 0 ? 0 : suppliable;
     }
 
     /// @inheritdoc IERC4626
@@ -590,7 +605,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
         assets = _convertToAssetsWithTotals(shares, totalSupply(), lastTotalAssets, Math.Rounding.Floor);
 
-        if (assets == 0) revert ErrorsLib.ZeroAssets();
+        // Since losses are not realized, exchange rate is never < 1 and zero assets check is not needed.
 
         _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
@@ -629,7 +644,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
             uint256 supplyCap = config[id].cap;
             if (supplyCap == 0) continue;
 
-            uint256 supplyAssets = _expectedSupplyAssets(id);
+            uint256 supplyAssets = expectedSupplyAssets(id);
 
             totalSuppliable += UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this)));
         }
@@ -773,7 +788,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
                 marketConfig.balance = id.balanceOf(address(this)).toUint112();
 
                 // Take into account assets of the new vault without applying a fee.
-                _updateLastTotalAssets(lastTotalAssets + _expectedSupplyAssets(id));
+                _updateLastTotalAssets(lastTotalAssets + expectedSupplyAssets(id));
 
                 emit EventsLib.SetWithdrawQueue(msgSender, withdrawQueue);
             }
@@ -800,7 +815,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
             uint256 supplyCap = config[id].cap;
             if (supplyCap == 0) continue;
 
-            uint256 supplyAssets = _expectedSupplyAssets(id);
+            uint256 supplyAssets = expectedSupplyAssets(id);
 
             uint256 toSupply =
                 UtilsLib.min(UtilsLib.min(supplyCap.zeroFloorSub(supplyAssets), id.maxDeposit(address(this))), assets);
@@ -824,8 +839,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            uint256 toWithdraw =
-                UtilsLib.min(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)), assets);
+            uint256 toWithdraw = UtilsLib.min(maxWithdrawFromStrategy(id), assets);
 
             if (toWithdraw > 0) {
                 // Using try/catch to skip vaults that revert.
@@ -841,18 +855,13 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         if (assets != 0) revert ErrorsLib.NotEnoughLiquidity();
     }
 
-    /// @dev Returns the amount of assets expected to be supplied to the vault.
-    function _expectedSupplyAssets(IERC4626 id) internal view returns (uint256) {
-        return id.previewRedeem(config[id].balance);
-    }
-
     /// @dev Simulates a withdraw of `assets` from the strategy vaults.
     /// @return The remaining assets to be withdrawn.
     function _simulateWithdrawStrategy(uint256 assets) internal view returns (uint256) {
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
 
-            assets = assets.zeroFloorSub(UtilsLib.min(id.maxWithdraw(address(this)), _expectedSupplyAssets(id)));
+            assets = assets.zeroFloorSub(maxWithdrawFromStrategy(id));
 
             if (assets == 0) break;
         }
@@ -895,7 +904,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
         uint256 realTotalAssets;
         for (uint256 i; i < withdrawQueue.length; ++i) {
             IERC4626 id = withdrawQueue[i];
-            realTotalAssets += _expectedSupplyAssets(id);
+            realTotalAssets += expectedSupplyAssets(id);
         }
 
         uint256 lastTotalAssetsCached = lastTotalAssets;

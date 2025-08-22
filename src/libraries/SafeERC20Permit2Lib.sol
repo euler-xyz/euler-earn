@@ -24,7 +24,9 @@ library SafeERC20Permit2Lib {
 
     function revokeApprovalWithPermit2(IERC20 token, address spender, address permit2) internal {
         if (permit2 == address(0)) {
-            try token.approve(spender, 1) {} catch {}
+            if (!trySafeApprove(token, spender, 0)) {
+                trySafeApprove(token, spender, 1);
+            }
         } else {
             IAllowanceTransfer(permit2).approve(address(token), spender, 0, 0);
         }
@@ -47,5 +49,10 @@ library SafeERC20Permit2Lib {
         } else {
             SafeERC20.safeTransferFrom(token, from, to, value);
         }
+    }
+
+    function trySafeApprove(IERC20 token, address to, uint256 value) internal returns (bool) {
+        (bool success, bytes memory data) = address(token).call(abi.encodeCall(IERC20.approve, (to, value)));
+        return success && (data.length == 0 || abi.decode(data, (bool)));
     }
 }
