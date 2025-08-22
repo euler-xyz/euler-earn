@@ -1,9 +1,12 @@
 #!/bin/bash
 
-# EulerEarn Factory Deployment Script
-# This script handles the forge create command with proper input mappings
+# EulerEarn Factory and PublicAllocator Deployment Script
+# This script handles the deployment of both contracts with proper input mappings
 
 set -e  # Exit on any error
+
+# Constants
+ZERO_ADDRESS="0x0000000000000000000000000000000000000000"
 
 # Colors for output
 RED='\033[0;31m'
@@ -143,8 +146,8 @@ get_verifier_api_key() {
     echo "$api_key"
 }
 
-# Function to get constructor arguments
-get_constructor_args() {
+# Function to get factory constructor arguments
+get_factory_constructor_args() {
     local chain_id="$1"
     local addresses_dir="../euler-interfaces/addresses/$chain_id"
     
@@ -187,6 +190,25 @@ get_constructor_args() {
     fi
     
     echo "$dao_address $evc_address $permit2_address $evk_factory_perspective"
+}
+
+# Function to check if contract is already deployed
+check_contract_deployed() {
+    local chain_id="$1"
+    local contract_key="$2"
+    local addresses_dir="../euler-interfaces/addresses/$chain_id"
+    local file_name="$3"
+    local file_path="$addresses_dir/$file_name"
+    
+    if [ -f "$file_path" ]; then
+        local existing_address=$(get_json_value "$file_path" "$contract_key")
+        if [ -n "$existing_address" ] && [ "$existing_address" != "null" ] && [ "$existing_address" != "" ] && [ "$existing_address" != "$ZERO_ADDRESS" ]; then
+            echo "$existing_address"
+            return 0
+        fi
+    fi
+    
+    return 1
 }
 
 # Function to update CoreAddresses.json
@@ -237,6 +259,48 @@ update_core_addresses() {
     fi
 }
 
+# Function to update PeripheryAddresses.json
+update_periphery_addresses() {
+    local chain_id="$1"
+    local deployed_address="$2"
+    local addresses_dir="../euler-interfaces/addresses/$chain_id"
+    local periphery_file="$addresses_dir/PeripheryAddresses.json"
+    
+    print_info "Updating PeripheryAddresses.json with deployed address..."
+    
+    # Check if jq is available for JSON manipulation
+    if command -v jq >/dev/null 2>&1; then
+        # Update the JSON file: add eulerEarnPublicAllocator
+        if jq --arg addr "$deployed_address" '
+            .eulerEarnPublicAllocator = $addr
+        ' "$periphery_file" > "${periphery_file}.tmp" && mv "${periphery_file}.tmp" "$periphery_file"; then
+            print_success "Successfully updated PeripheryAddresses.json"
+            print_info "Added eulerEarnPublicAllocator: $deployed_address"
+        else
+            print_error "Failed to update PeripheryAddresses.json with jq"
+            exit 1
+        fi
+    else
+        print_warning "jq not found, attempting manual JSON update..."
+        
+        # Manual JSON update using sed (less robust but works for simple cases)
+        local temp_file="${periphery_file}.tmp"
+        
+        # Add eulerEarnPublicAllocator before the closing brace
+        sed -i.bak '$ s/}$/,\n    "eulerEarnPublicAllocator": "'"$deployed_address"'"\n}/' "$temp_file"
+        
+        if [ $? -eq 0 ]; then
+            mv "$temp_file" "$periphery_file"
+            rm -f "${temp_file}.bak"
+            print_success "Successfully updated PeripheryAddresses.json manually"
+            print_info "Added eulerEarnPublicAllocator: $deployed_address"
+        else
+            print_error "Failed to update PeripheryAddresses.json manually"
+            exit 1
+        fi
+    fi
+}
+
 # Function to show usage
 show_usage() {
     echo "Usage: $0 --account ACCOUNT --rpc-url CHAIN_ID_OR_URL [--verifier VERIFIER_TYPE]"
@@ -247,6 +311,10 @@ show_usage() {
     echo "  --verifier TYPE        Verifier type (default: etherscan)"
     echo "                         Supported: etherscan, blockscout, sourcify, custom"
     echo "  -h, --help            Show this help message"
+    echo
+    echo "Description:"
+    echo "  Deploys EulerEarnFactory and PublicAllocator contracts if not already deployed."
+    echo "  Checks existing deployments and skips if contracts are already present."
     echo
     echo "Examples:"
     echo "  $0 --account DEPLOYER_OP --rpc-url 10 --verifier etherscan"
@@ -307,7 +375,7 @@ parse_args() {
 
 # Main script
 main() {
-    print_info "EulerEarn Factory Deployment Script"
+    print_info "EulerEarn Factory and PublicAllocator Deployment Script"
     echo
     
     # Parse command line arguments
@@ -353,9 +421,47 @@ main() {
         print_success "Verifier API key: ***${verifier_api_key: -4}"
     fi
     
-    print_info "Getting constructor arguments for chain $chain_id..."
-    constructor_args=$(get_constructor_args "$chain_id")
+    print_info "Getting factory constructor arguments for chain $chain_id..."
+    constructor_args=$(get_factory_constructor_args "$chain_id")
     print_success "Constructor arguments: $constructor_args"
+    
+    echo
+    
+    # Check if contracts are already deployed
+    print_info "Checking for existing deployments..."
+    
+    # Check for old version (eulerEarnImplementation)
+    local old_implementation=$(get_json_value "../euler-interfaces/addresses/$chain_id/CoreAddresses.json" "eulerEarnImplementation")
+    if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
+        print_info "Old EulerEarn implementation found at: $old_implementation"
+        print_info "This indicates an old version is deployed. Will deploy new contracts."
+    fi
+    
+    local existing_factory=$(check_contract_deployed "$chain_id" "eulerEarnFactory" "CoreAddresses.json")
+    local existing_allocator=$(check_contract_deployed "$chain_id" "eulerEarnPublicAllocator" "PeripheryAddresses.json")
+    
+    if [ -n "$existing_factory" ]; then
+        print_info "EulerEarnFactory already deployed at: $existing_factory"
+    else
+        print_info "EulerEarnFactory not found, will deploy"
+    fi
+    
+    if [ -n "$existing_allocator" ]; then
+        print_info "PublicAllocator already deployed at: $existing_allocator"
+    else
+        print_info "PublicAllocator not found, will deploy"
+    fi
+    
+    # If both new contracts are already deployed, exit
+    if [ -n "$existing_factory" ] && [ -n "$existing_allocator" ]; then
+        print_success "Both new contracts are already deployed. Nothing to do."
+        exit 0
+    fi
+    
+    # If old implementation exists, we need to deploy new contracts regardless
+    if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
+        print_info "Old implementation detected. Proceeding with new contract deployment to upgrade."
+    fi
     
     echo
     
@@ -381,52 +487,125 @@ main() {
         verifier_args="$verifier_args --verifier-api-key $verifier_api_key --verifier=$verifier_type"
     fi
     
-    # Build the forge command with the password
-    forge_cmd="forge create EulerEarnFactory \
-        --account $deployer_account \
-        --password $account_password \
-        --rpc-url $rpc_url \
-        --legacy \
-        --verify \
-        $verifier_args \
-        --broadcast \
-        --constructor-args $constructor_args"
-    
-    print_info "Executing forge command..."
-    echo
-    
-    # Execute the command
-    print_info "Starting deployment..."
-    
-    # Capture the output to extract the deployed address
-    local temp_output=$(mktemp)
-    local exit_code=0
-    
-    # Execute the command and capture exit code
-    eval "$forge_cmd" 2>&1 | tee "$temp_output"
-    exit_code=${PIPESTATUS[0]}
-    
-    if [ $exit_code -eq 0 ]; then
-        print_success "Deployment completed successfully!"
+    # Deploy EulerEarnFactory if not already deployed OR if old implementation exists (upgrade scenario)
+    if [ -z "$existing_factory" ] || ([ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]); then
+        print_info "Deploying EulerEarnFactory..."
         
-        # Extract deployed address from output
-        local deployed_address=$(grep "Deployed to:" "$temp_output" | sed 's/Deployed to: //')
+        # Build the forge command for factory
+        local factory_cmd="forge create EulerEarnFactory \
+            --account $deployer_account \
+            --password $account_password \
+            --rpc-url $rpc_url \
+            --legacy \
+            --verify \
+            $verifier_args \
+            --broadcast \
+            --constructor-args $constructor_args"
         
-        if [ -n "$deployed_address" ]; then
-            print_info "Extracted deployed address: $deployed_address"
-            update_core_addresses "$chain_id" "$deployed_address"
+        print_info "Executing forge command for factory..."
+        echo
+        
+        # Execute the factory deployment
+        local temp_output=$(mktemp)
+        local exit_code=0
+        
+        eval "$factory_cmd" 2>&1 | tee "$temp_output"
+        exit_code=${PIPESTATUS[0]}
+        
+        if [ $exit_code -eq 0 ]; then
+            print_success "Factory deployment completed successfully!"
+            
+            # Extract deployed address from output
+            local deployed_address=$(grep "Deployed to:" "$temp_output" | sed 's/Deployed to: //')
+            
+            if [ -n "$deployed_address" ]; then
+                print_info "Extracted factory address: $deployed_address"
+                update_core_addresses "$chain_id" "$deployed_address"
+                existing_factory="$deployed_address"
+            else
+                print_warning "Could not extract factory address from output"
+                rm -f "$temp_output"
+                exit 1
+            fi
         else
-            print_warning "Could not extract deployed address from output"
+            print_error "Factory deployment failed with exit code $exit_code!"
+            rm -f "$temp_output"
+            exit $exit_code
         fi
-    else
-        print_error "Deployment failed with exit code $exit_code!"
+        
+        rm -f "$temp_output"
     fi
     
-    # Clean up temp file
-    rm -f "$temp_output"
+    # Deploy PublicAllocator if not already deployed
+    if [ -z "$existing_allocator" ]; then
+        print_info "Deploying PublicAllocator..."
+        
+        # Get EVC address for PublicAllocator constructor
+        local evc_address=$(get_json_value "../euler-interfaces/addresses/$chain_id/CoreAddresses.json" "evc")
+        if [ -z "$evc_address" ] || [ "$evc_address" = "null" ] || [ "$evc_address" = "$ZERO_ADDRESS" ]; then
+            print_error "EVC address not found in CoreAddresses.json. Cannot deploy PublicAllocator."
+            exit 1
+        fi
+        
+        print_info "Using EVC address for PublicAllocator: $evc_address"
+        
+        # Build the forge command for allocator
+        local allocator_cmd="forge create PublicAllocator \
+            --account $deployer_account \
+            --password $account_password \
+            --rpc-url $rpc_url \
+            --legacy \
+            --verify \
+            $verifier_args \
+            --broadcast \
+            --constructor-args $evc_address"
+        
+        print_info "Executing forge command for allocator..."
+        echo
+        
+        # Execute the allocator deployment
+        local temp_output=$(mktemp)
+        local exit_code=0
+        
+        eval "$allocator_cmd" 2>&1 | tee "$temp_output"
+        exit_code=${PIPESTATUS[0]}
+        
+        if [ $exit_code -eq 0 ]; then
+            print_success "Allocator deployment completed successfully!"
+            
+            # Extract deployed address from output
+            local deployed_address=$(grep "Deployed to:" "$temp_output" | sed 's/Deployed to: //')
+            
+            if [ -n "$deployed_address" ]; then
+                print_info "Extracted allocator address: $deployed_address"
+                update_periphery_addresses "$chain_id" "$deployed_address"
+            else
+                print_warning "Could not extract allocator address from output"
+                rm -f "$temp_output"
+                exit 1
+            fi
+        else
+            print_error "Allocator deployment failed with exit code $exit_code!"
+            rm -f "$temp_output"
+            exit $exit_code
+        fi
+        
+        rm -f "$temp_output"
+    fi
     
-    # Exit with the same code as the forge command
-    exit $exit_code
+    print_success "All deployments completed successfully!"
+    
+    # Show deployment summary
+    if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
+        print_info "Upgraded from old EulerEarn implementation at: $old_implementation"
+    fi
+    
+    if [ -n "$existing_factory" ]; then
+        print_info "Factory was already deployed at: $existing_factory"
+    fi
+    if [ -n "$existing_allocator" ]; then
+        print_info "Allocator was already deployed at: $existing_allocator"
+    fi
 }
 
 # Run main function
