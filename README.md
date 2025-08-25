@@ -4,11 +4,12 @@
 > This repo is a fork of [metamorpho v1.1](https://github.com/morpho-org/metamorpho-v1.1) and [public allocator](https://github.com/morpho-org/public-allocator), inspired by [silo vaults](https://github.com/silo-finance/silo-contracts-v2/tree/develop/silo-vaults), with the following changes:
 >
 > - uses a set of accepted ERC4626 vaults as strategies instead of Morpho Blue markets;
-> - adds [EVC](https://github.com/euler-xyz/ethereum-vault-connector) and EulerEarn strategy compatibility;
+> - adds [EVK](https://github.com/euler-xyz/euler-vault-kit) and EulerEarn strategy compatibility;
+> - adds [EVC](https://github.com/euler-xyz/ethereum-vault-connector) compatibility;
 > - adds [permit2](https://github.com/Uniswap/permit2) compatibility;
-> - implements [EVK](https://github.com/euler-xyz/euler-vault-kit/blob/master/docs/whitepaper.md#accounting)-style `VIRTUAL_AMOUNT` conversions;
-> - implements zero shares protection on deposits;
+> - implements [EVK](https://github.com/euler-xyz/euler-vault-kit/blob/master/docs/whitepaper.md#accounting)-style `VIRTUAL_AMOUNT` conversions that prevents exchange rate manipulation;
 > - implements internal balance tracking that prevents EulerEarn share inflation;
+> - implements zero shares protection on deposits;
 > - adds reentrancy protection;
 > - removes the `skim` function and related functionality;
 > - removes ERC-2612 permit functionality;
