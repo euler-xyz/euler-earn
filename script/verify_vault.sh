@@ -348,17 +348,52 @@ main() {
     
     print_info "Extracted input data: $input_data"
     
-    # The input data should be a call to createEulerEarn function
-    # Function selector for createEulerEarn: createEulerEarn(address,uint256,address,string,string,bytes32)
-    # We need to remove the function selector (first 10 characters = 4 bytes)
-    local calldata_without_selector="${input_data:10}"
+    # The input data might be a direct call to createEulerEarn or a wrapper function
+    # Function selector for createEulerEarn: 0x4ffdce11
+    # Let's search for the createEulerEarn function call within the transaction data
+    
+    print_info "Searching for createEulerEarn function call in transaction data..."
+    
+    # Check if this is a direct createEulerEarn call
+    local create_earn_selector="0x4ffdce11"
+    local calldata_without_selector=""
+    
+    if [[ "$input_data" == *"$create_earn_selector"* ]]; then
+        # Found createEulerEarn call, extract the part after the selector
+        print_info "Found createEulerEarn selector in transaction data"
+        
+        # Find the position of the createEulerEarn selector
+        local pos=$(echo "$input_data" | grep -b -o "$create_earn_selector" | head -1 | cut -d: -f1)
+        
+        if [[ -n "$pos" ]]; then
+            # Extract everything after the createEulerEarn selector (skip the 4-byte selector)
+            calldata_without_selector="${input_data:$((pos + 10))}"
+            print_info "Extracted calldata after createEulerEarn selector"
+        else
+            print_warning "Could not determine position of createEulerEarn selector"
+        fi
+    else
+        # Search for the createEulerEarn selector manually
+        local manual_pos=$(echo "$input_data" | grep -b -o "4ffdce11" | head -1 | cut -d: -f1)
+        if [[ -n "$manual_pos" ]]; then
+            # Extract everything after the createEulerEarn selector (skip the 4-byte selector)
+            calldata_without_selector="${input_data:$((manual_pos + 8))}"
+            print_info "Found nested createEulerEarn call, extracted calldata"
+        fi
+    fi
+    
+    # If we still don't have calldata, try the original approach
+    if [ -z "$calldata_without_selector" ]; then
+        print_info "No createEulerEarn selector found, trying to decode as direct call..."
+        calldata_without_selector="${input_data:10}"
+    fi
     
     if [ -z "$calldata_without_selector" ]; then
-        print_error "Failed to extract calldata without function selector"
+        print_error "Failed to extract calldata for createEulerEarn function"
         exit 1
     fi
     
-    print_info "Calldata without function selector: $calldata_without_selector"
+    print_info "Calldata to decode: $calldata_without_selector"
     
     # Decode the calldata using cast decode-abi
     # Function signature: createEulerEarn(address,uint256,address,string,string,bytes32)
@@ -369,8 +404,7 @@ main() {
         exit 1
     fi
     
-    print_info "Decoded calldata:"
-    echo "$decoded_data"
+    print_info "Decoded calldata successfully"
     
     # Convert the decoded data to an array and extract each parameter
     local decoded_array=()
@@ -427,9 +461,7 @@ main() {
         exit 1
     fi
     
-    print_success "Successfully encoded constructor arguments:"
-    print_info "  Raw args: $initial_owner $evc_address $permit2_address $initial_timelock $asset $name $symbol"
-    print_info "  Encoded: $constructor_args_encoded"
+    print_success "Successfully encoded constructor arguments"
     
     echo
     
