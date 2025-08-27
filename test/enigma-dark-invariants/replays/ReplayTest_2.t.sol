@@ -36,12 +36,12 @@ contract ReplayTest2 is Invariants, Setup {
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function test_replay_2_assert_ERC4626_DEPOSIT_INVARIANT_C() public {// TODO FAIL
+    function test_replay_2_assert_ERC4626_DEPOSIT_INVARIANT_C() public {
         _setUpActor(USER1);
         Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
     }
 
-    function test_replay_2_assert_ERC4626_MINT_INVARIANT_C() public {// TODO FAIL
+    function test_replay_2_assert_ERC4626_MINT_INVARIANT_C() public {
         _setUpActor(USER1);
         Tester.assert_ERC4626_MINT_INVARIANT_C(0);
     }

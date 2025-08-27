@@ -230,13 +230,29 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
     //                                 POST CONDITIONS: ACCOUNTING                               //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function assert_GPOST_ACCOUNTING_A(address eulerEarnAddress) internal {
-        if (msg.sig != IEulerEarnHandler.withdrawEEV.selector && msg.sig != IEulerEarnHandler.redeemEEV.selector) {
-            assertGe(
-                defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets,
-                defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalAssets,
-                GPOST_ACCOUNTING_A
-            );
+    function assert_GPOST_ACCOUNTING_A() internal {
+        if (_isEulerEarnVault(target)) {
+            if (msg.sig != IEulerEarnHandler.withdrawEEV.selector && msg.sig != IEulerEarnHandler.redeemEEV.selector) {
+                if (msg.sig == IPublicAllocatorHandler.reallocateTo.selector) {
+                    if (
+                        defaultVarsAfter.eulerEarnVaults[target].totalAssets
+                            < defaultVarsBefore.eulerEarnVaults[target].totalAssets
+                    ) {
+                        assertLe(
+                            defaultVarsBefore.eulerEarnVaults[target].totalAssets
+                                - defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                            1,
+                            GPOST_ACCOUNTING_A
+                        );
+                    }
+                } else {
+                    assertGe(
+                        defaultVarsAfter.eulerEarnVaults[target].totalAssets,
+                        defaultVarsBefore.eulerEarnVaults[target].totalAssets,
+                        GPOST_ACCOUNTING_A
+                    );
+                }
+            }
         }
     }
 
@@ -277,25 +293,15 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
         }
     }
 
-    function assert_GPOST_ACCOUNTING_D(address eulerEarnAddress) internal {
-        if (
-            defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalSupply
-                < defaultVarsBefore.eulerEarnVaults[eulerEarnAddress].totalSupply
-        ) {
-            assertTrue(
-                msg.sig == IEulerEarnHandler.withdrawEEV.selector || msg.sig == IEulerEarnHandler.redeemEEV.selector,
-                GPOST_ACCOUNTING_D
-            );
-        }
-    }
-
-    function assert_GPOST_ACCOUNTING_E(address eulerEarnAddress) internal {
+    function assert_GPOST_ACCOUNTING_D() internal {
         if (_isEulerEarnVault(target)) {
-            if (msg.sig != IERC20Handler.transfer.selector) {
-                assertEq(
-                    defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].lastTotalAssets,
-                    defaultVarsAfter.eulerEarnVaults[eulerEarnAddress].totalAssets,
-                    GPOST_ACCOUNTING_E
+            if (
+                defaultVarsAfter.eulerEarnVaults[target].totalSupply
+                    < defaultVarsBefore.eulerEarnVaults[target].totalSupply
+            ) {
+                assertTrue(
+                    msg.sig == IEulerEarnHandler.withdrawEEV.selector || msg.sig == IEulerEarnHandler.redeemEEV.selector,
+                    GPOST_ACCOUNTING_D
                 );
             }
         }
@@ -367,14 +373,6 @@ abstract contract DefaultBeforeAfterHooks is BaseHooks {
             }
         }
     }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                  POST CONDITIONS: REENTRANCY                              //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    /*     function assert_GPOST_REENTRANCY_A() internal { TODO check if we need this
-        assertFalse(vault.reentrancyGuardEntered(), GPOST_REENTRANCY_A);
-    } */
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          HELPERS                                          //

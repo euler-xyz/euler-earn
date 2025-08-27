@@ -88,8 +88,6 @@ abstract contract PostconditionsSpec {
 
     string constant GPOST_ACCOUNTING_D = "GPOST_ACCOUNTING_D: totalSupply can only be decrease with withdrawals";
 
-    string constant GPOST_ACCOUNTING_E = "GPOST_ACCOUNTING_E: after any transaction lastTotalAssets == totalAssets";
-
     string constant GPOST_ACCOUNTING_F = "GPOST_ACCOUNTING_F: lostAssets should always increases monotonically";
 
     string constant GPOST_ACCOUNTING_G =

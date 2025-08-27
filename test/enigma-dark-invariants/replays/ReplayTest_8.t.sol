@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 // Libraries
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import {FlowCaps} from "src/interfaces/IPublicAllocator.sol";
 
 // Contracts
 import {Invariants} from "../Invariants.t.sol";
@@ -13,17 +12,17 @@ import {Setup} from "../Setup.t.sol";
 // Utils
 import {Actor} from "../utils/Actor.sol";
 
-contract ReplayTest4 is Invariants, Setup {
+contract ReplayTest8 is Invariants, Setup {
     // Generated from Echidna reproducers
 
     // Target contract instance (you may need to adjust this)
-    ReplayTest4 Tester = this;
+    ReplayTest8 Tester = this;
 
     modifier setup() override {
         _;
     }
 
-    function setUp() public {
+	function setUp() public {
         // Deploy protocol contracts
         _setUp();
 
@@ -33,40 +32,30 @@ contract ReplayTest4 is Invariants, Setup {
         vm.warp(101007);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    function test_replay_4_assert_ERC4626_MINT_INVARIANT_C() public {
-        // PASS
+    
+    
+    function test_replay_8_assert_ERC4626_MINT_INVARIANT_C() public {
         _setUpActor(USER1);
-        Tester.mintEEV(39654, 0, 0);
-        Tester.deposit(99135, 0, 0);
-        Tester.borrow(38393, 0, 0);
-        _delay(17073);
+        Tester.submitCap(5192296867414827628530496324850096, 0, 18);
+        _delay(604921);
+        Tester.acceptCap(0, 2);
         Tester.assert_ERC4626_MINT_INVARIANT_C(0);
+        
     }
-
-    function test_replay_4_reallocateTo() public {
-        // PASS
-        Tester.submitCap(0, 0, 1);
-        Tester.submitCap(0, 0, 0);
-        Tester.mintEEV(1, 0, 0);
-        Tester.setFlowCaps([FlowCaps(0, 0), FlowCaps(0, 0), FlowCaps(0, 1), FlowCaps(1, 0)]);
-        Tester.updateWithdrawQueue([3, 0, 0, 0], 0, 2);
-        Tester.reallocateTo(3, 0, [uint128(0), uint128(0), uint128(0), uint128(0)]);
-    }
-
-    function test_replay_4_assert_ERC4626_DEPOSIT_INVARIANT_C() public {
-        //@audit-issue: AllCapsReached maxDeposit(deposit)
+    
+    function test_replay_8_assert_ERC4626_DEPOSIT_INVARIANT_C() public {
         _setUpActor(USER1);
-        Tester.mint(395636, 0, 0);
-        Tester.submitCap(1, 0, 2);
-        Tester.mintEEV(170438, 0, 1);
-        Tester.borrow(165229, 0, 2);
-        _delay(1054);
+        Tester.submitCap(5192296867414827628530496324850096, 0, 38);
+        _delay(278172);
+        _delay(334780);
+        Tester.acceptCap(0, 2);
         Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
+        
     }
+    
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                           HELPERS                                         //
@@ -101,4 +90,4 @@ contract ReplayTest4 is Invariants, Setup {
         vm.warp(_timestamp);
         actor = actors[_user];
     }
-}
+} 

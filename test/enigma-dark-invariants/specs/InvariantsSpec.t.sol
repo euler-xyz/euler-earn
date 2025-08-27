@@ -101,5 +101,5 @@ abstract contract InvariantsSpec {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     string constant INV_DEPOSIT_WITHDRAW_A =
-        "INV_DEPOSIT_WITHDRAW_A: Max withdrawal must always be limited by available assets"; // TODO
+        "INV_DEPOSIT_WITHDRAW_A: Max withdrawal must always be limited by available assets";
 }

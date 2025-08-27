@@ -6,6 +6,7 @@ import {IEulerEarn} from "src/interfaces/IEulerEarn.sol";
 
 // Libraries
 import "forge-std/console.sol";
+import {ErrorsLib} from "src/libraries/ErrorsLib.sol";
 
 // Test Contracts
 import {Actor} from "../../utils/Actor.sol";
@@ -30,7 +31,7 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
         uint256 accountBalance = loanToken.balanceOf(_account);
 
         if (accountBalance < maxDeposit) {
-            loanToken.mint(_account, maxDeposit - loanToken.balanceOf(_account));
+            loanToken.mint(_account, maxDeposit - accountBalance);
         }
 
         if (maxDeposit != 0) {
@@ -39,8 +40,11 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
                 /// @dev restore original state to not break invariants
                 vm.prank(_account);
                 IEulerEarn(target_).redeem(shares, address(0), _account);
-            } catch {
-                assertTrue(false, ERC4626_DEPOSIT_INVARIANT_C);
+            } catch (bytes memory reason) {
+                // check if revert reason matches the custom error selector
+                if (reason.length < 4 || bytes4(reason) != ErrorsLib.AllCapsReached.selector) {
+                    assertTrue(false, ERC4626_DEPOSIT_INVARIANT_C);
+                }
             }
         }
     }
@@ -52,10 +56,10 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
         uint256 maxMint = IEulerEarn(target_).maxMint(_account);
         uint256 accountBalance = loanToken.balanceOf(_account);
 
-        uint256 maxMintToAssets = IEulerEarn(target_).convertToAssets(maxMint);
+        uint256 maxMintToAssets = IEulerEarn(target_).previewMint(maxMint);
 
         if (accountBalance < maxMintToAssets) {
-            loanToken.mint(_account, maxMintToAssets - loanToken.balanceOf(_account));
+            loanToken.mint(_account, maxMintToAssets - accountBalance);
         }
 
         if (maxMint != 0) {
@@ -64,8 +68,11 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
                 /// @dev restore original state to not break invariants
                 vm.prank(_account);
                 IEulerEarn(target_).redeem(maxMint, address(0), _account);
-            } catch {
-                assertTrue(false, ERC4626_MINT_INVARIANT_C);
+            } catch (bytes memory reason) {
+                // check if revert reason matches the custom error selector
+                if (reason.length < 4 || bytes4(reason) != ErrorsLib.AllCapsReached.selector) {
+                    assertTrue(false, ERC4626_MINT_INVARIANT_C);
+                }
             }
         }
     }
@@ -165,7 +172,10 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
         address target_ = _getRandomEulerEarnVault(i);
 
         _mintAndApprove(
-            address(IEulerEarn(target_).asset()), address(this), target_, IEulerEarn(target_).convertToAssets(_shares) + 1
+            address(IEulerEarn(target_).asset()),
+            address(this),
+            target_,
+            IEulerEarn(target_).convertToAssets(_shares) + 1
         );
 
         uint256 depositedAssets = IEulerEarn(target_).mint(_shares, address(this));

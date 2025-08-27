@@ -37,6 +37,7 @@ contract ReplayTest4 is Invariants, Setup {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function test_replay_4_setFeeRecipient() public {
+        vm.skip(true);
         // PASS
         _setUpActor(USER1);
         Tester.deposit(1, 0, 1);

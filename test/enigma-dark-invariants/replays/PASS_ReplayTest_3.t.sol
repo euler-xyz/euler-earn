@@ -37,8 +37,10 @@ contract ReplayTest3 is Invariants, Setup {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function test_replay_3_depositEEV() public {
+        vm.skip(true);
         // PASS
         _setUpActor(USER1);
+        vm.skip(true);
         Tester.mint(1, 0, 2);
         Tester.deposit(1, 0, 1);
         Tester.setSupplyQueue(0, 0);

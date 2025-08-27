@@ -37,7 +37,7 @@ contract ReplayTest6 is Invariants, Setup {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function test_replay_6_assert_ERC4626_REDEEM_INVARIANT_C() public {
-        // TODO ERC4626_REDEEM_INVARIANT_C: maxRedeem MUST return the maximum amount of shares that could be redeemed and not cause a rever
+        // PASS
         _setUpActor(USER1);
         Tester.depositEEV(1, 0, 0);// deposit 1 asset for actor 1 on euler earn 1
         Tester.submitCap(0, 0, 1);// submit cap 0 for market 0 on euler earn 1

@@ -33,7 +33,7 @@ abstract contract PublicAllocatorAdminHandler is BaseHandler {
         publicAllocator.setFee(address(eulerEarn), newFee);
     }
 
-    function setFlowCaps(FlowCaps[MAX_NUM_MARKETS] memory _flowCaps) external {// TODO make this compatible with runes
+    function setFlowCaps(FlowCaps[MAX_NUM_MARKETS] memory _flowCaps) external {
         FlowCapsConfig[] memory flowCapsConfig = _getFlowCaps(_flowCaps);
 
         publicAllocator.setFlowCaps(address(eulerEarn), flowCapsConfig);

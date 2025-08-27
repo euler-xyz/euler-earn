@@ -52,18 +52,14 @@ abstract contract HookAggregator is DefaultBeforeAfterHooks {
         assert_GPOST_FEES_A(eulerEarnAddress);
 
         // Accounting
-        assert_GPOST_ACCOUNTING_A(eulerEarnAddress);
+        assert_GPOST_ACCOUNTING_A();
         assert_GPOST_ACCOUNTING_B();
         assert_GPOST_ACCOUNTING_C(eulerEarnAddress);
-        assert_GPOST_ACCOUNTING_D(eulerEarnAddress);
-        //assert_GPOST_ACCOUNTING_E(eulerEarnAddress); TODO uncomment
+        assert_GPOST_ACCOUNTING_D();
         assert_GPOST_ACCOUNTING_F(eulerEarnAddress);
         assert_GPOST_ACCOUNTING_G(eulerEarnAddress);
         assert_GPOST_ACCOUNTING_H(eulerEarnAddress);
         assert_GPOST_ACCOUNTING_I(eulerEarnAddress);
-
-        // Reentrancy
-        //assert_GPOST_REENTRANCY_A(); TODO: revisit this
 
         // Markets
         for (uint256 i; i < allMarkets[eulerEarnAddress].length; i++) {

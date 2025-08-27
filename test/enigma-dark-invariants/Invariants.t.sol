@@ -79,7 +79,6 @@ abstract contract Invariants is BaseInvariants, ERC4626Invariants {
         for (uint256 i; i < eulerEarnVaults.length; i++) {
             address eulerEarn_ = eulerEarnVaults[i];
             assert_INV_ACCOUNTING_A(eulerEarn_);
-            //assert_INV_ACCOUNTING_C(eulerEarn_); TODO revisit this invariant
         }
 
         return true;

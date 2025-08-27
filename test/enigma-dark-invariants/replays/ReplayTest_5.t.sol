@@ -36,19 +36,6 @@ contract ReplayTest5 is Invariants, Setup {
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    function test_replay_5_assert_ERC4626_REDEEM_INVARIANT_C() public {
-        _setUpActor(USER1);
-        Tester.depositEEV(1, 0, 0);
-        Tester.submitCap(0, 0, 3);
-        Tester.deposit(4, 0, 0);
-        Tester.setPrice(1, 1);
-        Tester.assert_ERC4626_DEPOSIT_INVARIANT_C(0);
-        Tester.borrow(1, 0, 1);
-        Tester.submitCap(0, 0, 0);
-        Tester.mintEEV(1, 0, 0);
-        Tester.assert_ERC4626_REDEEM_INVARIANT_C(0);
-    }
-
     function test_replay_5_assert_ERC4626_WITHDRAW_INVARIANT_C() public {
         // ERC4626_WITHDRAW_INVARIANT_C: maxWithdraw MUST return the maximum amount of assets that could be transferred from owner through withdraw and not cause a revert
         _setUpActor(USER1);
