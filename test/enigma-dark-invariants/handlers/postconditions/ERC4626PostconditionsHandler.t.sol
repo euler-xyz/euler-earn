@@ -28,6 +28,9 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
 
         address _account = address(actor);
         uint256 maxDeposit = IEulerEarn(target_).maxDeposit(_account);
+
+        require(maxDeposit <= type(uint112).max, "maxDeposit is greater than uint112.max");
+
         uint256 accountBalance = loanToken.balanceOf(_account);
 
         if (accountBalance < maxDeposit) {
@@ -57,6 +60,8 @@ abstract contract ERC4626PostconditionsHandler is BaseHandler {
         uint256 accountBalance = loanToken.balanceOf(_account);
 
         uint256 maxMintToAssets = IEulerEarn(target_).previewMint(maxMint);
+
+        require(maxMintToAssets <= type(uint112).max, "maxMintToAssets is greater than uint112.max");
 
         if (accountBalance < maxMintToAssets) {
             loanToken.mint(_account, maxMintToAssets - accountBalance);

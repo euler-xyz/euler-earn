@@ -208,10 +208,14 @@ contract Setup is BaseTest {
 
         // STORE MARKETS & VAULTS IN STORAGE
 
-        _pushEVault(address(eulerEarn), address(eTST2), true);///@dev: eulerEarn market
-        _pushEVault(address(eulerEarn), address(eTST3), true);///@dev: eulerEarn market
-        allMarkets[address(eulerEarn)].push(IERC4626(address(eulerEarn2)));///@dev: eulerEarn market
-        _pushEVault(address(eulerEarn2), address(eTST4), true);///@dev: eulerEarn2 market
+        ///@dev: eulerEarn market
+        _pushEVault(address(eulerEarn), address(eTST2), true);
+        ///@dev: eulerEarn market
+        _pushEVault(address(eulerEarn), address(eTST3), true);
+        ///@dev: eulerEarn market
+        allMarkets[address(eulerEarn)].push(IERC4626(address(eulerEarn2)));
+        ///@dev: eulerEarn2 market
+        _pushEVault(address(eulerEarn2), address(eTST4), true);
 
         // Set Infinite Cap for Idle Vault
         _setCap(eulerEarn, address(idleVault), type(uint136).max);

@@ -39,8 +39,8 @@ contract ReplayTest6 is Invariants, Setup {
     function test_replay_6_assert_ERC4626_REDEEM_INVARIANT_C() public {
         // PASS
         _setUpActor(USER1);
-        Tester.depositEEV(1, 0, 0);// deposit 1 asset for actor 1 on euler earn 1
-        Tester.submitCap(0, 0, 1);// submit cap 0 for market 0 on euler earn 1
+        Tester.depositEEV(1, 0, 0); // deposit 1 asset for actor 1 on euler earn 1
+        Tester.submitCap(0, 0, 1); // submit cap 0 for market 0 on euler earn 1
         Tester.deposit(4, 0, 0); // deposit 4 assets for actor 1 on eVault 0
         Tester.setPrice(1, 1); // set price 1 for loanToken
         Tester.borrow(1, 0, 0); // borrow 1 assets for actor 1 on eVault 0

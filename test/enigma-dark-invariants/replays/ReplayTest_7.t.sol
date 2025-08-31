@@ -22,7 +22,7 @@ contract ReplayTest7 is Invariants, Setup {
         _;
     }
 
-	function setUp() public {
+    function setUp() public {
         // Deploy protocol contracts
         _setUp();
 
@@ -32,11 +32,10 @@ contract ReplayTest7 is Invariants, Setup {
         vm.warp(101007);
     }
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                   		REPLAY TESTS                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    
-    
+
     function test_replay_7_assert_ERC4626_MINT_INVARIANT_C() public {
         _setUpActor(USER1);
         Tester.mintEEV(4369999, 0, 1);
@@ -45,9 +44,7 @@ contract ReplayTest7 is Invariants, Setup {
         Tester.borrow(33, 0, 2);
         _delay(321);
         Tester.assert_ERC4626_MINT_INVARIANT_C(1);
-        
     }
-    
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                           HELPERS                                         //
@@ -82,4 +79,4 @@ contract ReplayTest7 is Invariants, Setup {
         vm.warp(_timestamp);
         actor = actors[_user];
     }
-} 
+}

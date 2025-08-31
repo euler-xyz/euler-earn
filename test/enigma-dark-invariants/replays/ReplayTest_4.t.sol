@@ -58,7 +58,7 @@ contract ReplayTest4 is Invariants, Setup {
     }
 
     function test_replay_4_assert_ERC4626_DEPOSIT_INVARIANT_C() public {
-        //@audit-issue: AllCapsReached maxDeposit(deposit)
+        // PASS
         _setUpActor(USER1);
         Tester.mint(395636, 0, 0);
         Tester.submitCap(1, 0, 2);
