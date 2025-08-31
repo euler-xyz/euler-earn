@@ -34,7 +34,7 @@ jobs:
 
       - name: Compile contracts
         run: |
-          forge build --build-info
+          forge build test/enigma-dark-invariants/Tester.t.sol --build-info
 
       - name: Run Echidna ${{ matrix.mode == 'property' && 'Property' || 'Assertion' }} Mode
         uses: crytic/echidna-action@v2
