@@ -13,7 +13,7 @@ balanceContract: 0x1000000000000000000000000000000000000000000000000
 contractAddr: "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496"
 
 #testLimit is the number of test sequences to run
-testLimit: 40000
+testLimit: 100000
 
 #seqLen defines how many transactions are in a test sequence
 seqLen: 200
@@ -39,7 +39,7 @@ stopOnFail: false
 coverage: true
 
 # list of file formats to save coverage reports in; default is all possible formats
-coverageFormats: [ "lcov", "html" ]
+coverageFormats: [ "html" ]
 
 #directory to save the corpus; by default is disabled
 corpusDir: "corpus"
@@ -50,7 +50,7 @@ corpusDir: "corpus"
 cryticArgs: [ "--solc-solcs-select", "0.8.28", "--solc-remaps", "@crytic/properties/=lib/properties/ forge-std/=lib/forge-std/src/ ds-test/=lib/forge-std/lib/ds-test/src/ openzeppelin/=lib/openzeppelin-contracts/contracts/" ]
 
 # maximum value to send to payable functions
-maxValue: 1e+23 # 100000 eth
+maxValue: 1e+30 # 100000 eth
 
 #quiet produces (much) less verbose output
 quiet: false
