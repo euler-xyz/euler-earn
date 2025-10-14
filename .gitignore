@@ -14,5 +14,14 @@ broadcast/
 # System Files
 .DS_Store
 
+
+# Invariant testing files
+crytic-export/
+_corpus/
+
+# Coverage directory
+coverage/
+*.info
+
 # certora generated files
 .certora_internal
