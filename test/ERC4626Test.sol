@@ -531,7 +531,7 @@ contract ERC4626Test is IntegrationTest {
 
         // max deposit is 0
         assertEq(vault.maxDeposit(SUPPLIER), 0);
-        // although cap still allows 1 wei 
+        // although cap still allows 1 wei
         assertEq(vault.totalAssets(), cap - 1);
         // because depositing 1 wei would throw zero shares
         vm.prank(SUPPLIER);
