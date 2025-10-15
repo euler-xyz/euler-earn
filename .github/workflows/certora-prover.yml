@@ -28,6 +28,10 @@ jobs:
         with:
           submodules: recursive
 
+      # Install foundry, needed for prover path resolution
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       # Run Certora munge script
       - name: Certora munge
         run: ./certora/scripts/patch.sh
