@@ -3,7 +3,7 @@ pragma solidity >=0.5.0;
 
 import {MarketAllocation} from "./IEulerEarn.sol";
 
-import {IERC4626} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
 
 /// @dev Max settable flow cap, such that caps can always be stored on 128 bits.
 /// @dev The actual max possible flow cap is type(uint128).max-1.

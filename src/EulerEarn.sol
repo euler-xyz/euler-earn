@@ -17,12 +17,12 @@ import {ErrorsLib} from "./libraries/ErrorsLib.sol";
 import {EventsLib} from "./libraries/EventsLib.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {UtilsLib, WAD} from "./libraries/UtilsLib.sol";
-import {SafeCast} from "../lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
-import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeCast} from "openzeppelin-contracts/utils/math/SafeCast.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
-import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import {Ownable2Step, Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import {Context} from "openzeppelin-contracts/utils/Context.sol";
+import {ReentrancyGuard} from "openzeppelin-contracts/utils/ReentrancyGuard.sol";
+import {Ownable2Step, Ownable} from "openzeppelin-contracts/access/Ownable2Step.sol";
 import {
     IERC20,
     IERC4626,
@@ -30,8 +30,8 @@ import {
     ERC4626,
     Math,
     SafeERC20
-} from "../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
-import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
+} from "openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
+import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 
 /// @title EulerEarn
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.

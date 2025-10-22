@@ -7,7 +7,7 @@ import {
     ERC20,
     ERC4626,
     Math
-} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
+} from "openzeppelin-contracts/token/ERC20/extensions/ERC4626.sol";
 
 contract VaultMock1 is ERC4626 {
    constructor(IERC20 asset) ERC4626(asset) ERC20("VaultMock1", "V1") {}

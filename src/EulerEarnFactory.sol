@@ -10,8 +10,8 @@ import {ErrorsLib} from "./libraries/ErrorsLib.sol";
 
 import {EulerEarn} from "./EulerEarn.sol";
 
-import {Ownable, Context} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import {EVCUtil} from "../lib/ethereum-vault-connector/src/utils/EVCUtil.sol";
+import {Ownable, Context} from "openzeppelin-contracts/access/Ownable.sol";
+import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 
 /// @title EulerEarnFactory
 /// @author Forked with gratitude from Morpho Labs. Inspired by Silo Labs.
