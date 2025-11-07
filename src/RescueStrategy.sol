@@ -62,6 +62,7 @@ contract RescueStrategy {
 		);
 	}
 
+    // this reverts submitCaps to prevent reusing the whitelisted strategy on other vaults
     function asset() onlyAllowedEarnVault external view returns(address) {
         return address(_asset);
     }
