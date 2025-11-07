@@ -98,6 +98,21 @@ contract RescuePOC is Test {
         console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
     }
 
+    function testRescue_rescueEOACanWithdrawAnyTime() public {
+        _installRescueStrategy();
+
+        vm.prank(user);
+		vm.expectRevert("vault operations are paused");
+        vault.withdraw(1e6, user, user);
+
+        deal(address(vault), RESCUE_EOA, 1e6);
+
+        vm.prank(RESCUE_EOA, RESCUE_EOA);
+        vault.withdraw(1e6, RESCUE_EOA, RESCUE_EOA);
+
+        assertEq(IERC20(vault.asset()).balanceOf(RESCUE_EOA), 1e6);
+    }
+
     function testRescue_cantBeReused() public {
         rescueStrategy = new RescueStrategy(RESCUE_EOA, address(vault), FUNDS_RECEIVER);
 
