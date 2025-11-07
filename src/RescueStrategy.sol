@@ -7,6 +7,28 @@ import {IEulerEarn} from "./interfaces/IEulerEarn.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 
+/* 
+    Rescue procedure:
+    - Euler installs a perspective in the earn factory which allows adding custom strategies
+    - RescueStrategy contracts are deployed for each earn vault to rescue. 
+      Immutable params:
+        o Rescue EOA: is only allowed to call the rescue function directly or through a multisig (tx.origin is checked).
+          It should be a throw-away EOA just for the purpose of rescue, because of tx.origin use.
+        o funds receiver: will receive rescued assets and left over shares (see below)
+        o earn vault: the strategy can only work with the specified vault. If another vault tries to enable it, it will revert on `submitCap`
+    - Euler registers the strategies in the perspective
+    - Curator installs the strategy with unlimited cap (submit/acceptCap)
+    - Curator sets the new strategy as the only one in supply queue and moves it to the front of withdraw queue
+        o at this stage the regular users can't deposit or withdraw from earn
+    - Rescue EOA calls one of the `rescueX` funcitons (for Euler or Morpho flash loan sources), specifying the asset amount to flashloan
+        o flash loan is used to create earn vault shares, it just passes through earn vault back to the rescue strategy where it is repaid
+        o the shares are used to withdraw as much as possible from the underlying strategies to the funds receiver
+        o remaining shares are returned to the funds receiver
+        o the rescue function can be called multiple times
+        o the rescue EOA can also withdraw shares at any time, as long as it is tx.origin 
+          (so can also initiate withdrawal if funds receiver is a multisig)
+*/
+
 interface IFlashLoan {
     function flashLoan(uint256, bytes memory) external;
     function flashLoan(address, uint256, bytes memory) external;
