@@ -97,11 +97,13 @@ contract RescueStrategy {
         return amount;
 	}
 
+    // alternative sources of flashloan
     function rescueEuler(uint256 loanAmount, address flashLoanVault) onlyRescueAccount external {
         bytes memory data = abi.encode(loanAmount, flashLoanVault);
 		IFlashLoan(flashLoanVault).flashLoan(loanAmount, data);
 	}
 
+    // alternative sources of flashloan
     function rescueMorpho(uint256 loanAmount, address morpho) onlyRescueAccount external {
 		IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, "");
 	}
@@ -125,6 +127,7 @@ contract RescueStrategy {
         SafeERC20.forceApprove(_asset, msg.sender, amount);
 	}
 
+    // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
 	function call(address target, bytes memory payload) onlyRescueAccount external {
 		(bool success,) = target.call(payload);
 		require(success, "call failed");
