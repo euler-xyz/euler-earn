@@ -144,13 +144,13 @@ contract RescueStrategy {
 			address(0)
 		);
 
-		// deposit to earn. All assets should be allocated to rescue strategy, which returns them to the executor
+		// deposit to earn, create shares. Assets will come back here if the strategy is first in supply queue
 		IERC4626(earnVault).deposit(loanAmount, address(this));
 
-        // withdraw as much as possible to the owner
+        // withdraw as much as possible to the receiver
         IERC4626(earnVault).withdraw(IERC4626(earnVault).maxWithdraw(address(this)), fundsReceiver, address(this));
 
-        // send the remaining shares to the owner
+        // send the remaining shares to the receiver
         IERC4626(earnVault).transfer(fundsReceiver, IERC4626(earnVault).balanceOf(address(this)));
     }
 }
