@@ -103,8 +103,7 @@ contract RescueStrategy {
 	}
 
     function rescueMorpho(uint256 loanAmount, address morpho) onlyRescueAccount external {
-        bytes memory data = abi.encode(loanAmount, morpho);
-		IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, data);
+		IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, "");
 	}
 
 	function onFlashLoan(bytes memory data) external {
@@ -120,12 +119,10 @@ contract RescueStrategy {
 		);
 	}
 
-	function onMorphoFlashLoan(uint256, bytes memory data) external {
-        (uint256 loanAmount, address flashLoanSource) = abi.decode(data, (uint256, address));
+	function onMorphoFlashLoan(uint256 amount, bytes memory) external {
+		_processFlashLoan(amount);
 
-		_processFlashLoan(loanAmount);
-
-        SafeERC20.forceApprove(_asset, flashLoanSource, loanAmount);
+        SafeERC20.forceApprove(_asset, msg.sender, amount);
 	}
 
 	function call(address target, bytes memory payload) onlyRescueAccount external {
