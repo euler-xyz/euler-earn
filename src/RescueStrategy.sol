@@ -3,9 +3,12 @@ pragma solidity ^0.8.26;
 
 import {IERC20} from "openzeppelin-contracts/interfaces/IERC20.sol";
 import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
+import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
+import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {IEulerEarn} from "./interfaces/IEulerEarn.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
+import {IBorrowing, IRiskManager} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 
 /* 
     Rescue procedure:
@@ -62,8 +65,7 @@ contract RescueStrategy {
 		);
 	}
 
-    // this reverts submitCaps to prevent reusing the whitelisted strategy on other vaults
-    function asset() onlyAllowedEarnVault external view returns(address) {
+    function asset() external view returns(address) {
         return address(_asset);
     }
 
@@ -81,6 +83,7 @@ contract RescueStrategy {
 		return 0;
 	}
 
+    // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
 	function balanceOf(address) onlyAllowedEarnVault external view returns (uint256) {
 		return 0;
 	}
@@ -104,8 +107,53 @@ contract RescueStrategy {
 	}
 
     // alternative sources of flashloan
+    function rescueEulerBatch(uint256 loanAmount, address flashLoanVault) onlyRescueAccount external {
+        address evc = EVCUtil(earnVault).EVC();
+
+        SafeERC20.forceApprove(_asset, flashLoanVault, loanAmount);
+
+        IEVC.BatchItem[] memory batchItems = new IEVC.BatchItem[](5);
+        batchItems[0] = IEVC.BatchItem({
+            targetContract: evc,
+            onBehalfOfAccount: address(0),
+            value: 0,
+            data: abi.encodeCall(IEVC.enableController, (address(this), flashLoanVault))
+        });
+        batchItems[1] = IEVC.BatchItem({
+            targetContract: flashLoanVault,
+            onBehalfOfAccount: address(this),
+            value: 0,
+            data: abi.encodeCall(IBorrowing.borrow, (loanAmount, address(this)))
+        });
+        batchItems[2] = IEVC.BatchItem({
+            targetContract: address(this),
+            onBehalfOfAccount: address(this),
+            value: 0,
+            data: abi.encodeCall(this.onBatchLoan, (loanAmount))
+        });
+        batchItems[3] = IEVC.BatchItem({
+            targetContract: flashLoanVault,
+            onBehalfOfAccount: address(this),
+            value: 0,
+            data: abi.encodeCall(IBorrowing.repay, (loanAmount, address(this)))
+        });
+        batchItems[4] = IEVC.BatchItem({
+            targetContract: flashLoanVault,
+            onBehalfOfAccount: address(this),
+            value: 0,
+            data: abi.encodeCall(IRiskManager.disableController, ())
+        });
+
+        IEVC(evc).batch(batchItems);
+	}
+
+    // alternative sources of flashloan
     function rescueMorpho(uint256 loanAmount, address morpho) onlyRescueAccount external {
 		IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, "");
+	}
+
+	function onBatchLoan(uint256 loanAmount) external {
+		_processFlashLoan(loanAmount);
 	}
 
 	function onFlashLoan(bytes memory data) external {

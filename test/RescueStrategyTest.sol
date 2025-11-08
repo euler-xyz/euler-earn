@@ -8,6 +8,7 @@ import {IEulerEarnFactory} from "../src/interfaces/IEulerEarnFactory.sol";
 import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 import {IAllowanceTransfer} from "../src/interfaces/IAllowanceTransfer.sol";
 import {EnumerableSet} from "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
+import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {RescueStrategy} from "../src/RescueStrategy.sol";
 import "forge-std/Test.sol";
 
@@ -17,14 +18,15 @@ contract RescuePOC is Test {
     address constant EARN_VAULT = 0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF; // https://app.euler.finance/earn/0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF?network=ethereum 
 
     address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; // https://app.euler.finance/earn/0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB?network=ethereum
-    address constant FLASH_LOAN_SOURCE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb; // morpho
+    address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
     address constant RESCUE_EOA = address(10000);
     address constant FUNDS_RECEIVER = address(20000);
+    uint256 constant BLOCK_NUMBER = 23753054;
 
 	IEulerEarn vault;
 
 	string FORK_RPC_URL = vm.envOr("FORK_RPC_URL_MAINNET", string(""));
-	uint256 BLOCK_NUMBER = vm.envOr("FORK_BLOCK_NUMBER", uint256(0));
 
 	uint256 fork;
 
@@ -33,10 +35,6 @@ contract RescuePOC is Test {
 
  	function setUp() public {
 		require(bytes(FORK_RPC_URL).length != 0, "No FORK_RPC_URL env found");
-		require(RESCUE_EOA != address(0), "No RESCUE_EOA env found");
-		require(EARN_VAULT != address(0), "No EARN_VAULT env found");
-		require(FLASH_LOAN_SOURCE != address(0), "No FLASH_LOAN_SOURCE env found");
-		require(FUNDS_RECEIVER != address(0), "No FUNDS_RECEIVER env found");
 
 		fork = vm.createSelectFork(FORK_RPC_URL);
 		if (BLOCK_NUMBER > 0) {
@@ -67,14 +65,29 @@ contract RescuePOC is Test {
 		vault.redeem(0, user, user);
 	}
 
-    function testRescue_rescueOneGo() public {
+    function testRescue_rescueEulerBatch() public {
+        _installRescueStrategy();
+
+        uint256 amount = 100_000e6;
+
+        vm.startPrank(RESCUE_EOA, RESCUE_EOA);
+        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
+
+        assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
+        assertEq(IEVC(vault.EVC()).getControllers(address(rescueStrategy)).length, 0);
+
+        console.log("Rescued", IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
+    }
+
+    function testRescue_rescueOneGoMorpho() public {
         _installRescueStrategy();
 
         // create shares equal total supply + extra
         uint256 amount = vault.previewMint(vault.totalSupply()) * 10001 / 10000;
 
         vm.startPrank(RESCUE_EOA, RESCUE_EOA);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE);
+        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
 
         assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
 
@@ -82,15 +95,15 @@ contract RescuePOC is Test {
         console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
     }
 
-    function testRescue_rescueMultiple() public {
+    function testRescue_rescueMultipleMorpho() public {
         _installRescueStrategy();
 
         uint256 amount = 1000000000000;
 
         vm.startPrank(RESCUE_EOA, RESCUE_EOA);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE);
+        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
 
         assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
 
@@ -123,8 +136,11 @@ contract RescuePOC is Test {
 
 		vm.startPrank(otherVault.curator());
 
-        vm.expectRevert("wrong vault");
 		otherVault.submitCap(IERC4626(address(rescueStrategy)), type(uint184).max);
+        skip(vault.timelock());
+
+        vm.expectRevert("wrong vault");
+        otherVault.acceptCap(IERC4626(address(rescueStrategy)));
     }
 
     function testRescue_uninstall() public {
