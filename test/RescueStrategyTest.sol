@@ -136,8 +136,11 @@ contract RescuePOC is Test {
 
 		vm.startPrank(otherVault.curator());
 
-        vm.expectRevert("wrong vault");
 		otherVault.submitCap(IERC4626(address(rescueStrategy)), type(uint184).max);
+        skip(vault.timelock());
+
+        vm.expectRevert("wrong vault");
+        otherVault.acceptCap(IERC4626(address(rescueStrategy)));
     }
 
     function testRescue_uninstall() public {

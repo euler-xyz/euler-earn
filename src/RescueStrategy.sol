@@ -65,8 +65,7 @@ contract RescueStrategy {
 		);
 	}
 
-    // this reverts submitCaps to prevent reusing the whitelisted strategy on other vaults
-    function asset() onlyAllowedEarnVault external view returns(address) {
+    function asset() external view returns(address) {
         return address(_asset);
     }
 
@@ -84,6 +83,7 @@ contract RescueStrategy {
 		return 0;
 	}
 
+    // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
 	function balanceOf(address) onlyAllowedEarnVault external view returns (uint256) {
 		return 0;
 	}
