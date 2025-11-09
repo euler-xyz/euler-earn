@@ -285,6 +285,8 @@ contract RescuePOC is Test {
         rescueStrategy.onFlashLoan("");
         vm.expectRevert("vault operations are paused");
         rescueStrategy.onMorphoFlashLoan(1, "");
+        vm.expectRevert("vault operations are paused");
+        rescueStrategy.executeOperation(address(1), 1, 1, address(1), ""); 
     }
 
 	function _installRescueStrategy() internal {

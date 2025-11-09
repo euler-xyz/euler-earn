@@ -207,7 +207,7 @@ contract RescueStrategy {
         uint256 premium,
         address,
         bytes calldata data
-    ) external returns (bool) {
+    ) onlyWhenRescueActive external returns (bool) {
         require(_asset.balanceOf(address(this)) >= amount + premium, "insufficient funds to repay flashloan");
         uint256 loops = abi.decode(data, (uint256));
 
