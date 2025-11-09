@@ -20,8 +20,6 @@ contract RescuePOC is Test {
     address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; // https://app.euler.finance/earn/0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB?network=ethereum
     address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
     address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
-    address constant RESCUE_EOA = address(10000);
-    address constant FUNDS_RECEIVER = address(20000);
     uint256 constant BLOCK_NUMBER = 23753054;
 
 	IEulerEarn vault;
@@ -30,6 +28,7 @@ contract RescuePOC is Test {
 
 	uint256 fork;
 
+    address rescueAccount = makeAddr("rescueAccount");
 	address user = makeAddr("user");
     RescueStrategy rescueStrategy;
 
@@ -70,29 +69,39 @@ contract RescuePOC is Test {
 
         uint256 amount = 100_000e6;
 
-        vm.startPrank(RESCUE_EOA, RESCUE_EOA);
+        // only rescue account
+        vm.prank(user);
+        vm.expectRevert("unauthorized");
         rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
 
-        assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
+        vm.startPrank(rescueAccount);
+        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
+
+        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
         assertEq(IEVC(vault.EVC()).getControllers(address(rescueStrategy)).length, 0);
 
-        console.log("Rescued", IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), IEulerEarn(vault.asset()).symbol());
-        console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
+        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
     }
 
-    function testRescue_rescueOneGoMorpho() public {
+    function testRescue_rescueMorpho() public {
         _installRescueStrategy();
 
         // create shares equal total supply + extra
         uint256 amount = vault.previewMint(vault.totalSupply()) * 10001 / 10000;
 
-        vm.startPrank(RESCUE_EOA, RESCUE_EOA);
+        // only rescue account
+        vm.prank(user);
+        vm.expectRevert("unauthorized");
+        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_MORPHO);
+
+        vm.startPrank(rescueAccount);
         rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
 
-        assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
+        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
 
-        console.log("Rescued", IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), IEulerEarn(vault.asset()).symbol());
-        console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
+        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
     }
 
     function testRescue_rescueMultipleMorpho() public {
@@ -100,34 +109,33 @@ contract RescuePOC is Test {
 
         uint256 amount = 1000000000000;
 
-        vm.startPrank(RESCUE_EOA, RESCUE_EOA);
+        vm.startPrank(rescueAccount);
         rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
         rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
         rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
 
-        assertGt(IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), 0);
+        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
 
-        console.log("Rescued", IERC20(vault.asset()).balanceOf(FUNDS_RECEIVER), IEulerEarn(vault.asset()).symbol());
-        console.log("Received shares", IERC4626(vault).balanceOf(FUNDS_RECEIVER));
+        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
     }
 
-    function testRescue_rescueEOACanWithdrawAnyTime() public {
+    function testRescue_rescueAccountCantWithdrawOutsideRescue() public {
         _installRescueStrategy();
 
         vm.prank(user);
 		vm.expectRevert("vault operations are paused");
         vault.withdraw(1e6, user, user);
 
-        deal(address(vault), RESCUE_EOA, 1e6);
+        deal(address(vault), rescueAccount, 1e6);
 
-        vm.prank(RESCUE_EOA, RESCUE_EOA);
-        vault.withdraw(1e6, RESCUE_EOA, RESCUE_EOA);
-
-        assertEq(IERC20(vault.asset()).balanceOf(RESCUE_EOA), 1e6);
+        vm.prank(rescueAccount);
+        vm.expectRevert("vault operations are paused");
+        vault.withdraw(1e6, rescueAccount, rescueAccount);
     }
 
     function testRescue_cantBeReused() public {
-        rescueStrategy = new RescueStrategy(RESCUE_EOA, address(vault), FUNDS_RECEIVER);
+        rescueStrategy = new RescueStrategy(rescueAccount, address(vault));
 
 		// install perspective in earn factory which will allow custom strategies
 		_installPerspective();
@@ -183,12 +191,34 @@ contract RescuePOC is Test {
         assertEq(vault.balanceOf(user), 0);
     }
 
+    function testRescue_onlyRescueAccountCallFunc() external {
+        _installRescueStrategy();
+
+        vm.prank(user);
+        vm.expectRevert("unauthorized");
+        rescueStrategy.call(address(0), "");
+
+        vm.prank(rescueAccount);
+        rescueStrategy.call(address(0), "");
+    }
+
+    function testRescue_flashloanCallbacks() external {
+        _installRescueStrategy();
+
+        vm.expectRevert("vault operations are paused");
+        rescueStrategy.onBatchLoan(1);
+        vm.expectRevert("vault operations are paused");
+        rescueStrategy.onFlashLoan("");
+        vm.expectRevert("vault operations are paused");
+        rescueStrategy.onMorphoFlashLoan(1, "");
+    }
+
 	function _installRescueStrategy() internal {
 		// install perspective in earn factory which will allow custom strategies (use mock here)
 		_installPerspective();
 
 		// deploy strategy, set a cap for it and put in in the supply and withdraw queues
-		rescueStrategy = new RescueStrategy(RESCUE_EOA, address(vault), FUNDS_RECEIVER);
+		rescueStrategy = new RescueStrategy(rescueAccount, address(vault));
 
 		vm.startPrank(vault.curator());
 

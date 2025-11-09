@@ -41,28 +41,35 @@ contract RescueStrategy {
 	address immutable public rescueAccount;
 	address immutable public earnVault;
 	IERC20 immutable internal _asset;
-	address immutable public fundsReceiver;
 
-	modifier onlyRescueAccount() {
-		require(tx.origin == rescueAccount, "vault operations are paused");
+    bool internal rescueActive;
+
+    modifier onlyRescueAccount() {
+        require(msg.sender == rescueAccount, "unauthorized");
+        _;
+    }
+
+	modifier rescueLock() {
+        require(!rescueActive, "rescue ongoing");
+        rescueActive = true;
 		_;
+        rescueActive = false;
 	}
+
+    modifier onlyWhenRescueActive() {
+        require(rescueActive, "vault operations are paused");
+        _;
+    }
 
     modifier onlyAllowedEarnVault() {
         require(msg.sender == earnVault, "wrong vault");
         _;
     }
 
-	constructor(address _rescueAccount, address _earnVault, address _fundsReceiver) {
+	constructor(address _rescueAccount, address _earnVault) {
 		rescueAccount = _rescueAccount;
 		earnVault = _earnVault;
-        fundsReceiver = _fundsReceiver;
 		_asset = IERC20(IEulerEarn(earnVault).asset());
-		SafeERC20Permit2Lib.forceApproveMaxWithPermit2(
-			_asset,
-			rescueAccount,
-			address(0)
-		);
 	}
 
     function asset() external view returns(address) {
@@ -70,16 +77,16 @@ contract RescueStrategy {
     }
 
     // will revert user deposits
-	function maxDeposit(address) onlyAllowedEarnVault onlyRescueAccount external view returns (uint256) {
+	function maxDeposit(address) onlyAllowedEarnVault onlyWhenRescueActive external view returns (uint256) {
 		return type(uint256).max;
 	}
 
     // will revert user withdrawals
-	function maxWithdraw(address) onlyAllowedEarnVault onlyRescueAccount external view returns (uint256) {
+	function maxWithdraw(address) onlyAllowedEarnVault onlyWhenRescueActive external view returns (uint256) {
 		return 0;
 	}
 
-	function previewRedeem(uint256) onlyAllowedEarnVault external view returns (uint256) {
+	function previewRedeem(uint256) external pure returns (uint256) {
 		return 0;
 	}
 
@@ -88,7 +95,7 @@ contract RescueStrategy {
 		return 0;
 	}
 
-	function deposit(uint256 amount, address) onlyAllowedEarnVault onlyRescueAccount external returns (uint256) {
+	function deposit(uint256 amount, address) onlyAllowedEarnVault onlyWhenRescueActive external returns (uint256) {
 		SafeERC20Permit2Lib.safeTransferFromWithPermit2(
 			_asset,
 			msg.sender,
@@ -101,13 +108,13 @@ contract RescueStrategy {
 	}
 
     // alternative sources of flashloan
-    function rescueEuler(uint256 loanAmount, address flashLoanVault) onlyRescueAccount external {
+    function rescueEuler(uint256 loanAmount, address flashLoanVault) onlyRescueAccount rescueLock external {
         bytes memory data = abi.encode(loanAmount, flashLoanVault);
 		IFlashLoan(flashLoanVault).flashLoan(loanAmount, data);
 	}
 
     // alternative sources of flashloan
-    function rescueEulerBatch(uint256 loanAmount, address flashLoanVault) onlyRescueAccount external {
+    function rescueEulerBatch(uint256 loanAmount, address flashLoanVault) onlyRescueAccount rescueLock external {
         address evc = EVCUtil(earnVault).EVC();
 
         SafeERC20.forceApprove(_asset, flashLoanVault, loanAmount);
@@ -148,15 +155,15 @@ contract RescueStrategy {
 	}
 
     // alternative sources of flashloan
-    function rescueMorpho(uint256 loanAmount, address morpho) onlyRescueAccount external {
+    function rescueMorpho(uint256 loanAmount, address morpho) onlyRescueAccount rescueLock external {
 		IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, "");
 	}
 
-	function onBatchLoan(uint256 loanAmount) external {
+	function onBatchLoan(uint256 loanAmount) onlyWhenRescueActive external {
 		_processFlashLoan(loanAmount);
 	}
 
-	function onFlashLoan(bytes memory data) external {
+	function onFlashLoan(bytes memory data) onlyWhenRescueActive external {
         (uint256 loanAmount, address flashLoanSource) = abi.decode(data, (uint256, address));
 
 		_processFlashLoan(loanAmount);
@@ -169,7 +176,7 @@ contract RescueStrategy {
 		);
 	}
 
-	function onMorphoFlashLoan(uint256 amount, bytes memory) external {
+	function onMorphoFlashLoan(uint256 amount, bytes memory) onlyWhenRescueActive external {
 		_processFlashLoan(amount);
 
         SafeERC20.forceApprove(_asset, msg.sender, amount);
@@ -196,9 +203,9 @@ contract RescueStrategy {
 		IERC4626(earnVault).deposit(loanAmount, address(this));
 
         // withdraw as much as possible to the receiver
-        IERC4626(earnVault).withdraw(IERC4626(earnVault).maxWithdraw(address(this)), fundsReceiver, address(this));
+        IERC4626(earnVault).withdraw(IERC4626(earnVault).maxWithdraw(address(this)), rescueAccount, address(this));
 
         // send the remaining shares to the receiver
-        IERC4626(earnVault).transfer(fundsReceiver, IERC4626(earnVault).balanceOf(address(this)));
+        IERC4626(earnVault).transfer(rescueAccount, IERC4626(earnVault).balanceOf(address(this)));
     }
 }
