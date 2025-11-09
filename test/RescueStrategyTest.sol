@@ -75,6 +75,8 @@ contract RescuePOC is Test {
         rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
 
         vm.startPrank(rescueAccount);
+        vm.expectEmit(true, true, false, false);
+        emit RescueStrategy.Rescued(address(vault), 0);
         rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);

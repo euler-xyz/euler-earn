@@ -66,6 +66,8 @@ contract RescueStrategy {
         _;
     }
 
+    event Rescued(address indexed vault, uint256 assets);
+
 	constructor(address _rescueAccount, address _earnVault) {
 		rescueAccount = _rescueAccount;
 		earnVault = _earnVault;
@@ -203,9 +205,12 @@ contract RescueStrategy {
 		IERC4626(earnVault).deposit(loanAmount, address(this));
 
         // withdraw as much as possible to the receiver
-        IERC4626(earnVault).withdraw(IERC4626(earnVault).maxWithdraw(address(this)), rescueAccount, address(this));
+        uint256 rescuedAmount = IERC4626(earnVault).maxWithdraw(address(this)); 
+        IERC4626(earnVault).withdraw(rescuedAmount, rescueAccount, address(this));
 
         // send the remaining shares to the receiver
         IERC4626(earnVault).transfer(rescueAccount, IERC4626(earnVault).balanceOf(address(this)));
+
+        emit Rescued(address(earnVault), rescuedAmount);
     }
 }
