@@ -29,7 +29,15 @@ import {IBorrowing, IRiskManager} from "../lib/euler-vault-kit/src/EVault/IEVaul
 interface IFlashLoan {
     function flashLoan(uint256, bytes memory) external;
     function flashLoan(address, uint256, bytes memory) external;
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
 }
+
 
 contract RescueStrategy {
 	address immutable public rescueAccount;
@@ -69,6 +77,8 @@ contract RescueStrategy {
 		_asset = IERC20(IEulerEarn(earnVault).asset());
 	}
 
+    // ---------------- VAULT INTERFACE --------------------
+
     function asset() external view returns(address) {
         return address(_asset);
     }
@@ -103,6 +113,8 @@ contract RescueStrategy {
 
         return amount;
 	}
+
+    // ---------------- RESCUE FUNCTIONS --------------------
 
     // alternative sources of flashloan
     function rescueEuler(uint256 loanAmount, uint256 loops, address flashLoanVault) onlyRescueAccount rescueLock external {
@@ -151,10 +163,17 @@ contract RescueStrategy {
         IEVC(evc).batch(batchItems);
 	}
 
+    function rescueAave(uint256 loanAmount, uint256 loops, address pool) onlyRescueAccount rescueLock external {
+        bytes memory data = abi.encode(loops);
+		IFlashLoan(pool).flashLoanSimple(address(this), address(_asset), loanAmount, data, 0);
+	}
+
     // alternative sources of flashloan
     function rescueMorpho(uint256 loanAmount, uint256 loops, address morpho) onlyRescueAccount rescueLock external {
         IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, abi.encode(loops));
 	}
+
+    // ---------------- FLASHLOAN CALLBACKS --------------------
 
 	function onBatchLoan(uint256 loanAmount, uint256 loops) onlyWhenRescueActive external {
 		_processFlashLoan(loanAmount, loops);
@@ -180,6 +199,25 @@ contract RescueStrategy {
 
         SafeERC20.forceApprove(_asset, msg.sender, amount);
 	}
+
+    // aave callback
+    function executeOperation(
+        address,
+        uint256 amount,
+        uint256 premium,
+        address,
+        bytes calldata data
+    ) external returns (bool) {
+        require(_asset.balanceOf(address(this)) >= amount + premium, "insufficient funds to repay flashloan");
+        uint256 loops = abi.decode(data, (uint256));
+
+        _processFlashLoan(amount, loops);
+
+        SafeERC20.forceApprove(_asset, msg.sender, amount + premium);
+        return true;
+    }
+
+    // ---------------- HELPERS AND INTERNAL --------------------
 
     // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
 	function call(address target, bytes memory payload) onlyRescueAccount external {

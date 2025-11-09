@@ -20,6 +20,7 @@ contract RescuePOC is Test {
     address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; // https://app.euler.finance/earn/0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB?network=ethereum
     address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
     address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
+    address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     uint256 constant BLOCK_NUMBER = 23753054;
 
 	IEulerEarn vault;
@@ -141,10 +142,34 @@ contract RescuePOC is Test {
         // only rescue account
         vm.prank(user);
         vm.expectRevert("unauthorized");
-        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
 
         vm.startPrank(rescueAccount);
         rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
+
+        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
+
+        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
+    }
+
+    function testRescue_rescueAave() public {
+        _installRescueStrategy();
+
+        uint256 amount = 5_000_000e6;
+        uint256 loops = 1;
+
+        // only rescue account
+        vm.prank(user);
+        vm.expectRevert("unauthorized");
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
+
+        vm.startPrank(rescueAccount);
+        vm.expectRevert("insufficient funds to repay flashloan");
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
+
+        deal(vault.asset(), address(rescueStrategy), amount * 5 / 10000);
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
 
