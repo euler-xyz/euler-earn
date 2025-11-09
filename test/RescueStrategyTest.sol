@@ -58,7 +58,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: supplyQueue len != 1");
-        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
 
         IERC4626[] memory supplyQueue = new IERC4626[](1);
 		supplyQueue[0] = vault.supplyQueue(0);
@@ -68,7 +68,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: supplyQueue[0] != rescue");
-        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
 		
         vm.prank(vault.curator());
 		vault.submitCap(id, type(uint184).max);
@@ -84,7 +84,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: withdrawQueue[0] != rescue");
-        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
     }
 
 	function testRescue_pauseForUsers() public {
@@ -105,37 +105,46 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         uint256 amount = 100_000e6;
-
+        uint256 loops = 1;
+        uint256 snapshot = vm.snapshotState();
         // only rescue account
         vm.prank(user);
         vm.expectRevert("unauthorized");
-        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
 
         vm.startPrank(rescueAccount);
         vm.expectEmit(true, true, false, false);
         emit RescueStrategy.Rescued(address(vault), 0);
-        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
         assertEq(IEVC(vault.EVC()).getControllers(address(rescueStrategy)).length, 0);
+        uint256 rescueOneLoop = IERC20(vault.asset()).balanceOf(rescueAccount);
 
-        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        console.log("Rescued", rescueOneLoop, IEulerEarn(vault.asset()).symbol());
         console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
+
+        vm.revertTo(snapshot);
+        loops = 2;
+
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
+        assertEq(IERC20(vault.asset()).balanceOf(rescueAccount), rescueOneLoop * 2);
     }
 
     function testRescue_rescueMorpho() public {
         _installRescueStrategy();
 
         // create shares equal total supply + extra
-        uint256 amount = vault.previewMint(vault.totalSupply()) * 10001 / 10000;
+        uint256 amount = vault.previewMint(vault.totalSupply()) * 10001 / 10000 / 2;
+        uint256 loops = 2;
 
         // only rescue account
         vm.prank(user);
         vm.expectRevert("unauthorized");
-        rescueStrategy.rescueEulerBatch(amount, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
 
         vm.startPrank(rescueAccount);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
 
@@ -147,11 +156,12 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         uint256 amount = 1000000000000;
+        uint256 loops = 1;
 
         vm.startPrank(rescueAccount);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
-        rescueStrategy.rescueMorpho(amount, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
 
@@ -245,7 +255,7 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.expectRevert("vault operations are paused");
-        rescueStrategy.onBatchLoan(1);
+        rescueStrategy.onBatchLoan(1, 1);
         vm.expectRevert("vault operations are paused");
         rescueStrategy.onFlashLoan("");
         vm.expectRevert("vault operations are paused");
