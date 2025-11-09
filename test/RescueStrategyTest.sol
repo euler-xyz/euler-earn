@@ -50,6 +50,43 @@ contract RescuePOC is Test {
         );
 	}
 
+    function testRescue_assertRescueMode() public {
+		_installPerspective();
+
+		rescueStrategy = new RescueStrategy(rescueAccount, address(vault));
+        IERC4626 id = IERC4626(address(rescueStrategy));
+
+        vm.prank(rescueAccount);
+        vm.expectRevert("rescue: supplyQueue len != 1");
+        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+
+        IERC4626[] memory supplyQueue = new IERC4626[](1);
+		supplyQueue[0] = vault.supplyQueue(0);
+
+		vm.prank(vault.curator());
+        vault.setSupplyQueue(supplyQueue);
+
+        vm.prank(rescueAccount);
+        vm.expectRevert("rescue: supplyQueue[0] != rescue");
+        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+		
+        vm.prank(vault.curator());
+		vault.submitCap(id, type(uint184).max);
+
+		skip(vault.timelock());
+
+        vm.prank(vault.curator());
+		vault.acceptCap(id);
+		supplyQueue[0] = id;
+
+        vm.prank(vault.curator());
+		vault.setSupplyQueue(supplyQueue);
+
+        vm.prank(rescueAccount);
+        vm.expectRevert("rescue: withdrawQueue[0] != rescue");
+        rescueStrategy.rescueEulerBatch(1, FLASH_LOAN_SOURCE_EULER);
+    }
+
 	function testRescue_pauseForUsers() public {
 		_installRescueStrategy();
 

@@ -51,6 +51,7 @@ contract RescueStrategy {
 
 	modifier rescueLock() {
         require(!rescueActive, "rescue ongoing");
+        _assertRescueMode();
         rescueActive = true;
 		_;
         rescueActive = false;
@@ -212,5 +213,16 @@ contract RescueStrategy {
         IERC4626(earnVault).transfer(rescueAccount, IERC4626(earnVault).balanceOf(address(this)));
 
         emit Rescued(address(earnVault), rescuedAmount);
+    }
+
+    function _assertRescueMode() internal view {
+        IEulerEarn vault = IEulerEarn(earnVault);
+
+        // Must be the ONLY supply target
+        require(vault.supplyQueueLength() == 1, "rescue: supplyQueue len != 1");
+        require(address(vault.supplyQueue(0)) == address(this), "rescue: supplyQueue[0] != rescue");
+
+        // Must be first in withdraw queue (bank-run guard)
+        require(address(vault.withdrawQueue(0)) == address(this), "rescue: withdrawQueue[0] != rescue");
     }
 }
