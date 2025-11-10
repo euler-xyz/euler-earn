@@ -163,8 +163,8 @@ contract RescueStrategy {
         IEVC(evc).batch(batchItems);
 	}
 
-    function rescueAave(uint256 loanAmount, uint256 loops, address pool) onlyRescueAccount rescueLock external {
-        bytes memory data = abi.encode(loops);
+    function rescueAave(uint256 loanAmount, uint256 loops, address pool, address feeProvider) onlyRescueAccount rescueLock external {
+        bytes memory data = abi.encode(loops, feeProvider);
 		IFlashLoan(pool).flashLoanSimple(address(this), address(_asset), loanAmount, data, 0);
 	}
 
@@ -208,8 +208,8 @@ contract RescueStrategy {
         address,
         bytes calldata data
     ) onlyWhenRescueActive external returns (bool) {
-        require(_asset.balanceOf(address(this)) >= amount + premium, "insufficient funds to repay flashloan");
-        uint256 loops = abi.decode(data, (uint256));
+        (uint256 loops, address feeProvider) = abi.decode(data, (uint256, address));
+        SafeERC20.safeTransferFrom(_asset, feeProvider, address(this), premium);
 
         _processFlashLoan(amount, loops);
 

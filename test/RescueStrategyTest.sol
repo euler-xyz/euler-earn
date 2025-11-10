@@ -158,22 +158,28 @@ contract RescuePOC is Test {
 
         uint256 amount = 5_000_000e6;
         uint256 loops = 1;
+        address feeProvider = makeAddr("feeProvider");
+        address asset = vault.asset();
 
         // only rescue account
         vm.prank(user);
         vm.expectRevert("unauthorized");
-        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE, feeProvider);
 
-        vm.startPrank(rescueAccount);
-        vm.expectRevert("insufficient funds to repay flashloan");
-        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
+        vm.prank(rescueAccount);
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE, feeProvider);
 
-        deal(vault.asset(), address(rescueStrategy), amount * 5 / 10000);
-        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE);
+        deal(asset, feeProvider, amount * 5 / 10000);
+        vm.prank(feeProvider);
+        IERC20(asset).approve(address(rescueStrategy), type(uint256).max);
 
-        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
+        vm.prank(rescueAccount);
+        rescueStrategy.rescueAave(amount, loops, FLASH_LOAN_SOURCE_AAVE, feeProvider);
 
-        console.log("Rescued", IERC20(vault.asset()).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
+        assertGt(IERC20(asset).balanceOf(rescueAccount), 0);
+
+        console.log("Rescued", IERC20(asset).balanceOf(rescueAccount), IEulerEarn(vault.asset()).symbol());
         console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
     }
 
