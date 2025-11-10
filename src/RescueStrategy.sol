@@ -38,11 +38,10 @@ interface IFlashLoan {
     ) external;
 }
 
-
 contract RescueStrategy {
-	address immutable public rescueAccount;
-	address immutable public earnVault;
-	IERC20 immutable internal _asset;
+    address public immutable rescueAccount;
+    address public immutable earnVault;
+    IERC20 internal immutable _asset;
 
     bool internal rescueActive;
 
@@ -51,13 +50,13 @@ contract RescueStrategy {
         _;
     }
 
-	modifier rescueLock() {
+    modifier rescueLock() {
         require(!rescueActive, "rescue ongoing");
         _assertRescueMode();
         rescueActive = true;
-		_;
+        _;
         rescueActive = false;
-	}
+    }
 
     modifier onlyWhenRescueActive() {
         require(rescueActive, "vault operations are paused");
@@ -71,59 +70,63 @@ contract RescueStrategy {
 
     event Rescued(address indexed vault, uint256 assets);
 
-	constructor(address _rescueAccount, address _earnVault) {
-		rescueAccount = _rescueAccount;
-		earnVault = _earnVault;
-		_asset = IERC20(IEulerEarn(earnVault).asset());
-	}
+    constructor(address _rescueAccount, address _earnVault) {
+        rescueAccount = _rescueAccount;
+        earnVault = _earnVault;
+        _asset = IERC20(IEulerEarn(earnVault).asset());
+    }
 
     // ---------------- VAULT INTERFACE --------------------
 
-    function asset() external view returns(address) {
+    function asset() external view returns (address) {
         return address(_asset);
     }
 
     // will revert user deposits
-	function maxDeposit(address) onlyAllowedEarnVault onlyWhenRescueActive external view returns (uint256) {
-		return type(uint256).max;
-	}
+    function maxDeposit(address) external view onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
+        return type(uint256).max;
+    }
 
     // will revert user withdrawals
-	function maxWithdraw(address) onlyAllowedEarnVault onlyWhenRescueActive external view returns (uint256) {
-		return 0;
-	}
+    function maxWithdraw(address) external view onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
+        return 0;
+    }
 
-	function previewRedeem(uint256) external pure returns (uint256) {
-		return 0;
-	}
+    function previewRedeem(uint256) external pure returns (uint256) {
+        return 0;
+    }
 
     // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
-	function balanceOf(address) onlyAllowedEarnVault external view returns (uint256) {
-		return 0;
-	}
+    function balanceOf(address) external view onlyAllowedEarnVault returns (uint256) {
+        return 0;
+    }
 
-	function deposit(uint256 amount, address) onlyAllowedEarnVault onlyWhenRescueActive external returns (uint256) {
-		SafeERC20Permit2Lib.safeTransferFromWithPermit2(
-			_asset,
-			msg.sender,
-			address(this),
-			amount, 
-			IEulerEarn(earnVault).permit2Address()
-		);
+    function deposit(uint256 amount, address) external onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
+        SafeERC20Permit2Lib.safeTransferFromWithPermit2(
+            _asset, msg.sender, address(this), amount, IEulerEarn(earnVault).permit2Address()
+        );
 
         return amount;
-	}
+    }
 
     // ---------------- RESCUE FUNCTIONS --------------------
 
     // alternative sources of flashloan
-    function rescueEuler(uint256 loanAmount, uint256 loops, address flashLoanVault) onlyRescueAccount rescueLock external {
+    function rescueEuler(uint256 loanAmount, uint256 loops, address flashLoanVault)
+        external
+        onlyRescueAccount
+        rescueLock
+    {
         bytes memory data = abi.encode(loanAmount, loops, flashLoanVault);
-		IFlashLoan(flashLoanVault).flashLoan(loanAmount, data);
-	}
+        IFlashLoan(flashLoanVault).flashLoan(loanAmount, data);
+    }
 
     // alternative sources of flashloan
-    function rescueEulerBatch(uint256 loanAmount, uint256 loops, address flashLoanVault) onlyRescueAccount rescueLock external {
+    function rescueEulerBatch(uint256 loanAmount, uint256 loops, address flashLoanVault)
+        external
+        onlyRescueAccount
+        rescueLock
+    {
         address evc = EVCUtil(earnVault).EVC();
 
         SafeERC20.forceApprove(_asset, flashLoanVault, loanAmount);
@@ -161,53 +164,51 @@ contract RescueStrategy {
         });
 
         IEVC(evc).batch(batchItems);
-	}
+    }
 
-    function rescueAave(uint256 loanAmount, uint256 loops, address pool, address feeProvider) onlyRescueAccount rescueLock external {
+    function rescueAave(uint256 loanAmount, uint256 loops, address pool, address feeProvider)
+        external
+        onlyRescueAccount
+        rescueLock
+    {
         bytes memory data = abi.encode(loops, feeProvider);
-		IFlashLoan(pool).flashLoanSimple(address(this), address(_asset), loanAmount, data, 0);
-	}
+        IFlashLoan(pool).flashLoanSimple(address(this), address(_asset), loanAmount, data, 0);
+    }
 
     // alternative sources of flashloan
-    function rescueMorpho(uint256 loanAmount, uint256 loops, address morpho) onlyRescueAccount rescueLock external {
+    function rescueMorpho(uint256 loanAmount, uint256 loops, address morpho) external onlyRescueAccount rescueLock {
         IFlashLoan(morpho).flashLoan(address(_asset), loanAmount, abi.encode(loops));
-	}
+    }
 
     // ---------------- FLASHLOAN CALLBACKS --------------------
 
-	function onBatchLoan(uint256 loanAmount, uint256 loops) onlyWhenRescueActive external {
-		_processFlashLoan(loanAmount, loops);
-	}
+    function onBatchLoan(uint256 loanAmount, uint256 loops) external onlyWhenRescueActive {
+        _processFlashLoan(loanAmount, loops);
+    }
 
-	function onFlashLoan(bytes memory data) onlyWhenRescueActive external {
+    function onFlashLoan(bytes memory data) external onlyWhenRescueActive {
         (uint256 loanAmount, uint256 loops, address flashLoanSource) = abi.decode(data, (uint256, uint256, address));
 
-		_processFlashLoan(loanAmount, loops);
+        _processFlashLoan(loanAmount, loops);
 
         // repay the flashloan
-		SafeERC20.safeTransfer(
-			_asset,
-			flashLoanSource,
-			loanAmount
-		);
-	}
+        SafeERC20.safeTransfer(_asset, flashLoanSource, loanAmount);
+    }
 
-	function onMorphoFlashLoan(uint256 amount, bytes memory data) onlyWhenRescueActive external {
+    function onMorphoFlashLoan(uint256 amount, bytes memory data) external onlyWhenRescueActive {
         uint256 loops = abi.decode(data, (uint256));
 
-		_processFlashLoan(amount, loops);
+        _processFlashLoan(amount, loops);
 
         SafeERC20.forceApprove(_asset, msg.sender, amount);
-	}
+    }
 
     // aave callback
-    function executeOperation(
-        address,
-        uint256 amount,
-        uint256 premium,
-        address,
-        bytes calldata data
-    ) onlyWhenRescueActive external returns (bool) {
+    function executeOperation(address, uint256 amount, uint256 premium, address, bytes calldata data)
+        external
+        onlyWhenRescueActive
+        returns (bool)
+    {
         (uint256 loops, address feeProvider) = abi.decode(data, (uint256, address));
         SafeERC20.safeTransferFrom(_asset, feeProvider, address(this), premium);
 
@@ -220,29 +221,25 @@ contract RescueStrategy {
     // ---------------- HELPERS AND INTERNAL --------------------
 
     // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
-	function call(address target, bytes memory payload) onlyRescueAccount external {
-		(bool success,) = target.call(payload);
-		require(success, "call failed");
-	}
+    function call(address target, bytes memory payload) external onlyRescueAccount {
+        (bool success,) = target.call(payload);
+        require(success, "call failed");
+    }
 
-	fallback() external {
-		revert("vault operations are paused");
-	}
+    fallback() external {
+        revert("vault operations are paused");
+    }
 
     function _processFlashLoan(uint256 loanAmount, uint256 loops) internal {
-		SafeERC20Permit2Lib.forceApproveMaxWithPermit2(
-			_asset,
-			earnVault,
-			address(0)
-		);
+        SafeERC20Permit2Lib.forceApproveMaxWithPermit2(_asset, earnVault, address(0));
 
-		// deposit to earn, create shares. Assets will come back here if the strategy is first in supply queue
-		for (uint256 i = 0; i < loops; i++) {
+        // deposit to earn, create shares. Assets will come back here if the strategy is first in supply queue
+        for (uint256 i = 0; i < loops; i++) {
             IERC4626(earnVault).deposit(loanAmount, address(this));
         }
 
         // withdraw as much as possible to the receiver
-        uint256 rescuedAmount = IERC4626(earnVault).maxWithdraw(address(this)); 
+        uint256 rescuedAmount = IERC4626(earnVault).maxWithdraw(address(this));
         IERC4626(earnVault).withdraw(rescuedAmount, rescueAccount, address(this));
 
         // send the remaining shares to the receiver
