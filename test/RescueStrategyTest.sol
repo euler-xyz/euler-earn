@@ -99,6 +99,8 @@ contract RescuePOC is Test {
         vault.withdraw(0, user, user);
         vm.expectRevert("vault operations are paused");
         vault.redeem(0, user, user);
+
+        assertEq(vault.maxWithdrawFromStrategy(IERC4626(address(rescueStrategy))), 0);
     }
 
     function testRescue_rescueEulerBatch() public {

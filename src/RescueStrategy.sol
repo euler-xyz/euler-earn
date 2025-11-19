@@ -6,8 +6,10 @@ import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
 import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {IEulerEarn} from "./interfaces/IEulerEarn.sol";
+import {IEulerEarnFactory} from "./interfaces/IEulerEarnFactory.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "openzeppelin-contracts/utils/ReentrancyGuard.sol";
 import {IBorrowing, IRiskManager} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 
 /* 
@@ -38,7 +40,7 @@ interface IFlashLoan {
     ) external;
 }
 
-contract RescueStrategy {
+contract RescueStrategy is IERC4626 {
     address public immutable rescueAccount;
     address public immutable earnVault;
     IERC20 internal immutable _asset;
@@ -83,12 +85,23 @@ contract RescueStrategy {
     }
 
     // will revert user deposits
-    function maxDeposit(address) external view onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
+    function maxDeposit(address) external view returns (uint256) {
+        require(msg.sender != earnVault || rescueActive, "vault operations are paused");
         return type(uint256).max;
     }
 
     // will revert user withdrawals
-    function maxWithdraw(address) external view onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
+    function maxWithdraw(address) external view returns (uint256) {
+        if (!rescueActive && msg.sender == earnVault) {
+            // if reentrancy locked - earn is calling from `withdraw`, which shold be prevented
+            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, and this 
+            // function is relied upon by the Lens contract
+            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeWithSignature("setFee(uint256)", uint256(0)));
+            require(!success, "expected revert"); // if not reentrancy lock, onlyOwner should revert
+
+            if (bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
+                revert("vault operations are paused");
+        }
         return 0;
     }
 
@@ -97,7 +110,8 @@ contract RescueStrategy {
     }
 
     // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
-    function balanceOf(address) external view onlyAllowedEarnVault returns (uint256) {
+    function balanceOf(address) external view returns (uint256) {
+        require(!IEulerEarnFactory(IEulerEarn(earnVault).creator()).isVault(msg.sender) || msg.sender == earnVault, "wrong vault");
         return 0;
     }
 
@@ -108,6 +122,85 @@ contract RescueStrategy {
 
         return amount;
     }
+
+    // ---------------- ERC4626 compatibility stubs --------------------
+
+    function symbol() external pure returns (string memory) {
+        return "RS";
+    }
+
+    function name() external pure returns (string memory) {
+        return "Rescue Strategy";
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 18;
+    }
+
+    function totalAssets() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalSupply() external pure returns (uint256) {
+        return 0;
+    }
+
+    function convertToShares(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function convertToAssets(uint256) external pure returns (uint256 assets) {
+        return 0;
+    }
+
+    function previewDeposit(uint256) external pure returns (uint256 shares) {
+        return 0;
+    }
+
+    function maxMint(address) external pure returns (uint256 maxShares) {
+        return 0;
+    }
+
+    function previewMint(uint256) external pure returns (uint256 assets) {
+        return 0;
+    }
+
+    function previewWithdraw(uint256) external pure returns (uint256 shares) {
+        return 0;
+    }
+
+    function maxRedeem(address) external pure returns (uint256 maxShares) {
+        return 0;
+    }
+
+    function mint(uint256, address) external pure returns (uint256 assets) {
+        return 0;
+    }
+
+    function redeem(uint256, address, address) external pure returns (uint256 assets) {
+        return 0;
+    }
+
+    function allowance(address, address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function approve(address, uint256) external pure returns (bool) {
+        return true;
+    }
+
+    function transfer(address, uint256) external pure returns (bool) {
+        return true;
+    }
+
+    function transferFrom(address, address, uint256) external pure returns (bool) {
+        return true;
+    }
+
+    function withdraw(uint256, address, address) external pure returns (uint256 shares) {
+        return 0;
+    }
+
 
     // ---------------- RESCUE FUNCTIONS --------------------
 
