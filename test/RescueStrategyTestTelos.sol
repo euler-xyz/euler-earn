@@ -15,30 +15,29 @@ import "forge-std/Test.sol";
 
 contract RescuePOC is Test {
     
-    // address constant EARN_VAULT = 0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF; // https://app.euler.finance/earn/0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF?network=ethereum
-
-    // address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; // https://app.euler.finance/earn/0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB?network=ethereum
+    // address constant EARN_VAULT = 0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF; 
+    // address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; 
     // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
+    // address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; 
     // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // uint256 constant BLOCK_NUMBER = 23753054;
 
     // TELOS WBTC
-    // address constant EARN_VAULT = 0xA5cbf5cd429af63EA9989aE1ff4C9d37acFa6767; // https://app.euler.finance/earn/0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF?network=ethereum
+    // address constant EARN_VAULT = 0xA5cbf5cd429af63EA9989aE1ff4C9d37acFa6767;
     // address constant RESCUE_STRATEGY = 0x79E41D6B7B2171AEe1c855eD1a0ae98a00c8942E;
     // address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
     // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0x998D761eC1BAdaCeb064624cc3A1d37A46C88bA4; // Euler Prime - also a strategy in earn
+    // address constant FLASH_LOAN_SOURCE_EULER = 0x998D761eC1BAdaCeb064624cc3A1d37A46C88bA4; 
     // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // uint256 constant AAVE_AMOUNT = 100e8;
     // uint256 constant BLOCK_NUMBER = 23826172;
 
     // TELOS WETH
-    // address constant EARN_VAULT = 0xd217A07493b6BA272Ff806EE5eaBdFF86C292cc6; // https://app.euler.finance/earn/0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF?network=ethereum
+    // address constant EARN_VAULT = 0xd217A07493b6BA272Ff806EE5eaBdFF86C292cc6; 
     // address constant RESCUE_STRATEGY = 0xA2369184C6C167Bce403d70571A478b289FC5e0D;
     // address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
     // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2; // Euler Prime - also a strategy in earn
+    // address constant FLASH_LOAN_SOURCE_EULER = 0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2; 
     // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // uint256 constant AAVE_AMOUNT = 100e18;
     // uint256 constant BLOCK_NUMBER = 23826172;
@@ -48,20 +47,20 @@ contract RescuePOC is Test {
     // address constant RESCUE_STRATEGY = 0x1BB6f40AE469C2664815E45f5Fb771Ef3Fcb751d;
     // address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
     // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0xAB2726DAf820Aa9270D14Db9B18c8d187cbF2f30; // Euler Prime - also a strategy in earn
+    // address constant FLASH_LOAN_SOURCE_EULER = 0xAB2726DAf820Aa9270D14Db9B18c8d187cbF2f30; 
     // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // uint256 constant AAVE_AMOUNT = 1_000_000e6;
     // uint256 constant BLOCK_NUMBER = 23826172;
 
-    // TELOS USDT0
-    address constant EARN_VAULT = 0xa9C251F8304b1B3Fc2b9e8fcae78D94Eff82Ac66;
-    address constant RESCUE_STRATEGY = 0xcbE1A31931aA9108E2eDbcd8008B16e4f6Be91B7;
-    address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
-    address constant FLASH_LOAN_SOURCE_MORPHO = 0x2fF74A46536f5c67ef5A42FD5B4e2Ed8A2cee249;
-    address constant FLASH_LOAN_SOURCE_EULER = 0x8Aec278c2fD4cc07B10A8865AEd33775f93EACe6; // Euler Prime - also a strategy in earn
-    address constant FLASH_LOAN_SOURCE_AAVE = 0x925a2A7214Ed92428B5b1B090F80b25700095e12;
-    uint256 constant AAVE_AMOUNT = 1_000_000e6;
-    uint256 constant BLOCK_NUMBER = 6548274;
+    // TELOS USDT0 - plasma
+    // address constant EARN_VAULT = 0xa9C251F8304b1B3Fc2b9e8fcae78D94Eff82Ac66;
+    // address constant RESCUE_STRATEGY = 0xcbE1A31931aA9108E2eDbcd8008B16e4f6Be91B7;
+    // address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
+    // address constant FLASH_LOAN_SOURCE_MORPHO = 0x2fF74A46536f5c67ef5A42FD5B4e2Ed8A2cee249;
+    // address constant FLASH_LOAN_SOURCE_EULER = 0x8Aec278c2fD4cc07B10A8865AEd33775f93EACe6; 
+    // address constant FLASH_LOAN_SOURCE_AAVE = 0x925a2A7214Ed92428B5b1B090F80b25700095e12;
+    // uint256 constant AAVE_AMOUNT = 1_000_000e6;
+    // uint256 constant BLOCK_NUMBER = 6548274;
 
     IEulerEarn vault;
 
