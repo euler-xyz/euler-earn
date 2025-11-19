@@ -14,23 +14,16 @@ import {IEVault} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 import "forge-std/Test.sol";
 
 contract RescuePOC is Test {
-    
-    // address constant EARN_VAULT = 0x3B4802FDb0E5d74aA37d58FD77d63e93d4f9A4AF; 
-    // address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; 
-    // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; 
-    // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-    // uint256 constant BLOCK_NUMBER = 23753054;
 
     // TELOS WBTC
-    // address constant EARN_VAULT = 0xA5cbf5cd429af63EA9989aE1ff4C9d37acFa6767;
-    // address constant RESCUE_STRATEGY = 0x79E41D6B7B2171AEe1c855eD1a0ae98a00c8942E;
-    // address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
-    // address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // address constant FLASH_LOAN_SOURCE_EULER = 0x998D761eC1BAdaCeb064624cc3A1d37A46C88bA4; 
-    // address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-    // uint256 constant AAVE_AMOUNT = 100e8;
-    // uint256 constant BLOCK_NUMBER = 23826172;
+    address constant EARN_VAULT = 0xA5cbf5cd429af63EA9989aE1ff4C9d37acFa6767;
+    address constant RESCUE_STRATEGY = 0x79E41D6B7B2171AEe1c855eD1a0ae98a00c8942E;
+    address constant RESCUE_ACCOUNT = 0x1b81cE5C6E1B206f3C20716571e295849eE8E440;
+    address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    address constant FLASH_LOAN_SOURCE_EULER = 0x998D761eC1BAdaCeb064624cc3A1d37A46C88bA4; 
+    address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+    uint256 constant AAVE_AMOUNT = 100e8;
+    uint256 constant BLOCK_NUMBER = 23826172;
 
     // TELOS WETH
     // address constant EARN_VAULT = 0xd217A07493b6BA272Ff806EE5eaBdFF86C292cc6; 
