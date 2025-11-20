@@ -10,6 +10,7 @@ import {IAllowanceTransfer} from "../src/interfaces/IAllowanceTransfer.sol";
 import {EnumerableSet} from "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {RescueStrategy} from "../src/RescueStrategy.sol";
+import {EulerEarnVaultLens as EarnIndexerLens} from "../lib/euler-data-lenses/src/EulerEarnLens.sol";
 import "forge-std/Test.sol";
 
 contract RescuePOC is Test {
@@ -20,9 +21,13 @@ contract RescuePOC is Test {
     address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
     address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
     address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+    address constant EARN_LENS = 0xA09144BeAe23D8e7836Aeb0Fe17DD2647241A8bE;
     uint256 constant BLOCK_NUMBER = 23753054;
 
     IEulerEarn vault;
+    IEulerEarn otherVault;
+
+    address indexerLens;
 
     string FORK_RPC_URL = vm.envOr("FORK_RPC_URL_MAINNET", string(""));
 
@@ -41,6 +46,7 @@ contract RescuePOC is Test {
         }
 
         vault = IEulerEarn(EARN_VAULT);
+        otherVault = IEulerEarn(OTHER_EARN_VAULT); // hyperithm euler usdc mainnet
 
         deal(vault.asset(), user, 100e18);
         vm.startPrank(user);
@@ -48,6 +54,8 @@ contract RescuePOC is Test {
         IAllowanceTransfer(vault.permit2Address()).approve(
             vault.asset(), address(vault), type(uint160).max, type(uint48).max
         );
+
+        indexerLens = address(new EarnIndexerLens());
     }
 
     function testRescue_assertRescueMode() public {
@@ -91,13 +99,13 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.startPrank(user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxDeposit");
         vault.deposit(10, user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxDeposit");
         vault.mint(10, user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxWithdraw");
         vault.withdraw(0, user, user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxWithdraw");
         vault.redeem(0, user, user);
 
         assertEq(vault.maxWithdrawFromStrategy(IERC4626(address(rescueStrategy))), 0);
@@ -205,13 +213,13 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.prank(user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxWithdraw");
         vault.withdraw(1e6, user, user);
 
         deal(address(vault), rescueAccount, 1e6);
 
         vm.prank(rescueAccount);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxWithdraw");
         vault.withdraw(1e6, rescueAccount, rescueAccount);
     }
 
@@ -220,8 +228,6 @@ contract RescuePOC is Test {
 
         // install perspective in earn factory which will allow custom strategies
         _installPerspective();
-
-        IEulerEarn otherVault = IEulerEarn(OTHER_EARN_VAULT); // hyperithm euler usdc mainnet
 
         vm.startPrank(otherVault.curator());
 
@@ -236,7 +242,7 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.startPrank(user);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("vault operations are paused - maxDeposit");
         vault.deposit(10, user);
 
         vm.startPrank(vault.curator());
@@ -294,6 +300,49 @@ contract RescuePOC is Test {
         rescueStrategy.onMorphoFlashLoan(1, "");
         vm.expectRevert("vault operations are paused");
         rescueStrategy.executeOperation(address(1), 1, 1, address(1), "");
+    }
+
+    function testRescue_callLenses() external {
+        _installRescueStrategy();
+
+        (bool success, bytes memory data) = EARN_LENS.call(abi.encodeWithSignature("getVaultInfoFull(address)", address(vault)));
+        assertTrue(success && data.length > 0);
+
+        (success, data) = indexerLens.call(abi.encodeWithSignature("getVaultInfoFull(address)", address(vault)));
+        assertTrue(success && data.length > 0);
+    }
+
+    function testRescue_maxWithdrawView() external {
+        _installRescueStrategy();
+        vm.prank(user);
+        assertEq(rescueStrategy.maxWithdraw(user), 0);
+
+        vm.startPrank(address(vault));
+        assertEq(rescueStrategy.maxWithdraw(user), 0);
+    }
+
+    function testRescue_maxDepositView() external {
+        _installRescueStrategy();
+        vm.prank(user);
+        assertEq(rescueStrategy.maxDeposit(user), 0);
+
+        vm.startPrank(address(vault));
+        vm.expectRevert("vault operations are paused - maxDeposit");
+        rescueStrategy.maxDeposit(user);
+    }
+
+    function testRescue_balanceOfView() external {
+        _installRescueStrategy();
+        vm.prank(user);
+        assertEq(rescueStrategy.balanceOf(user), 0);
+
+        vm.startPrank(address(vault));
+        assertEq(rescueStrategy.balanceOf(user), 0);
+
+        vm.startPrank(address(otherVault));
+        vm.expectRevert("wrong vault");
+        rescueStrategy.balanceOf(user);
+
     }
 
     function _installRescueStrategy() internal {

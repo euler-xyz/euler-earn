@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "openzeppelin-contracts/interfaces/IERC20.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/interfaces/IERC20Metadata.sol";
 import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
 import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
@@ -86,21 +87,20 @@ contract RescueStrategy is IERC4626 {
 
     // will revert user deposits
     function maxDeposit(address) external view returns (uint256) {
-        require(msg.sender != earnVault || rescueActive, "vault operations are paused");
-        return type(uint256).max;
+        require(msg.sender != earnVault || rescueActive, "vault operations are paused - maxDeposit");
+        return msg.sender == earnVault ? type(uint256).max : 0;
     }
 
     // will revert user withdrawals
     function maxWithdraw(address) external view returns (uint256) {
         if (!rescueActive && msg.sender == earnVault) {
             // if reentrancy locked - earn is calling from `withdraw`, which shold be prevented
-            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, and this 
-            // function is relied upon by the Lens contract
-            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeWithSignature("setFee(uint256)", uint256(0)));
-            require(!success, "expected revert"); // if not reentrancy lock, onlyOwner should revert
+            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
+            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeWithSignature("setFee(uint256)", 0));
+            require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
 
             if (bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
-                revert("vault operations are paused");
+                revert("vault operations are paused - maxWithdraw");
         }
         return 0;
     }
@@ -133,8 +133,8 @@ contract RescueStrategy is IERC4626 {
         return "Rescue Strategy";
     }
 
-    function decimals() external pure returns (uint8) {
-        return 18;
+    function decimals() external view returns (uint8) {
+        return IERC20Metadata(address(_asset)).decimals();
     }
 
     function totalAssets() external pure returns (uint256) {
@@ -186,15 +186,15 @@ contract RescueStrategy is IERC4626 {
     }
 
     function approve(address, uint256) external pure returns (bool) {
-        return true;
+        return false;
     }
 
     function transfer(address, uint256) external pure returns (bool) {
-        return true;
+        return false;
     }
 
     function transferFrom(address, address, uint256) external pure returns (bool) {
-        return true;
+        return false;
     }
 
     function withdraw(uint256, address, address) external pure returns (uint256 shares) {
