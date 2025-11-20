@@ -13,3 +13,6 @@
 [submodule "lib/euler-vault-kit"]
 	path = lib/euler-vault-kit
 	url = https://github.com/euler-xyz/euler-vault-kit
+[submodule "lib/euler-data-lenses"]
+	path = lib/euler-data-lenses
+	url = https://github.com/euler-xyz/euler-data-lenses
