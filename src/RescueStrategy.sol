@@ -69,8 +69,8 @@ contract RescueStrategy is IEVault {
 
     modifier notEarnMutatingCall() {
         if (!rescueActive && msg.sender == earnVault) {
-            // if reentrancy locked - earn is calling from `withdraw`, which should be prevented
-            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
+            // if reentrancy locked - earn is calling from `withdraw` or `deposit`, which should be prevented
+            // if unlocked - let it through because e.g. `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
             (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeCall(IEulerEarnBase.setFee, (0)));
             require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
 
