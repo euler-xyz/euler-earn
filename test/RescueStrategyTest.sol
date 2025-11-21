@@ -22,6 +22,7 @@ contract RescuePOC is Test {
     address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
     address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     address constant EARN_LENS = 0xA09144BeAe23D8e7836Aeb0Fe17DD2647241A8bE;
+    address constant EVAULT_LENS = 0xc3c45633E45041BF3BE841f89d2cb51E2F657403;
     uint256 constant BLOCK_NUMBER = 23753054;
 
     IEulerEarn vault;
@@ -313,6 +314,10 @@ contract RescuePOC is Test {
         // lens used in the indexer by setting the `code` in eth_call
         EulerEarnVaultInfoFull memory lensData = indexerLens.getVaultInfoFull(address(vault));
         assertEq(lensData.vault, address(vault));
+
+        // evault lens
+        (success, data) = EVAULT_LENS.call(abi.encodeWithSignature("getVaultInfoFull(address)", address(rescueStrategy)));
+        assertTrue(success && data.length > 0);
     }
 
     function testRescue_maxWithdrawView() external {
