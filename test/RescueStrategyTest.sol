@@ -10,7 +10,7 @@ import {IAllowanceTransfer} from "../src/interfaces/IAllowanceTransfer.sol";
 import {EnumerableSet} from "openzeppelin-contracts/utils/structs/EnumerableSet.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {RescueStrategy} from "../src/RescueStrategy.sol";
-import {EulerEarnVaultLens as EarnIndexerLens} from "../lib/euler-data-lenses/src/EulerEarnLens.sol";
+import {EulerEarnVaultLens as EarnIndexerLens, EulerEarnVaultInfoFull} from "../lib/euler-data-lenses/src/EulerEarnLens.sol";
 import "forge-std/Test.sol";
 
 contract RescuePOC is Test {
@@ -27,7 +27,7 @@ contract RescuePOC is Test {
     IEulerEarn vault;
     IEulerEarn otherVault;
 
-    address indexerLens;
+    EarnIndexerLens indexerLens;
 
     string FORK_RPC_URL = vm.envOr("FORK_RPC_URL_MAINNET", string(""));
 
@@ -55,7 +55,7 @@ contract RescuePOC is Test {
             vault.asset(), address(vault), type(uint160).max, type(uint48).max
         );
 
-        indexerLens = address(new EarnIndexerLens());
+        indexerLens = new EarnIndexerLens();
     }
 
     function testRescue_assertRescueMode() public {
@@ -304,12 +304,15 @@ contract RescuePOC is Test {
 
     function testRescue_callLenses() external {
         _installRescueStrategy();
+        // lens calls don't revert
 
+        // onchain lens
         (bool success, bytes memory data) = EARN_LENS.call(abi.encodeWithSignature("getVaultInfoFull(address)", address(vault)));
         assertTrue(success && data.length > 0);
 
-        (success, data) = indexerLens.call(abi.encodeWithSignature("getVaultInfoFull(address)", address(vault)));
-        assertTrue(success && data.length > 0);
+        // lens used in the indexer by setting the `code` in eth_call
+        EulerEarnVaultInfoFull memory lensData = indexerLens.getVaultInfoFull(address(vault));
+        assertEq(lensData.vault, address(vault));
     }
 
     function testRescue_maxWithdrawView() external {
