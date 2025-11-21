@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {IERC20} from "openzeppelin-contracts/interfaces/IERC20.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/interfaces/IERC20Metadata.sol";
 import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
+import {IEVault} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {IEulerEarn, IEulerEarnBase} from "./interfaces/IEulerEarn.sol";
@@ -41,7 +42,7 @@ interface IFlashLoan {
     ) external;
 }
 
-contract RescueStrategy is IERC4626 {
+contract RescueStrategy is IEVault {
     address public immutable rescueAccount;
     address public immutable earnVault;
     IERC20 internal immutable _asset;
@@ -113,7 +114,7 @@ contract RescueStrategy is IERC4626 {
             return amount;
         }
 
-        revert("not supported");
+        _revertNotSupported();
     }
 
     // ---------------- RESCUE FUNCTIONS --------------------
@@ -225,7 +226,48 @@ contract RescueStrategy is IERC4626 {
         return true;
     }
 
-    // ---------------- ERC4626 compatibility stubs --------------------
+    // ---------------- HELPERS AND INTERNAL --------------------
+
+    // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
+    function call(address target, bytes memory payload) external onlyRescueAccount {
+        (bool success,) = target.call(payload);
+        require(success, "call failed");
+    }
+
+    function _processFlashLoan(uint256 loanAmount, uint256 loops) internal {
+        SafeERC20Permit2Lib.forceApproveMaxWithPermit2(_asset, earnVault, address(0));
+
+        // deposit to earn, create shares. Assets will come back here if the strategy is first in supply queue
+        for (uint256 i = 0; i < loops; i++) {
+            IERC4626(earnVault).deposit(loanAmount, address(this));
+        }
+
+        // withdraw as much as possible to the receiver
+        uint256 rescuedAmount = IERC4626(earnVault).maxWithdraw(address(this));
+        IERC4626(earnVault).withdraw(rescuedAmount, rescueAccount, address(this));
+
+        // send the remaining shares to the receiver
+        IERC4626(earnVault).transfer(rescueAccount, IERC4626(earnVault).balanceOf(address(this)));
+
+        emit Rescued(address(earnVault), rescuedAmount);
+    }
+
+    function _assertRescueMode() internal view {
+        IEulerEarn vault = IEulerEarn(earnVault);
+
+        // Must be the ONLY supply target
+        require(vault.supplyQueueLength() == 1, "rescue: supplyQueue len != 1");
+        require(address(vault.supplyQueue(0)) == address(this), "rescue: supplyQueue[0] != rescue");
+
+        // Must be first in withdraw queue (bank-run guard)
+        require(address(vault.withdrawQueue(0)) == address(this), "rescue: withdrawQueue[0] != rescue");
+    }
+
+    function _revertNotSupported() internal pure {
+        revert("not supported");
+    }
+
+    // ---------------- EVault compatibility stubs --------------------
 
     function symbol() external pure returns (string memory) {
         return "RS";
@@ -288,63 +330,281 @@ contract RescueStrategy is IERC4626 {
     }
 
     function approve(address, uint256) external pure returns (bool) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
     function transfer(address, uint256) external pure returns (bool) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
     function transferFrom(address, address, uint256) external pure returns (bool) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
     function mint(uint256, address) external pure returns (uint256) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
     function redeem(uint256, address, address) external pure returns (uint256) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
     function withdraw(uint256, address, address) external pure returns (uint256) {
-        revert("not supported");
+        _revertNotSupported();
     }
 
-    // ---------------- HELPERS AND INTERNAL --------------------
-
-    // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
-    function call(address target, bytes memory payload) external onlyRescueAccount {
-        (bool success,) = target.call(payload);
-        require(success, "call failed");
+    function transferFromMax(address, address) external pure returns (bool) {
+        _revertNotSupported();
     }
 
-    function _processFlashLoan(uint256 loanAmount, uint256 loops) internal {
-        SafeERC20Permit2Lib.forceApproveMaxWithPermit2(_asset, earnVault, address(0));
-
-        // deposit to earn, create shares. Assets will come back here if the strategy is first in supply queue
-        for (uint256 i = 0; i < loops; i++) {
-            IERC4626(earnVault).deposit(loanAmount, address(this));
-        }
-
-        // withdraw as much as possible to the receiver
-        uint256 rescuedAmount = IERC4626(earnVault).maxWithdraw(address(this));
-        IERC4626(earnVault).withdraw(rescuedAmount, rescueAccount, address(this));
-
-        // send the remaining shares to the receiver
-        IERC4626(earnVault).transfer(rescueAccount, IERC4626(earnVault).balanceOf(address(this)));
-
-        emit Rescued(address(earnVault), rescuedAmount);
+    function accumulatedFees() external pure returns (uint256) {
+        return 0;
     }
 
-    function _assertRescueMode() internal view {
-        IEulerEarn vault = IEulerEarn(earnVault);
-
-        // Must be the ONLY supply target
-        require(vault.supplyQueueLength() == 1, "rescue: supplyQueue len != 1");
-        require(address(vault.supplyQueue(0)) == address(this), "rescue: supplyQueue[0] != rescue");
-
-        // Must be first in withdraw queue (bank-run guard)
-        require(address(vault.withdrawQueue(0)) == address(this), "rescue: withdrawQueue[0] != rescue");
+    function accumulatedFeesAssets() external pure returns (uint256) {
+        return 0;
     }
+
+    function creator() external pure returns (address) {
+        return address(0);
+    }
+
+    function skim(uint256, address) external pure returns (uint256) {
+        _revertNotSupported();
+    }
+
+    function totalBorrows() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalBorrowsExact() external pure returns (uint256) {
+        return 0;
+    }
+
+    function cash() external pure returns (uint256) {
+        return 0;
+    }
+
+    function debtOf(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function debtOfExact(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function interestRate() external pure returns (uint256) {
+        return 0;
+    }
+
+    function interestAccumulator() external pure returns (uint256) {
+        return 0;
+    }
+
+    function dToken() external pure returns (address) {
+        return address(0);
+    }
+
+    function borrow(uint256, address) external pure returns (uint256) {
+        _revertNotSupported();
+    }
+
+    function repay(uint256, address) external pure returns (uint256) {
+        _revertNotSupported();
+    }
+
+    function repayWithShares(uint256, address) external pure returns (uint256, uint256) {
+        _revertNotSupported();
+    }
+
+    function pullDebt(uint256, address) external pure {
+        _revertNotSupported();
+    }
+
+    function flashLoan(uint256, bytes calldata) external pure {
+        _revertNotSupported();
+    }
+
+    function touch() external pure {
+        _revertNotSupported();
+    }
+
+    function checkLiquidation(address, address, address) external pure returns (uint256, uint256) {
+        return (0, 0);
+    }
+
+    function liquidate(address, address, uint256, uint256) external pure {
+        _revertNotSupported();
+    }
+
+    function accountLiquidity(address, bool) external pure returns (uint256, uint256) {
+        return (0, 0);
+    }
+
+    function accountLiquidityFull(address, bool) external pure returns (address[] memory c, uint256[] memory cv, uint256 lv) {}
+
+    function disableController() external pure {
+        _revertNotSupported();
+    }
+
+    function checkAccountStatus(address, address[] calldata) external pure returns (bytes4) {
+        return bytes4(0);
+    }
+
+    function checkVaultStatus() external pure returns (bytes4) {
+        return bytes4(0);
+    }
+
+    function balanceTrackerAddress() external pure returns (address) {
+        return address(0);
+    }
+
+    function balanceForwarderEnabled(address) external pure returns (bool) {
+        return false;
+    }
+
+    function enableBalanceForwarder() external pure {
+        _revertNotSupported();
+    }
+
+    function disableBalanceForwarder() external pure {
+        _revertNotSupported();
+    }
+
+    function governorAdmin() external pure returns (address) {
+        return address(0);
+    }
+
+    function feeReceiver() external pure returns (address) {
+        return address(0);
+    }
+
+    function interestFee() external pure returns (uint16) {
+        return 0;
+    }
+
+    function interestRateModel() external pure returns (address) {
+        return address(0);
+    }
+
+    function protocolConfigAddress() external pure returns (address) {
+        return address(0);
+    }
+
+    function protocolFeeShare() external pure returns (uint256) {
+        return 0;
+    }
+
+    function protocolFeeReceiver() external pure returns (address) {
+        return address(0);
+    }
+
+    function caps() external pure returns (uint16, uint16) {
+        return (0, 0);
+    }
+
+    function LTVBorrow(address) external pure returns (uint16) {
+        return 0;
+    }
+
+    function LTVLiquidation(address) external pure returns (uint16) {
+        return 0;
+    }
+
+    function LTVFull(address collateral) external pure returns (
+            uint16 borrowLTV,
+            uint16 liquidationLTV,
+            uint16 initialLiquidationLTV,
+            uint48 targetTimestamp,
+            uint32 rampDuration
+    ) {}
+
+    function LTVList() external pure returns (address[] memory l) {}
+
+    function maxLiquidationDiscount() external pure returns (uint16) {
+        return 0;
+    }
+
+    function liquidationCoolOffTime() external pure returns (uint16) {
+        return 0;
+    }
+
+    function hookConfig() external pure returns (address hookTarget, uint32 hookedOps) {}
+
+    function configFlags() external pure returns (uint32) {
+        return 0;
+    }
+
+    function EVC() external pure returns (address) {
+        return address(0);
+    }
+
+    function unitOfAccount() external pure returns (address) {
+        return address(0);
+    }
+
+    function oracle() external pure returns (address) {
+        return address(0);
+    }
+
+    function permit2Address() external pure returns (address) {
+        return address(0);
+    }
+
+    function convertFees() external pure {
+        _revertNotSupported();
+    }
+
+    function setGovernorAdmin(address) external pure {
+        _revertNotSupported();
+    }
+
+    function setFeeReceiver(address) external pure {
+        _revertNotSupported();
+    }
+
+    function setLTV(address, uint16, uint16, uint32) external pure {
+        _revertNotSupported();
+    }
+
+    function setMaxLiquidationDiscount(uint16) external pure {
+        _revertNotSupported();
+    }
+
+    function setLiquidationCoolOffTime(uint16) external pure {
+        _revertNotSupported();
+    }
+
+    function setInterestRateModel(address) external pure {
+        _revertNotSupported();
+    }
+
+    function setHookConfig(address, uint32) external pure {
+        _revertNotSupported();
+    }
+
+    function setConfigFlags(uint32) external pure {
+        _revertNotSupported();
+    }
+
+    function setCaps(uint16, uint16) external pure {
+        _revertNotSupported();
+    }
+
+    function setInterestFee(uint16) external pure {
+        _revertNotSupported();
+    }
+
+    function initialize(address) external pure {
+        _revertNotSupported();
+    }
+
+    function MODULE_INITIALIZE() external pure returns (address) { return address(0); }
+    function MODULE_TOKEN() external pure returns (address) { return address(0); }
+    function MODULE_VAULT() external pure returns (address) { return address(0); }
+    function MODULE_BORROWING() external pure returns (address) { return address(0); }
+    function MODULE_LIQUIDATION() external pure returns (address) { return address(0); }
+    function MODULE_RISKMANAGER() external pure returns (address) { return address(0); }
+    function MODULE_BALANCE_FORWARDER() external pure returns (address) { return address(0); }
+    function MODULE_GOVERNANCE() external pure returns (address) { return address(0); }
 }
