@@ -137,7 +137,7 @@ contract RescueStrategy is IERC4626 {
         return IERC20Metadata(address(_asset)).decimals();
     }
 
-    function totalAssets() external pure returns (uint256) {
+    function allowance(address, address) external pure returns (uint256) {
         return 0;
     }
 
@@ -145,62 +145,61 @@ contract RescueStrategy is IERC4626 {
         return 0;
     }
 
+    function totalAssets() external pure returns (uint256) {
+        return 0;
+    }
+
     function convertToShares(uint256) external pure returns (uint256) {
         return 0;
     }
 
-    function convertToAssets(uint256) external pure returns (uint256 assets) {
+    function convertToAssets(uint256) external pure returns (uint256) {
         return 0;
     }
 
-    function previewDeposit(uint256) external pure returns (uint256 shares) {
+    function previewDeposit(uint256) external pure returns (uint256) {
         return 0;
     }
 
-    function maxMint(address) external pure returns (uint256 maxShares) {
+    function maxMint(address) external pure returns (uint256) {
         return 0;
     }
 
-    function previewMint(uint256) external pure returns (uint256 assets) {
+    function previewMint(uint256) external pure returns (uint256) {
         return 0;
     }
 
-    function previewWithdraw(uint256) external pure returns (uint256 shares) {
+    function previewWithdraw(uint256) external pure returns (uint256) {
         return 0;
     }
 
-    function maxRedeem(address) external pure returns (uint256 maxShares) {
-        return 0;
-    }
-
-    function mint(uint256, address) external pure returns (uint256 assets) {
-        return 0;
-    }
-
-    function redeem(uint256, address, address) external pure returns (uint256 assets) {
-        return 0;
-    }
-
-    function allowance(address, address) external pure returns (uint256) {
+    function maxRedeem(address) external pure returns (uint256) {
         return 0;
     }
 
     function approve(address, uint256) external pure returns (bool) {
-        return false;
+        revert("not supported");
     }
 
     function transfer(address, uint256) external pure returns (bool) {
-        return false;
+        revert("not supported");
     }
 
     function transferFrom(address, address, uint256) external pure returns (bool) {
-        return false;
+        revert("not supported");
     }
 
-    function withdraw(uint256, address, address) external pure returns (uint256 shares) {
-        return 0;
+    function mint(uint256, address) external pure returns (uint256) {
+        revert("not supported");
     }
 
+    function redeem(uint256, address, address) external pure returns (uint256) {
+        revert("not supported");
+    }
+
+    function withdraw(uint256, address, address) external pure returns (uint256) {
+        revert("not supported");
+    }
 
     // ---------------- RESCUE FUNCTIONS --------------------
 
