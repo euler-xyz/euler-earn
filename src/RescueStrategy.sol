@@ -6,7 +6,7 @@ import {IERC20Metadata} from "openzeppelin-contracts/interfaces/IERC20Metadata.s
 import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
 import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
-import {IEulerEarn} from "./interfaces/IEulerEarn.sol";
+import {IEulerEarn, IEulerEarnBase} from "./interfaces/IEulerEarn.sol";
 import {IEulerEarnFactory} from "./interfaces/IEulerEarnFactory.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
@@ -87,7 +87,7 @@ contract RescueStrategy is IERC4626 {
         if (!rescueActive && msg.sender == earnVault) {
             // if reentrancy locked - earn is calling from `withdraw`, which should be prevented
             // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
-            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeWithSignature("setFee(uint256)", 0));
+            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeCall(IEulerEarnBase.setFee, (0)));
             require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
 
             if (bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
