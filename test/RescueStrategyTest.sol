@@ -99,13 +99,13 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.startPrank(user);
-        vm.expectRevert("vault operations are paused - maxDeposit");
+        vm.expectRevert("vault operations are paused");
         vault.deposit(10, user);
-        vm.expectRevert("vault operations are paused - maxDeposit");
+        vm.expectRevert("vault operations are paused");
         vault.mint(10, user);
-        vm.expectRevert("vault operations are paused - maxWithdraw");
+        vm.expectRevert("vault operations are paused");
         vault.withdraw(0, user, user);
-        vm.expectRevert("vault operations are paused - maxWithdraw");
+        vm.expectRevert("vault operations are paused");
         vault.redeem(0, user, user);
 
         assertEq(vault.maxWithdrawFromStrategy(IERC4626(address(rescueStrategy))), 0);
@@ -213,13 +213,13 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.prank(user);
-        vm.expectRevert("vault operations are paused - maxWithdraw");
+        vm.expectRevert("vault operations are paused");
         vault.withdraw(1e6, user, user);
 
         deal(address(vault), rescueAccount, 1e6);
 
         vm.prank(rescueAccount);
-        vm.expectRevert("vault operations are paused - maxWithdraw");
+        vm.expectRevert("vault operations are paused");
         vault.withdraw(1e6, rescueAccount, rescueAccount);
     }
 
@@ -242,7 +242,7 @@ contract RescuePOC is Test {
         _installRescueStrategy();
 
         vm.startPrank(user);
-        vm.expectRevert("vault operations are paused - maxDeposit");
+        vm.expectRevert("vault operations are paused");
         vault.deposit(10, user);
 
         vm.startPrank(vault.curator());
@@ -292,13 +292,13 @@ contract RescuePOC is Test {
     function testRescue_flashloanCallbacks() external {
         _installRescueStrategy();
 
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("unauthorized");
         rescueStrategy.onBatchLoan(1, 1);
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("unauthorized");
         rescueStrategy.onFlashLoan("");
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("unauthorized");
         rescueStrategy.onMorphoFlashLoan(1, "");
-        vm.expectRevert("vault operations are paused");
+        vm.expectRevert("unauthorized");
         rescueStrategy.executeOperation(address(1), 1, 1, address(1), "");
     }
 
@@ -330,8 +330,7 @@ contract RescuePOC is Test {
         assertEq(rescueStrategy.maxDeposit(user), 0);
 
         vm.startPrank(address(vault));
-        vm.expectRevert("vault operations are paused - maxDeposit");
-        rescueStrategy.maxDeposit(user);
+        assertEq(rescueStrategy.maxDeposit(user), 0);
     }
 
     function testRescue_deposit() external {

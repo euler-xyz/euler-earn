@@ -63,7 +63,20 @@ contract RescueStrategy is IEVault {
     }
 
     modifier onlyWhenRescueActive() {
-        require(rescueActive, "vault operations are paused");
+        require(rescueActive, "unauthorized");
+        _;
+    }
+
+    modifier notEarnMutatingCall() {
+        if (!rescueActive && msg.sender == earnVault) {
+            // if reentrancy locked - earn is calling from `withdraw`, which should be prevented
+            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
+            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeCall(IEulerEarnBase.setFee, (0)));
+            require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
+
+            if (reason.length == 4 && bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
+                revert("vault operations are paused");
+        }
         _;
     }
 
@@ -78,22 +91,12 @@ contract RescueStrategy is IEVault {
     // ---------------- RESCUE ENABLING BEHAVIOR --------------------
 
     // will revert user deposits
-    function maxDeposit(address) external view returns (uint256) {
-        require(msg.sender != earnVault || rescueActive, "vault operations are paused - maxDeposit");
-        return msg.sender == earnVault ? type(uint256).max : 0;
+    function maxDeposit(address) external view notEarnMutatingCall returns (uint256) {
+        return msg.sender == earnVault && rescueActive ? type(uint256).max : 0;
     }
 
     // will revert user withdrawals
-    function maxWithdraw(address) external view returns (uint256) {
-        if (!rescueActive && msg.sender == earnVault) {
-            // if reentrancy locked - earn is calling from `withdraw`, which should be prevented
-            // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
-            (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeCall(IEulerEarnBase.setFee, (0)));
-            require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
-
-            if (reason.length == 4 && bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
-                revert("vault operations are paused - maxWithdraw");
-        }
+    function maxWithdraw(address) external view notEarnMutatingCall returns (uint256) {
         return 0;
     }
 
