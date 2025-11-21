@@ -90,7 +90,7 @@ contract RescueStrategy is IERC4626 {
             (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeCall(IEulerEarnBase.setFee, (0)));
             require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
 
-            if (bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
+            if (reason.length == 4 && bytes4(reason) == ReentrancyGuard.ReentrancyGuardReentrantCall.selector)
                 revert("vault operations are paused - maxWithdraw");
         }
         return 0;
