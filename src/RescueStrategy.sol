@@ -85,7 +85,7 @@ contract RescueStrategy is IERC4626 {
     // will revert user withdrawals
     function maxWithdraw(address) external view returns (uint256) {
         if (!rescueActive && msg.sender == earnVault) {
-            // if reentrancy locked - earn is calling from `withdraw`, which shold be prevented
+            // if reentrancy locked - earn is calling from `withdraw`, which should be prevented
             // if unlocked - let it through because `maxWithdrawFromStrategy` is called, which is relied upon by the Lens contract
             (bool success, bytes memory reason) = earnVault.staticcall(abi.encodeWithSignature("setFee(uint256)", 0));
             require(!success, "expected revert"); // if reentrancy was unlocked, attempt to set it will panic
