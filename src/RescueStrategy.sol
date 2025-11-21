@@ -66,11 +66,6 @@ contract RescueStrategy is IERC4626 {
         _;
     }
 
-    modifier onlyAllowedEarnVault() {
-        require(msg.sender == earnVault, "wrong vault");
-        _;
-    }
-
     event Rescued(address indexed vault, uint256 assets);
 
     constructor(address _rescueAccount, address _earnVault) {
@@ -79,11 +74,7 @@ contract RescueStrategy is IERC4626 {
         _asset = IERC20(IEulerEarn(earnVault).asset());
     }
 
-    // ---------------- VAULT INTERFACE --------------------
-
-    function asset() external view returns (address) {
-        return address(_asset);
-    }
+    // ---------------- RESCUE ENABLING BEHAVIOR --------------------
 
     // will revert user deposits
     function maxDeposit(address) external view returns (uint256) {
@@ -105,99 +96,23 @@ contract RescueStrategy is IERC4626 {
         return 0;
     }
 
-    function previewRedeem(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
     // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
     function balanceOf(address) external view returns (uint256) {
         require(!IEulerEarnFactory(IEulerEarn(earnVault).creator()).isVault(msg.sender) || msg.sender == earnVault, "wrong vault");
         return 0;
     }
 
-    function deposit(uint256 amount, address) external onlyAllowedEarnVault onlyWhenRescueActive returns (uint256) {
-        SafeERC20Permit2Lib.safeTransferFromWithPermit2(
-            _asset, msg.sender, address(this), amount, IEulerEarn(earnVault).permit2Address()
-        );
+    function deposit(uint256 amount, address) external  returns (uint256) {
+        if (msg.sender == earnVault) {
+            require(rescueActive, "only during rescue");
 
-        return amount;
-    }
+            SafeERC20Permit2Lib.safeTransferFromWithPermit2(
+                _asset, msg.sender, address(this), amount, IEulerEarn(earnVault).permit2Address()
+            );
 
-    // ---------------- ERC4626 compatibility stubs --------------------
+            return amount;
+        }
 
-    function symbol() external pure returns (string memory) {
-        return "RS";
-    }
-
-    function name() external pure returns (string memory) {
-        return "Rescue Strategy";
-    }
-
-    function decimals() external view returns (uint8) {
-        return IERC20Metadata(address(_asset)).decimals();
-    }
-
-    function allowance(address, address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function totalSupply() external pure returns (uint256) {
-        return 0;
-    }
-
-    function totalAssets() external pure returns (uint256) {
-        return 0;
-    }
-
-    function convertToShares(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
-    function convertToAssets(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
-    function previewDeposit(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
-    function maxMint(address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function previewMint(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
-    function previewWithdraw(uint256) external pure returns (uint256) {
-        return 0;
-    }
-
-    function maxRedeem(address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function approve(address, uint256) external pure returns (bool) {
-        revert("not supported");
-    }
-
-    function transfer(address, uint256) external pure returns (bool) {
-        revert("not supported");
-    }
-
-    function transferFrom(address, address, uint256) external pure returns (bool) {
-        revert("not supported");
-    }
-
-    function mint(uint256, address) external pure returns (uint256) {
-        revert("not supported");
-    }
-
-    function redeem(uint256, address, address) external pure returns (uint256) {
-        revert("not supported");
-    }
-
-    function withdraw(uint256, address, address) external pure returns (uint256) {
         revert("not supported");
     }
 
@@ -310,16 +225,98 @@ contract RescueStrategy is IERC4626 {
         return true;
     }
 
+    // ---------------- ERC4626 compatibility stubs --------------------
+
+    function symbol() external pure returns (string memory) {
+        return "RS";
+    }
+
+    function name() external pure returns (string memory) {
+        return "Rescue Strategy";
+    }
+
+    function decimals() external view returns (uint8) {
+        return IERC20Metadata(address(_asset)).decimals();
+    }
+
+    function allowance(address, address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalSupply() external pure returns (uint256) {
+        return 0;
+    }
+
+    function asset() external view returns (address) {
+        return address(_asset);
+    }
+
+    function totalAssets() external pure returns (uint256) {
+        return 0;
+    }
+
+    function convertToShares(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function convertToAssets(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function previewDeposit(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function maxMint(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function previewMint(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function previewWithdraw(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function maxRedeem(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function previewRedeem(uint256) external pure returns (uint256) {
+        return 0;
+    }
+
+    function approve(address, uint256) external pure returns (bool) {
+        revert("not supported");
+    }
+
+    function transfer(address, uint256) external pure returns (bool) {
+        revert("not supported");
+    }
+
+    function transferFrom(address, address, uint256) external pure returns (bool) {
+        revert("not supported");
+    }
+
+    function mint(uint256, address) external pure returns (uint256) {
+        revert("not supported");
+    }
+
+    function redeem(uint256, address, address) external pure returns (uint256) {
+        revert("not supported");
+    }
+
+    function withdraw(uint256, address, address) external pure returns (uint256) {
+        revert("not supported");
+    }
+
     // ---------------- HELPERS AND INTERNAL --------------------
 
     // The contract is not supposed to hold any value, but in case of any issues rescue account can exec arbitrary call
     function call(address target, bytes memory payload) external onlyRescueAccount {
         (bool success,) = target.call(payload);
         require(success, "call failed");
-    }
-
-    fallback() external {
-        revert("vault operations are paused");
     }
 
     function _processFlashLoan(uint256 loanAmount, uint256 loops) internal {

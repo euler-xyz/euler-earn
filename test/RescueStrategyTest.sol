@@ -134,7 +134,7 @@ contract RescuePOC is Test {
         console.log("Rescued", rescueOneLoop, IEulerEarn(vault.asset()).symbol());
         console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
 
-        vm.revertTo(snapshot);
+        vm.revertToState(snapshot);
         loops = 2;
 
         rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
@@ -329,6 +329,17 @@ contract RescuePOC is Test {
         vm.startPrank(address(vault));
         vm.expectRevert("vault operations are paused - maxDeposit");
         rescueStrategy.maxDeposit(user);
+    }
+
+    function testRescue_deposit() external {
+        _installRescueStrategy();
+        vm.prank(user);
+        vm.expectRevert("not supported");
+        rescueStrategy.deposit(1, user);
+
+        vm.prank(address(vault));
+        vm.expectRevert("only during rescue");
+        rescueStrategy.deposit(1, address(vault));
     }
 
     function testRescue_balanceOfView() external {
