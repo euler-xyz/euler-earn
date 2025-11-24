@@ -112,8 +112,16 @@ contract RescuePOC is Test {
         assertEq(vault.maxWithdrawFromStrategy(IERC4626(address(rescueStrategy))), 0);
     }
 
+    mapping (address => uint256) strategyCaps;
     function testRescue_rescueEulerBatch() public {
         _installRescueStrategy();
+
+        uint256 withdrawQueueLength = vault.withdrawQueueLength();
+
+        for (uint256 i = 0; i < withdrawQueueLength; i++) {
+            address strategy = address(vault.withdrawQueue(i));
+            strategyCaps[strategy] = vault.config(vault.withdrawQueue(i)).cap;
+        }
 
         uint256 amount = 100_000e6;
         uint256 loops = 1;
@@ -140,6 +148,15 @@ contract RescuePOC is Test {
 
         rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
         assertEq(IERC20(vault.asset()).balanceOf(rescueAccount), rescueOneLoop * 2);
+
+        // caps are unchanged on other strategies
+
+        for (uint256 i = 0; i < withdrawQueueLength; i++) {
+            address strategy = address(vault.withdrawQueue(i));
+            if (strategy != address(rescueStrategy)) {
+                assertEq(strategyCaps[strategy], vault.config(vault.withdrawQueue(i)).cap);
+            }
+        }
     }
 
     function testRescue_rescueMorpho() public {
@@ -242,9 +259,24 @@ contract RescuePOC is Test {
     function testRescue_uninstall() public {
         _installRescueStrategy();
 
+        // exchange rate should remain constant (besides rounding)
+        uint256 sharePriceBefore = vault.convertToAssets(1e18);
+        uint256 lostAssetsBefore = vault.lostAssets();
+
         vm.startPrank(user);
         vm.expectRevert("vault operations are paused");
         vault.deposit(10, user);
+
+        // rescue
+        uint256 amount = vault.previewMint(vault.totalSupply()) * 10001 / 10000 ;
+        uint256 loops = 1;
+
+        vm.startPrank(rescueAccount);
+        rescueStrategy.rescueMorpho(amount, loops, FLASH_LOAN_SOURCE_MORPHO);
+
+        assertApproxEqAbs(sharePriceBefore, vault.convertToAssets(1e18), 1e5);
+        // all the deposited amount is counted as lost
+        assertEq(vault.lostAssets(), lostAssetsBefore + amount);
 
         vm.startPrank(vault.curator());
 
@@ -267,6 +299,8 @@ contract RescuePOC is Test {
 
         // the vault is functional
 
+        assertApproxEqAbs(sharePriceBefore, vault.convertToAssets(1e18), 1e5);
+
         vm.startPrank(user);
         vault.deposit(10, user);
         uint256 balance = vault.balanceOf(user);
@@ -277,6 +311,8 @@ contract RescuePOC is Test {
         assertEq(vault.balanceOf(user), balance);
         vault.withdraw(vault.maxWithdraw(user), user, user);
         assertEq(vault.balanceOf(user), 0);
+
+        assertApproxEqAbs(sharePriceBefore, vault.convertToAssets(1e18), 1e6);
     }
 
     function testRescue_onlyRescueAccountCallFunc() external {

@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import {IERC20} from "openzeppelin-contracts/interfaces/IERC20.sol";
 import {IERC20Metadata} from "openzeppelin-contracts/interfaces/IERC20Metadata.sol";
 import {IERC4626} from "openzeppelin-contracts/interfaces/IERC4626.sol";
-import {IEVault} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 import {EVCUtil} from "ethereum-vault-connector/utils/EVCUtil.sol";
 import {IEVC} from "ethereum-vault-connector/interfaces/IEthereumVaultConnector.sol";
 import {IEulerEarn, IEulerEarnBase} from "./interfaces/IEulerEarn.sol";
@@ -12,7 +11,7 @@ import {IEulerEarnFactory} from "./interfaces/IEulerEarnFactory.sol";
 import {SafeERC20Permit2Lib} from "./libraries/SafeERC20Permit2Lib.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/utils/ReentrancyGuard.sol";
-import {IBorrowing, IRiskManager} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
+import {IEVault, IBorrowing, IRiskManager} from "../lib/euler-vault-kit/src/EVault/IEVault.sol";
 
 /* 
     Rescue procedure:
@@ -45,6 +44,7 @@ interface IFlashLoan {
 contract RescueStrategy is IEVault {
     address public immutable rescueAccount;
     address public immutable earnVault;
+    address public immutable earnFactory;
     IERC20 internal immutable _asset;
 
     bool internal rescueActive;
@@ -86,6 +86,7 @@ contract RescueStrategy is IEVault {
         rescueAccount = _rescueAccount;
         earnVault = _earnVault;
         _asset = IERC20(IEulerEarn(earnVault).asset());
+        earnFactory = IEulerEarn(_earnVault).creator();
     }
 
     // ---------------- RESCUE ENABLING BEHAVIOR --------------------
@@ -102,7 +103,7 @@ contract RescueStrategy is IEVault {
 
     // this reverts acceptCaps to prevent reusing the whitelisted strategy on other vaults
     function balanceOf(address) external view returns (uint256) {
-        require(!IEulerEarnFactory(IEulerEarn(earnVault).creator()).isVault(msg.sender) || msg.sender == earnVault, "wrong vault");
+        require(!IEulerEarnFactory(earnFactory).isVault(msg.sender) || msg.sender == earnVault, "wrong vault");
         return 0;
     }
 
