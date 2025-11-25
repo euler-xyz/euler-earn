@@ -19,7 +19,8 @@ contract RescuePOC is Test {
 
     address constant OTHER_EARN_VAULT = 0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB; // https://app.euler.finance/earn/0x3cd3718f8f047aA32F775E2cb4245A164E1C99fB?network=ethereum
     address constant FLASH_LOAN_SOURCE_MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    address constant FLASH_LOAN_SOURCE_EULER = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
+    address constant FLASH_LOAN_SOURCE_EULER = 0x9bD52F2805c6aF014132874124686e7b248c2Cbb;
+    address constant FLASH_LOAN_SOURCE_EULER_BATCH = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9; // Euler Prime - also a strategy in earn
     address constant FLASH_LOAN_SOURCE_AAVE = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     address constant EARN_LENS = 0xA09144BeAe23D8e7836Aeb0Fe17DD2647241A8bE;
     address constant EVAULT_LENS = 0xc3c45633E45041BF3BE841f89d2cb51E2F657403;
@@ -67,7 +68,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: supplyQueue len != 1");
-        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER_BATCH);
 
         IERC4626[] memory supplyQueue = new IERC4626[](1);
         supplyQueue[0] = vault.supplyQueue(0);
@@ -77,7 +78,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: supplyQueue[0] != rescue");
-        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER_BATCH);
 
         vm.prank(vault.curator());
         vault.submitCap(id, type(uint184).max);
@@ -93,7 +94,7 @@ contract RescuePOC is Test {
 
         vm.prank(rescueAccount);
         vm.expectRevert("rescue: withdrawQueue[0] != rescue");
-        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(1, 1, FLASH_LOAN_SOURCE_EULER_BATCH);
     }
 
     function testRescue_pauseForUsers() public {
@@ -129,12 +130,12 @@ contract RescuePOC is Test {
         // only rescue account
         vm.prank(user);
         vm.expectRevert("unauthorized");
-        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER_BATCH);
 
         vm.startPrank(rescueAccount);
         vm.expectEmit(true, true, false, false);
         emit RescueStrategy.Rescued(address(vault), 0);
-        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER_BATCH);
 
         assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
         assertEq(IEVC(vault.EVC()).getControllers(address(rescueStrategy)).length, 0);
@@ -146,7 +147,7 @@ contract RescuePOC is Test {
         vm.revertToState(snapshot);
         loops = 2;
 
-        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER);
+        rescueStrategy.rescueEulerBatch(amount, loops, FLASH_LOAN_SOURCE_EULER_BATCH);
         assertEq(IERC20(vault.asset()).balanceOf(rescueAccount), rescueOneLoop * 2);
 
         // caps are unchanged on other strategies
@@ -157,6 +158,36 @@ contract RescuePOC is Test {
                 assertEq(strategyCaps[strategy], vault.config(vault.withdrawQueue(i)).cap);
             }
         }
+    }
+
+    function testRescue_rescueEuler() public {
+        _installRescueStrategy();
+
+        uint256 amount = 100_000e6;
+        uint256 loops = 1;
+        uint256 snapshot = vm.snapshotState();
+        // only rescue account
+        vm.prank(user);
+        vm.expectRevert("unauthorized");
+        rescueStrategy.rescueEuler(amount, loops, FLASH_LOAN_SOURCE_EULER);
+
+        vm.startPrank(rescueAccount);
+        vm.expectEmit(true, true, false, false);
+        emit RescueStrategy.Rescued(address(vault), 0);
+        rescueStrategy.rescueEuler(amount, loops, FLASH_LOAN_SOURCE_EULER);
+
+        assertGt(IERC20(vault.asset()).balanceOf(rescueAccount), 0);
+        assertEq(IEVC(vault.EVC()).getControllers(address(rescueStrategy)).length, 0);
+        uint256 rescueOneLoop = IERC20(vault.asset()).balanceOf(rescueAccount);
+
+        console.log("Rescued", rescueOneLoop, IEulerEarn(vault.asset()).symbol());
+        console.log("Received shares", IERC4626(vault).balanceOf(rescueAccount));
+
+        vm.revertTo(snapshot);
+        loops = 2;
+
+        rescueStrategy.rescueEuler(amount, loops, FLASH_LOAN_SOURCE_EULER);
+        assertEq(IERC20(vault.asset()).balanceOf(rescueAccount), rescueOneLoop * 2);
     }
 
     function testRescue_rescueMorpho() public {
