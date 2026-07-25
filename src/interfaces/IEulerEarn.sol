@@ -120,10 +120,10 @@ interface IEulerEarnBase {
     function revokePendingMarketRemoval(IERC4626 id) external;
 
     /// @notice Sets the name of the Earn vault.
-    function setName(string memory newName) external;
+    //function setName(string memory newName) external;
 
     /// @notice Sets the symbol of the Earn vault.
-    function setSymbol(string memory newSymbol) external;
+    //function setSymbol(string memory newSymbol) external;
 
     /// @notice Submits a `newGuardian`.
     /// @notice Warning: a malicious guardian could disrupt the Earn vault's operation, and would have the power to revoke

@@ -190,7 +190,8 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
     }
 
     /* ONLY OWNER FUNCTIONS */
-
+// commented out not to exceed 24kB limit
+/*
     /// @inheritdoc IEulerEarnBase
     function setName(string memory newName) external onlyOwner {
         _name = newName;
@@ -204,7 +205,7 @@ contract EulerEarn is ReentrancyGuard, ERC4626, Ownable2Step, EVCUtil, IEulerEar
 
         emit EventsLib.SetSymbol(newSymbol);
     }
-
+*/
     /// @inheritdoc IEulerEarnBase
     function setCurator(address newCurator) external onlyOwner {
         if (newCurator == curator) revert ErrorsLib.AlreadySet();
