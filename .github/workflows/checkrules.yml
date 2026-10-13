@@ -1,0 +1,54 @@
+name: checkrules
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checkrules:
+    name: Run Certora prover on all configs
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    # CERTORAKEY lives in the "certora" environment so runs need reviewer
+    # approval before the secret is exposed to workflow code.
+    environment: certora
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      # certoraRun resolves imports through forge remappings
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: setup solc
+        # Official release binaries, checksum-verified. The certora conf files
+        # reference them as "solc-0.8.17" (Permit2) and "solc-0.8.26".
+        run: |
+          mkdir -p "$RUNNER_TEMP/solc-bin"
+          curl -sSfL -o "$RUNNER_TEMP/solc-bin/solc-0.8.17" \
+            "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.17+commit.8df45f5f"
+          curl -sSfL -o "$RUNNER_TEMP/solc-bin/solc-0.8.26" \
+            "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v0.8.26+commit.8a97fa7a"
+          echo "99f2070b776e9714f1f76c43c229cf99b8978a92938ee8d2364c6de11c1a03d4  $RUNNER_TEMP/solc-bin/solc-0.8.17" | sha256sum -c -
+          echo "d5f23436f443edb85d8e76906d12f0a86ce0490e7663a9e608efeb7a93f149ef  $RUNNER_TEMP/solc-bin/solc-0.8.26" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/solc-bin/solc-0.8.17" "$RUNNER_TEMP/solc-bin/solc-0.8.26"
+          echo "$RUNNER_TEMP/solc-bin" >> "$GITHUB_PATH"
+
+      - name: setup cvt
+        run: pip install certora-cli==8.19.1
+
+      - name: Certora munge
+        run: ./certora/scripts/patch.sh
+
+      - name: run certora prover on conf files
+        run: .github/executables/checkAllSpecs
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
