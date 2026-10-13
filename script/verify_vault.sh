@@ -2,6 +2,8 @@
 
 set -e
 
+source "$(dirname "$0")/verifier.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,7 +23,7 @@ print_warning() {
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 check_file() {
@@ -84,32 +86,6 @@ get_rpc_url_and_chain_id() {
     fi
     
     echo "$rpc_url|$extracted_chain_id"
-}
-
-get_verifier_url() {
-    local chain_id="$1"
-    local env_var="VERIFIER_URL_$chain_id"
-    local verifier_url="${!env_var}"
-    
-    if [ -z "$verifier_url" ]; then
-        print_error "Verifier URL not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
-        exit 1
-    fi
-    
-    echo "$verifier_url"
-}
-
-get_verifier_api_key() {
-    local chain_id="$1"
-    local env_var="VERIFIER_API_KEY_$chain_id"
-    local api_key="${!env_var}"
-    
-    if [ -z "$api_key" ]; then
-        print_error "Verifier API key not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
-        exit 1
-    fi
-    
-    echo "$api_key"
 }
 
 get_factory_address() {
@@ -272,18 +248,7 @@ main() {
     print_success "RPC URL: $rpc_url"
     print_success "Chain ID: $chain_id"
     
-    print_info "Getting verifier URL for chain $chain_id..."
-    verifier_url=$(get_verifier_url "$chain_id")
-    print_success "Verifier URL: $verifier_url"
-    
-    if [[ $verifier_type == "blockscout" || $verifier_type == "sourcify" || $verifier_type == "custom" ]]; then
-        print_info "Skipping API key retrieval for $verifier_type verifier"
-        verifier_api_key=""
-    else
-        print_info "Getting verifier API key for chain $chain_id..."
-        verifier_api_key=$(get_verifier_api_key "$chain_id")
-        print_success "Verifier API key: ***${verifier_api_key: -4}"
-    fi
+    resolve_verifier "$chain_id"
     
     print_info "Getting factory address for chain $chain_id..."
     factory_address=$(get_factory_address "$chain_id")
@@ -293,17 +258,11 @@ main() {
     
     print_info "Extracting transaction data for tx: $tx_hash"
     
-    local tx_data=$(cast tx "$tx_hash" --rpc-url "$rpc_url" --json 2>/dev/null)
-    
-    if [ $? -ne 0 ]; then
-        print_error "Failed to get transaction data for tx: $tx_hash"
-        exit 1
-    fi
-    
-    local input_data=$(echo "$tx_data" | jq -r '.input' 2>/dev/null)
-    
+    local input_data
+    input_data=$(cast tx "$tx_hash" input --rpc-url "$rpc_url" 2>/dev/null) || true
+
     if [ -z "$input_data" ] || [ "$input_data" = "null" ]; then
-        print_error "Failed to extract input data from transaction"
+        print_error "Failed to get the input data of transaction $tx_hash"
         exit 1
     fi
     
@@ -318,9 +277,8 @@ main() {
     
     print_info "Calldata without function selector: $calldata_without_selector"
     
-    local decoded_data=$(cast decode-abi --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null)
-    
-    if [ $? -ne 0 ]; then
+    local decoded_data
+    if ! decoded_data=$(cast decode-abi --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null); then
         print_error "Failed to decode calldata. This might not be a createEulerEarn transaction."
         exit 1
     fi
@@ -369,9 +327,8 @@ main() {
     print_info "Encoding constructor arguments for EulerEarn..."
     
     local constructor_signature="constructor(address,address,address,uint256,address,string,string)"
-    local constructor_args_encoded=$(cast abi-encode "$constructor_signature" "$initial_owner" "$evc_address" "$permit2_address" "$initial_timelock" "$asset" "$name" "$symbol")
-    
-    if [ $? -ne 0 ]; then
+    local constructor_args_encoded
+    if ! constructor_args_encoded=$(cast abi-encode "$constructor_signature" "$initial_owner" "$evc_address" "$permit2_address" "$initial_timelock" "$asset" "$name" "$symbol"); then
         print_error "Failed to encode constructor arguments"
         exit 1
     fi
@@ -382,52 +339,7 @@ main() {
     
     echo
     
-    local verifier_args="--verifier-url $verifier_url"
-    
-    if [[ $verifier_type == "blockscout" ]]; then
-        verifier_args="$verifier_args --verifier-api-key \"\" --verifier=blockscout"
-    elif [[ $verifier_type == "sourcify" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type --retries 1"
-    elif [[ $verifier_type == "custom" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type"
-    else
-        verifier_args="$verifier_args --verifier-api-key $verifier_api_key --verifier=etherscan"
-    fi
-    
-    print_info "Verifying EulerEarn contract..."
-    
-    local verify_cmd="forge verify-contract $vault_address src/EulerEarn.sol:EulerEarn \
-        --chain $chain_id \
-        --rpc-url $rpc_url \
-        --constructor-args $constructor_args_encoded \
-        $verifier_args"
-    
-    print_info "Executing forge verify command..."
-    echo
-    
-    local temp_output=$(mktemp)
-    local exit_code=0
-    
-    eval "$verify_cmd" 2>&1 | tee "$temp_output"
-    exit_code=${PIPESTATUS[0]}
-    
-    if [ $exit_code -eq 0 ]; then
-        print_success "Contract verification completed successfully!"
-        
-        if grep -q "Successfully verified" "$temp_output" || grep -q "Contract is already verified" "$temp_output"; then
-            print_success "EulerEarn vault at $vault_address has been verified on chain $chain_id!"
-        else
-            print_warning "Verification command completed but success message not found in output"
-            print_info "Please check the output above for verification status"
-        fi
-    else
-        print_error "Contract verification failed with exit code $exit_code!"
-        print_info "Please check the output above for error details"
-        rm -f "$temp_output"
-        exit $exit_code
-    fi
-    
-    rm -f "$temp_output"
+    verify_contract "$vault_address" src/EulerEarn.sol:EulerEarn "$constructor_args_encoded" || exit 1
     
     print_success "Verification process completed!"
     print_info "Vault address: $vault_address"
