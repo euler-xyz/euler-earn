@@ -29,7 +29,7 @@ print_warning() {
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 # Function to check if a file exists
@@ -118,32 +118,84 @@ get_rpc_url_and_chain_id() {
     echo "$rpc_url|$extracted_chain_id"
 }
 
-# Function to get verifier URL
+# Function to get verifier URL (VERIFIER_URL overrides VERIFIER_URL_<chain id>, as in evk-periphery)
 get_verifier_url() {
     local chain_id="$1"
     local env_var="VERIFIER_URL_$chain_id"
-    local verifier_url="${!env_var}"
+    local verifier_url="${VERIFIER_URL:-${!env_var}}"
     
     if [ -z "$verifier_url" ]; then
-        print_error "Verifier URL not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
+        print_error "Verifier URL not found for chain ID $chain_id. Set VERIFIER_URL or $env_var in ../evk-periphery/.env"
         exit 1
     fi
     
     echo "$verifier_url"
 }
 
-# Function to get verifier API key
+# Function to get verifier API key (VERIFIER_API_KEY pairs with VERIFIER_URL, as in evk-periphery)
 get_verifier_api_key() {
     local chain_id="$1"
     local env_var="VERIFIER_API_KEY_$chain_id"
-    local api_key="${!env_var}"
     
-    if [ -z "$api_key" ]; then
-        print_error "Verifier API key not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
-        exit 1
+    if [ -n "$VERIFIER_URL" ]; then
+        echo "$VERIFIER_API_KEY"
+    else
+        echo "${!env_var}"
+    fi
+}
+
+# Function to verify a deployed contract the way evk-periphery's script/utils/verifyContracts.sh does
+verify_contract() {
+    local contract_address="$1"
+    local contract_name="$2"
+    local encoded_constructor_args="$3"
+    local url="$verifier_url"
+    local verifier_args
+    
+    if [[ $verifier_type == "blockscout" ]]; then
+        verifier_args=(--verifier-api-key "" --verifier=blockscout)
+    elif [[ $verifier_type == "sourcify" ]]; then
+        verifier_args=(--verifier=sourcify --retries 1)
+    elif [[ $verifier_type == "custom" ]]; then
+        # Foundry's custom verifier ignores --verifier-api-key, so a configured key travels in the URL
+        if [ -n "$verifier_api_key" ]; then
+            local key_separator="?"
+            [[ "$url" == *"?"* ]] && key_separator="&"
+            url="${url}${key_separator}apikey=${verifier_api_key}"
+        fi
+        verifier_args=(--verifier=custom)
+    else
+        verifier_args=(--verifier-api-key "$verifier_api_key" --verifier="$verifier_type")
     fi
     
-    echo "$api_key"
+    print_info "Verifying $contract_name at $contract_address..."
+    echo
+    
+    local temp_output=$(mktemp)
+    local exit_code=0
+    
+    VERIFIER_API_KEY="$verifier_api_key" ETHERSCAN_API_KEY="$verifier_api_key" forge verify-contract \
+        "$contract_address" "$contract_name" \
+        --constructor-args "$encoded_constructor_args" \
+        --rpc-url "$rpc_url" \
+        --chain "$chain_id" \
+        --verifier-url "$url" \
+        "${verifier_args[@]}" \
+        --watch 2>&1 | tee "$temp_output"
+    exit_code=${PIPESTATUS[0]}
+    
+    if [[ $verifier_type == "sourcify" ]] && grep -q "is already partially verified" "$temp_output"; then
+        exit_code=0
+    fi
+    
+    rm -f "$temp_output"
+    
+    if [ $exit_code -ne 0 ]; then
+        print_warning "$contract_name at $contract_address is recorded but not verified (constructor args: $encoded_constructor_args)"
+        return 1
+    fi
+    
+    print_success "$contract_name verified"
 }
 
 # Function to get factory constructor arguments
@@ -411,18 +463,23 @@ main() {
     verifier_url=$(get_verifier_url "$chain_id")
     print_success "Verifier URL: $verifier_url"
     
-    # Only get API key if the verifier type needs it
-    if [[ $verifier_type == "blockscout" || $verifier_type == "sourcify" || $verifier_type == "custom" ]]; then
-        print_info "Skipping API key retrieval for $verifier_type verifier"
-        verifier_api_key=""
-    else
-        print_info "Getting verifier API key for chain $chain_id..."
-        verifier_api_key=$(get_verifier_api_key "$chain_id")
+    # Foundry's chain registry doesn't know Monad (143), so evk-periphery verifies there with the custom verifier against Etherscan V2
+    if [[ $chain_id == "143" && $verifier_type == "etherscan" ]]; then
+        verifier_type="custom"
+        print_info "Using the custom verifier for chain 143"
+    fi
+    
+    verifier_api_key=$(get_verifier_api_key "$chain_id")
+    if [ -n "$verifier_api_key" ]; then
         print_success "Verifier API key: ***${verifier_api_key: -4}"
+    elif [[ $verifier_type != "blockscout" && $verifier_type != "sourcify" && $verifier_type != "custom" ]]; then
+        print_error "Verifier API key not found for chain ID $chain_id. Set VERIFIER_API_KEY_$chain_id (or VERIFIER_API_KEY with VERIFIER_URL) in ../evk-periphery/.env"
+        exit 1
     fi
     
     print_info "Getting factory constructor arguments for chain $chain_id..."
     constructor_args=$(get_factory_constructor_args "$chain_id")
+    read -r -a factory_constructor_args <<< "$constructor_args"
     print_success "Constructor arguments: $constructor_args"
     
     echo
@@ -465,51 +522,30 @@ main() {
     
     echo
     
-    # Prompt for account password before building the command
-    read -s -p "Enter account password: " account_password
+    IFS= read -r -s -p "Enter account password: " account_password
     echo
     if [ -z "$account_password" ]; then
         print_error "Account password is required"
         exit 1
     fi
     
-    # Build verifier arguments based on verifier type
-    local verifier_args="--verifier-url $verifier_url"
-    
-    if [[ $verifier_type == "blockscout" ]]; then
-        verifier_args="$verifier_args --verifier-api-key \"\" --verifier=blockscout"
-    elif [[ $verifier_type == "sourcify" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type --retries 1"
-    elif [[ $verifier_type == "custom" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type"
-    else
-        # Default to etherscan and other verifiers that need API key
-        verifier_args="$verifier_args --verifier-api-key $verifier_api_key --verifier=$verifier_type"
-    fi
+    local failed_verifications=()
     
     # Deploy EulerEarnFactory if not already deployed OR if old implementation exists (upgrade scenario)
     if [ -z "$existing_factory" ] || ([ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]); then
         print_info "Deploying EulerEarnFactory..."
-        
-        # Build the forge command for factory
-        local factory_cmd="forge create EulerEarnFactory \
-            --account $deployer_account \
-            --password $account_password \
-            --rpc-url $rpc_url \
-            --legacy \
-            --verify \
-            $verifier_args \
-            --broadcast \
-            --constructor-args $constructor_args"
-        
-        print_info "Executing forge command for factory..."
         echo
         
-        # Execute the factory deployment
         local temp_output=$(mktemp)
         local exit_code=0
         
-        eval "$factory_cmd" 2>&1 | tee "$temp_output"
+        forge create EulerEarnFactory \
+            --account "$deployer_account" \
+            --password "$account_password" \
+            --rpc-url "$rpc_url" \
+            --legacy \
+            --broadcast \
+            --constructor-args "${factory_constructor_args[@]}" 2>&1 | tee "$temp_output"
         exit_code=${PIPESTATUS[0]}
         
         if [ $exit_code -eq 0 ]; then
@@ -522,6 +558,10 @@ main() {
                 print_info "Extracted factory address: $deployed_address"
                 update_core_addresses "$chain_id" "$deployed_address"
                 existing_factory="$deployed_address"
+                
+                local encoded_args
+                encoded_args=$(cast abi-encode "constructor(address,address,address,address)" "${factory_constructor_args[@]}")
+                verify_contract "$deployed_address" EulerEarnFactory "$encoded_args" || failed_verifications+=(EulerEarnFactory)
             else
                 print_warning "Could not extract factory address from output"
                 rm -f "$temp_output"
@@ -548,26 +588,18 @@ main() {
         fi
         
         print_info "Using EVC address for PublicAllocator: $evc_address"
-        
-        # Build the forge command for allocator
-        local allocator_cmd="forge create PublicAllocator \
-            --account $deployer_account \
-            --password $account_password \
-            --rpc-url $rpc_url \
-            --legacy \
-            --verify \
-            $verifier_args \
-            --broadcast \
-            --constructor-args $evc_address"
-        
-        print_info "Executing forge command for allocator..."
         echo
         
-        # Execute the allocator deployment
         local temp_output=$(mktemp)
         local exit_code=0
         
-        eval "$allocator_cmd" 2>&1 | tee "$temp_output"
+        forge create PublicAllocator \
+            --account "$deployer_account" \
+            --password "$account_password" \
+            --rpc-url "$rpc_url" \
+            --legacy \
+            --broadcast \
+            --constructor-args "$evc_address" 2>&1 | tee "$temp_output"
         exit_code=${PIPESTATUS[0]}
         
         if [ $exit_code -eq 0 ]; then
@@ -579,6 +611,10 @@ main() {
             if [ -n "$deployed_address" ]; then
                 print_info "Extracted allocator address: $deployed_address"
                 update_periphery_addresses "$chain_id" "$deployed_address"
+                
+                local encoded_args
+                encoded_args=$(cast abi-encode "constructor(address)" "$evc_address")
+                verify_contract "$deployed_address" PublicAllocator "$encoded_args" || failed_verifications+=(PublicAllocator)
             else
                 print_warning "Could not extract allocator address from output"
                 rm -f "$temp_output"
@@ -605,6 +641,11 @@ main() {
     fi
     if [ -n "$existing_allocator" ]; then
         print_info "Allocator was already deployed at: $existing_allocator"
+    fi
+    
+    if [ ${#failed_verifications[@]} -gt 0 ]; then
+        print_error "Deployed and recorded, but not verified: ${failed_verifications[*]}"
+        exit 1
     fi
 }
 
