@@ -1,21 +1,15 @@
 #!/bin/bash
 
-# EulerEarn Factory and PublicAllocator Deployment Script
-# This script handles the deployment of both contracts with proper input mappings
+set -e
 
-set -e  # Exit on any error
-
-# Constants
 ZERO_ADDRESS="0x0000000000000000000000000000000000000000"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -32,7 +26,6 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Function to check if a file exists
 check_file() {
     if [ ! -f "$1" ]; then
         print_error "File not found: $1"
@@ -40,7 +33,6 @@ check_file() {
     fi
 }
 
-# Function to check if a directory exists
 check_directory() {
     if [ ! -d "$1" ]; then
         print_error "Directory not found: $1"
@@ -48,7 +40,6 @@ check_directory() {
     fi
 }
 
-# Function to get value from JSON file
 get_json_value() {
     local file_path="$1"
     local key="$2"
@@ -61,29 +52,23 @@ get_json_value() {
     fi
 }
 
-# Function to load environment variables
 load_env() {
     local env_file="../evk-periphery/.env"
     check_file "$env_file"
     
-    # Source the environment file
     set -a
     source "$env_file"
     set +a
 }
 
-# Function to get RPC URL and chain ID
 get_rpc_url_and_chain_id() {
     local input="$1"
     local rpc_url=""
     local extracted_chain_id=""
     
-    # Check if input looks like a URL
     if [[ "$input" =~ ^https?:// ]]; then
-        # Input is a URL, use it directly and extract chain ID
         rpc_url="$input"
         
-        # Extract chain ID using cast
         if command -v cast >/dev/null 2>&1; then
             extracted_chain_id=$(cast chain-id --rpc-url "$rpc_url" 2>/dev/null)
             
@@ -96,10 +81,8 @@ get_rpc_url_and_chain_id() {
             exit 1
         fi
     else
-        # Input is a chain ID, get RPC URL from environment
         extracted_chain_id="$input"
         
-        # Validate chain ID is numeric
         if ! [[ "$extracted_chain_id" =~ ^[0-9]+$ ]]; then
             print_error "Chain ID must be a number when not providing a full RPC URL"
             exit 1
@@ -114,11 +97,10 @@ get_rpc_url_and_chain_id() {
         fi
     fi
     
-    # Return both values in a format we can parse
     echo "$rpc_url|$extracted_chain_id"
 }
 
-# Function to get verifier URL (VERIFIER_URL overrides VERIFIER_URL_<chain id>, as in evk-periphery)
+# VERIFIER_URL overrides VERIFIER_URL_<chain id>, as in evk-periphery
 get_verifier_url() {
     local chain_id="$1"
     local env_var="VERIFIER_URL_$chain_id"
@@ -132,7 +114,7 @@ get_verifier_url() {
     echo "$verifier_url"
 }
 
-# Function to get verifier API key (VERIFIER_API_KEY pairs with VERIFIER_URL, as in evk-periphery)
+# VERIFIER_API_KEY pairs with VERIFIER_URL, as in evk-periphery
 get_verifier_api_key() {
     local chain_id="$1"
     local env_var="VERIFIER_API_KEY_$chain_id"
@@ -144,7 +126,7 @@ get_verifier_api_key() {
     fi
 }
 
-# Function to verify a deployed contract the way evk-periphery's script/utils/verifyContracts.sh does
+# Mirrors verify_contract in evk-periphery script/utils/verifyContracts.sh
 verify_contract() {
     local contract_address="$1"
     local contract_name="$2"
@@ -198,14 +180,12 @@ verify_contract() {
     print_success "$contract_name verified"
 }
 
-# Function to get factory constructor arguments
 get_factory_constructor_args() {
     local chain_id="$1"
     local addresses_dir="../euler-interfaces/addresses/$chain_id"
     
     check_directory "$addresses_dir"
     
-    # Define the JSON files and keys for each argument
     local multisig_file="$addresses_dir/MultisigAddresses.json"
     local core_file="$addresses_dir/CoreAddresses.json"
     local periphery_file="$addresses_dir/PeripheryAddresses.json"
@@ -214,13 +194,11 @@ get_factory_constructor_args() {
     check_file "$core_file"
     check_file "$periphery_file"
     
-    # Get the values
     local dao_address=$(get_json_value "$multisig_file" "DAO")
     local evc_address=$(get_json_value "$core_file" "evc")
     local permit2_address=$(get_json_value "$core_file" "permit2")
     local evk_factory_perspective=$(get_json_value "$periphery_file" "evkFactoryPerspective")
     
-    # Validate that we got all addresses
     if [ -z "$dao_address" ] || [ "$dao_address" = "null" ]; then
         print_error "Failed to get DAO address from $multisig_file"
         exit 1
@@ -244,7 +222,6 @@ get_factory_constructor_args() {
     echo "$dao_address $evc_address $permit2_address $evk_factory_perspective"
 }
 
-# Function to check if contract is already deployed
 check_contract_deployed() {
     local chain_id="$1"
     local contract_key="$2"
@@ -263,7 +240,6 @@ check_contract_deployed() {
     return 1
 }
 
-# Function to update CoreAddresses.json
 update_core_addresses() {
     local chain_id="$1"
     local deployed_address="$2"
@@ -272,9 +248,7 @@ update_core_addresses() {
     
     print_info "Updating CoreAddresses.json with deployed address..."
     
-    # Check if jq is available for JSON manipulation
     if command -v jq >/dev/null 2>&1; then
-        # Update the JSON file: add eulerEarnFactory, remove eulerEarnImplementation if it exists
         if jq --arg addr "$deployed_address" '
             .eulerEarnFactory = $addr | 
             del(.eulerEarnImplementation // empty)
@@ -289,13 +263,10 @@ update_core_addresses() {
     else
         print_warning "jq not found, attempting manual JSON update..."
         
-        # Manual JSON update using sed (less robust but works for simple cases)
         local temp_file="${core_file}.tmp"
         
-        # Remove eulerEarnImplementation line if it exists
         grep -v '"eulerEarnImplementation"' "$core_file" > "$temp_file"
         
-        # Add eulerEarnFactory before the closing brace
         sed -i.bak '$ s/}$/,\n    "eulerEarnFactory": "'"$deployed_address"'"\n}/' "$temp_file"
         
         if [ $? -eq 0 ]; then
@@ -311,7 +282,6 @@ update_core_addresses() {
     fi
 }
 
-# Function to update PeripheryAddresses.json
 update_periphery_addresses() {
     local chain_id="$1"
     local deployed_address="$2"
@@ -320,9 +290,7 @@ update_periphery_addresses() {
     
     print_info "Updating PeripheryAddresses.json with deployed address..."
     
-    # Check if jq is available for JSON manipulation
     if command -v jq >/dev/null 2>&1; then
-        # Update the JSON file: add eulerEarnPublicAllocator
         if jq --arg addr "$deployed_address" '
             .eulerEarnPublicAllocator = $addr
         ' "$periphery_file" > "${periphery_file}.tmp" && mv "${periphery_file}.tmp" "$periphery_file"; then
@@ -335,10 +303,8 @@ update_periphery_addresses() {
     else
         print_warning "jq not found, attempting manual JSON update..."
         
-        # Manual JSON update using sed (less robust but works for simple cases)
         local temp_file="${periphery_file}.tmp"
         
-        # Add eulerEarnPublicAllocator before the closing brace
         sed -i.bak '$ s/}$/,\n    "eulerEarnPublicAllocator": "'"$deployed_address"'"\n}/' "$temp_file"
         
         if [ $? -eq 0 ]; then
@@ -353,7 +319,6 @@ update_periphery_addresses() {
     fi
 }
 
-# Function to show usage
 show_usage() {
     echo "Usage: $0 --account ACCOUNT --rpc-url CHAIN_ID_OR_URL [--verifier VERIFIER_TYPE]"
     echo
@@ -374,7 +339,6 @@ show_usage() {
     echo "  $0 --account DEPLOYER_OP --rpc-url 10 --verifier sourcify"
 }
 
-# Function to parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -402,7 +366,6 @@ parse_args() {
         esac
     done
     
-    # Validate required arguments
     if [ -z "$deployer_account" ]; then
         print_error "Missing required argument: --account"
         show_usage
@@ -415,31 +378,25 @@ parse_args() {
         exit 1
     fi
     
-    # Validate chain ID is numeric (only if it's not a URL)
     if ! [[ "$chain_id" =~ ^[0-9]+$ ]] && ! [[ "$chain_id" =~ ^https?:// ]]; then
         print_error "Chain ID must be a number when not providing a full RPC URL"
         exit 1
     fi
     
-    # Set default verifier type if not provided
     verifier_type=${verifier_type:-etherscan}
 }
 
-# Main script
 main() {
     print_info "EulerEarn Factory and PublicAllocator Deployment Script"
     echo
     
-    # Parse command line arguments
     parse_args "$@"
     
-    # Check if we're in the right directory
     if [ ! -f "foundry.toml" ]; then
-        print_error "This script must be run from the euler-earn-new directory (where foundry.toml is located)"
+        print_error "This script must be run from the euler-earn repository root"
         exit 1
     fi
     
-    # Load environment variables
     print_info "Loading environment variables..."
     load_env
     print_success "Environment variables loaded"
@@ -451,7 +408,6 @@ main() {
     
     echo
     
-    # Get all required values
     print_info "Getting RPC URL and chain ID..."
     local result=$(get_rpc_url_and_chain_id "$chain_id")
     rpc_url=$(echo "$result" | cut -d'|' -f1)
@@ -484,10 +440,8 @@ main() {
     
     echo
     
-    # Check if contracts are already deployed
     print_info "Checking for existing deployments..."
     
-    # Check for old version (eulerEarnImplementation)
     local old_implementation=$(get_json_value "../euler-interfaces/addresses/$chain_id/CoreAddresses.json" "eulerEarnImplementation")
     if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
         print_info "Old EulerEarn implementation found at: $old_implementation"
@@ -509,13 +463,11 @@ main() {
         print_info "PublicAllocator not found, will deploy"
     fi
     
-    # If both new contracts are already deployed, exit
     if [ -n "$existing_factory" ] && [ -n "$existing_allocator" ]; then
         print_success "Both new contracts are already deployed. Nothing to do."
         exit 0
     fi
     
-    # If old implementation exists, we need to deploy new contracts regardless
     if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
         print_info "Old implementation detected. Proceeding with new contract deployment to upgrade."
     fi
@@ -531,7 +483,6 @@ main() {
     
     local failed_verifications=()
     
-    # Deploy EulerEarnFactory if not already deployed OR if old implementation exists (upgrade scenario)
     if [ -z "$existing_factory" ] || ([ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]); then
         print_info "Deploying EulerEarnFactory..."
         echo
@@ -551,7 +502,6 @@ main() {
         if [ $exit_code -eq 0 ]; then
             print_success "Factory deployment completed successfully!"
             
-            # Extract deployed address from output
             local deployed_address=$(grep "Deployed to:" "$temp_output" | sed 's/Deployed to: //')
             
             if [ -n "$deployed_address" ]; then
@@ -576,11 +526,9 @@ main() {
         rm -f "$temp_output"
     fi
     
-    # Deploy PublicAllocator if not already deployed
     if [ -z "$existing_allocator" ]; then
         print_info "Deploying PublicAllocator..."
         
-        # Get EVC address for PublicAllocator constructor
         local evc_address=$(get_json_value "../euler-interfaces/addresses/$chain_id/CoreAddresses.json" "evc")
         if [ -z "$evc_address" ] || [ "$evc_address" = "null" ] || [ "$evc_address" = "$ZERO_ADDRESS" ]; then
             print_error "EVC address not found in CoreAddresses.json. Cannot deploy PublicAllocator."
@@ -605,7 +553,6 @@ main() {
         if [ $exit_code -eq 0 ]; then
             print_success "Allocator deployment completed successfully!"
             
-            # Extract deployed address from output
             local deployed_address=$(grep "Deployed to:" "$temp_output" | sed 's/Deployed to: //')
             
             if [ -n "$deployed_address" ]; then
@@ -631,7 +578,6 @@ main() {
     
     print_success "All deployments completed successfully!"
     
-    # Show deployment summary
     if [ -n "$old_implementation" ] && [ "$old_implementation" != "null" ] && [ "$old_implementation" != "$ZERO_ADDRESS" ]; then
         print_info "Upgraded from old EulerEarn implementation at: $old_implementation"
     fi
@@ -649,5 +595,4 @@ main() {
     fi
 }
 
-# Run main function
 main "$@" 
