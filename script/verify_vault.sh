@@ -1,19 +1,15 @@
 #!/bin/bash
 
-# EulerEarn Vault Verification Script
-# This script verifies an already deployed EulerEarn vault by extracting constructor arguments
-# from the deployment transaction and then verifying the contract
+set -e
 
-set -e  # Exit on any error
+source "$(dirname "$0")/verifier.sh"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -27,10 +23,9 @@ print_warning() {
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Function to check if a file exists
 check_file() {
     if [ ! -f "$1" ]; then
         print_error "File not found: $1"
@@ -38,7 +33,6 @@ check_file() {
     fi
 }
 
-# Function to check if a directory exists
 check_directory() {
     if [ ! -d "$1" ]; then
         print_error "Directory not found: $1"
@@ -46,29 +40,23 @@ check_directory() {
     fi
 }
 
-# Function to load environment variables
 load_env() {
     local env_file="../evk-periphery/.env"
     check_file "$env_file"
     
-    # Source the environment file
     set -a
     source "$env_file"
     set +a
 }
 
-# Function to get RPC URL and chain ID
 get_rpc_url_and_chain_id() {
     local input="$1"
     local rpc_url=""
     local extracted_chain_id=""
     
-    # Check if input looks like a URL
     if [[ "$input" =~ ^https?:// ]]; then
-        # Input is a URL, use it directly and extract chain ID
         rpc_url="$input"
         
-        # Extract chain ID using cast
         if command -v cast >/dev/null 2>&1; then
             extracted_chain_id=$(cast chain-id --rpc-url "$rpc_url" 2>/dev/null)
             
@@ -81,10 +69,8 @@ get_rpc_url_and_chain_id() {
             exit 1
         fi
     else
-        # Input is a chain ID, get RPC URL from environment
         extracted_chain_id="$input"
         
-        # Validate chain ID is numeric
         if ! [[ "$extracted_chain_id" =~ ^[0-9]+$ ]]; then
             print_error "Chain ID must be a number when not providing a full RPC URL"
             exit 1
@@ -99,39 +85,9 @@ get_rpc_url_and_chain_id() {
         fi
     fi
     
-    # Return both values in a format we can parse
     echo "$rpc_url|$extracted_chain_id"
 }
 
-# Function to get verifier URL
-get_verifier_url() {
-    local chain_id="$1"
-    local env_var="VERIFIER_URL_$chain_id"
-    local verifier_url="${!env_var}"
-    
-    if [ -z "$verifier_url" ]; then
-        print_error "Verifier URL not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
-        exit 1
-    fi
-    
-    echo "$verifier_url"
-}
-
-# Function to get verifier API key
-get_verifier_api_key() {
-    local chain_id="$1"
-    local env_var="VERIFIER_API_KEY_$chain_id"
-    local api_key="${!env_var}"
-    
-    if [ -z "$api_key" ]; then
-        print_error "Verifier API key not found for chain ID $chain_id. Check if $env_var is set in ../evk-periphery/.env"
-        exit 1
-    fi
-    
-    echo "$api_key"
-}
-
-# Function to get factory address
 get_factory_address() {
     local chain_id="$1"
     local addresses_dir="../euler-interfaces/addresses/$chain_id"
@@ -149,7 +105,6 @@ get_factory_address() {
     echo "$factory_address"
 }
 
-# Function to get value from JSON file
 get_json_value() {
     local file_path="$1"
     local key="$2"
@@ -162,23 +117,19 @@ get_json_value() {
     fi
 }
 
-# Function to get factory constructor arguments for EulerEarn
 get_factory_constructor_args() {
     local chain_id="$1"
     local addresses_dir="../euler-interfaces/addresses/$chain_id"
     
     check_directory "$addresses_dir"
     
-    # Define the JSON files and keys for each argument
     local core_file="$addresses_dir/CoreAddresses.json"
     
     check_file "$core_file"
     
-    # Get the values
     local evc_address=$(get_json_value "$core_file" "evc")
     local permit2_address=$(get_json_value "$core_file" "permit2")
     
-    # Validate that we got all addresses
     if [ -z "$evc_address" ] || [ "$evc_address" = "null" ]; then
         print_error "Failed to get evc address from $core_file"
         exit 1
@@ -192,7 +143,6 @@ get_factory_constructor_args() {
     echo "$evc_address|$permit2_address"
 }
 
-# Function to show usage
 show_usage() {
     echo "Usage: $0 --tx-hash TX_HASH --vault-address VAULT_ADDRESS --rpc-url CHAIN_ID_OR_URL [--verifier VERIFIER_TYPE]"
     echo
@@ -213,7 +163,6 @@ show_usage() {
     echo "  $0 --tx-hash 0x1234... --vault-address 0xabcd... --rpc-url https://rpc.example.com --verifier blockscout"
 }
 
-# Function to parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -245,7 +194,6 @@ parse_args() {
         esac
     done
     
-    # Validate required arguments
     if [ -z "$tx_hash" ]; then
         print_error "Missing required argument: --tx-hash"
         show_usage
@@ -264,31 +212,25 @@ parse_args() {
         exit 1
     fi
     
-    # Validate chain ID is numeric (only if it's not a URL)
     if ! [[ "$chain_id" =~ ^[0-9]+$ ]] && ! [[ "$chain_id" =~ ^https?:// ]]; then
         print_error "Chain ID must be a number when not providing a full RPC URL"
         exit 1
     fi
     
-    # Set default verifier type if not provided
     verifier_type=${verifier_type:-etherscan}
 }
 
-# Main script
 main() {
     print_info "EulerEarn Vault Verification Script (Simplified)"
     echo
     
-    # Parse command line arguments
     parse_args "$@"
     
-    # Check if we're in the right directory
     if [ ! -f "foundry.toml" ]; then
-        print_error "This script must be run from the euler-earn-new directory (where foundry.toml is located)"
+        print_error "This script must be run from the euler-earn repository root"
         exit 1
     fi
     
-    # Load environment variables
     print_info "Loading environment variables..."
     load_env
     print_success "Environment variables loaded"
@@ -299,7 +241,6 @@ main() {
     print_info "Using verifier: $verifier_type"
     echo
     
-    # Get all required values
     print_info "Getting RPC URL and chain ID..."
     local result=$(get_rpc_url_and_chain_id "$chain_id")
     rpc_url=$(echo "$result" | cut -d'|' -f1)
@@ -307,19 +248,7 @@ main() {
     print_success "RPC URL: $rpc_url"
     print_success "Chain ID: $chain_id"
     
-    print_info "Getting verifier URL for chain $chain_id..."
-    verifier_url=$(get_verifier_url "$chain_id")
-    print_success "Verifier URL: $verifier_url"
-    
-    # Only get API key if the verifier type needs it
-    if [[ $verifier_type == "blockscout" || $verifier_type == "sourcify" || $verifier_type == "custom" ]]; then
-        print_info "Skipping API key retrieval for $verifier_type verifier"
-        verifier_api_key=""
-    else
-        print_info "Getting verifier API key for chain $chain_id..."
-        verifier_api_key=$(get_verifier_api_key "$chain_id")
-        print_success "Verifier API key: ***${verifier_api_key: -4}"
-    fi
+    resolve_verifier "$chain_id"
     
     print_info "Getting factory address for chain $chain_id..."
     factory_address=$(get_factory_address "$chain_id")
@@ -327,30 +256,18 @@ main() {
     
     echo
     
-    # Extract constructor arguments from the transaction
     print_info "Extracting transaction data for tx: $tx_hash"
     
-    # Get transaction data using cast tx
-    local tx_data=$(cast tx "$tx_hash" --rpc-url "$rpc_url" --json 2>/dev/null)
-    
-    if [ $? -ne 0 ]; then
-        print_error "Failed to get transaction data for tx: $tx_hash"
-        exit 1
-    fi
-    
-    # Extract the input data from the transaction
-    local input_data=$(echo "$tx_data" | jq -r '.input' 2>/dev/null)
-    
+    local input_data
+    input_data=$(cast tx "$tx_hash" input --rpc-url "$rpc_url" 2>/dev/null) || true
+
     if [ -z "$input_data" ] || [ "$input_data" = "null" ]; then
-        print_error "Failed to extract input data from transaction"
+        print_error "Failed to get the input data of transaction $tx_hash"
         exit 1
     fi
     
     print_info "Extracted input data: $input_data"
     
-    # The input data should be a call to createEulerEarn function
-    # Function selector for createEulerEarn: createEulerEarn(address,uint256,address,string,string,bytes32)
-    # We need to remove the function selector (first 10 characters = 4 bytes)
     local calldata_without_selector="${input_data:10}"
     
     if [ -z "$calldata_without_selector" ]; then
@@ -360,35 +277,26 @@ main() {
     
     print_info "Calldata without function selector: $calldata_without_selector"
     
-    # Decode the calldata using cast decode-abi
-    # Function signature: createEulerEarn(address,uint256,address,string,string,bytes32)
-    local decoded_data=$(cast decode-abi --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null)
-    
-    if [ $? -ne 0 ]; then
+    local decoded_json
+    if ! decoded_json=$(cast decode-abi --json --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null); then
         print_error "Failed to decode calldata. This might not be a createEulerEarn transaction."
         exit 1
     fi
+
+    # Plain decode-abi output adds a scientific-notation suffix to large uints and quotes strings, so read JSON.
+    # cast 1.8 wraps it as {"data": [...]}; older versions print the bare array.
+    local decoded_data
+    decoded_data=$(echo "$decoded_json" | jq -c '.data? // .')
+
+    print_info "Decoded calldata: $decoded_data"
+
+    local initial_owner=$(jq -r '.[0]' <<< "$decoded_data")
+    local initial_timelock=$(jq -r '.[1]' <<< "$decoded_data")
+    local asset=$(jq -r '.[2]' <<< "$decoded_data")
+    local name=$(jq -r '.[3]' <<< "$decoded_data")
+    local symbol=$(jq -r '.[4]' <<< "$decoded_data")
+    local salt=$(jq -r '.[5]' <<< "$decoded_data")
     
-    print_info "Decoded calldata:"
-    echo "$decoded_data"
-    
-    # Convert the decoded data to an array and extract each parameter
-    local decoded_array=()
-    while IFS= read -r line; do
-        if [[ -n "$line" ]]; then
-            decoded_array+=("$line")
-        fi
-    done <<< "$decoded_data"
-    
-    # Extract parameters by position
-    local initial_owner="${decoded_array[0]}"
-    local initial_timelock="${decoded_array[1]}"
-    local asset="${decoded_array[2]}"
-    local name="${decoded_array[3]}"
-    local symbol="${decoded_array[4]}"
-    local salt="${decoded_array[5]}"
-    
-    # Validate that we extracted all parameters
     if [ -z "$initial_owner" ] || [ -z "$initial_timelock" ] || [ -z "$asset" ] || [ -z "$name" ] || [ -z "$symbol" ] || [ -z "$salt" ]; then
         print_error "Failed to extract all constructor parameters from decoded data"
         exit 1
@@ -402,7 +310,6 @@ main() {
     print_info "  symbol: $symbol"
     print_info "  salt: $salt"
     
-    # Get factory constructor arguments (evc and permit2 addresses)
     print_info "Getting factory constructor arguments for EulerEarn..."
     local factory_args=$(get_factory_constructor_args "$chain_id")
     local evc_address=$(echo "$factory_args" | cut -d'|' -f1)
@@ -414,15 +321,11 @@ main() {
     
     echo
     
-    # Build the constructor arguments for EulerEarn
-    # Constructor order: (address owner, address evc, address permit2, uint256 initialTimelock, address _asset, string memory __name, string memory __symbol)
     print_info "Encoding constructor arguments for EulerEarn..."
     
-    # Encode the constructor arguments using cast abi-encode
     local constructor_signature="constructor(address,address,address,uint256,address,string,string)"
-    local constructor_args_encoded=$(cast abi-encode "$constructor_signature" "$initial_owner" "$evc_address" "$permit2_address" "$initial_timelock" "$asset" "$name" "$symbol")
-    
-    if [ $? -ne 0 ]; then
+    local constructor_args_encoded
+    if ! constructor_args_encoded=$(cast abi-encode "$constructor_signature" "$initial_owner" "$evc_address" "$permit2_address" "$initial_timelock" "$asset" "$name" "$symbol"); then
         print_error "Failed to encode constructor arguments"
         exit 1
     fi
@@ -433,58 +336,7 @@ main() {
     
     echo
     
-    # Build verifier arguments based on verifier type
-    local verifier_args="--verifier-url $verifier_url"
-    
-    if [[ $verifier_type == "blockscout" ]]; then
-        verifier_args="$verifier_args --verifier-api-key \"\" --verifier=blockscout"
-    elif [[ $verifier_type == "sourcify" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type --retries 1"
-    elif [[ $verifier_type == "custom" ]]; then
-        verifier_args="$verifier_args --verifier=$verifier_type"
-    else
-        # Default to etherscan and other verifiers that need API key
-        verifier_args="$verifier_args --verifier-api-key $verifier_api_key --verifier=etherscan"
-    fi
-    
-    # Verify the contract using forge verify-contract
-    print_info "Verifying EulerEarn contract..."
-    
-    # Build the forge verify command
-    local verify_cmd="forge verify-contract $vault_address src/EulerEarn.sol:EulerEarn \
-        --chain $chain_id \
-        --rpc-url $rpc_url \
-        --constructor-args $constructor_args_encoded \
-        $verifier_args"
-    
-    print_info "Executing forge verify command..."
-    echo
-    
-    # Execute the verification
-    local temp_output=$(mktemp)
-    local exit_code=0
-    
-    eval "$verify_cmd" 2>&1 | tee "$temp_output"
-    exit_code=${PIPESTATUS[0]}
-    
-    if [ $exit_code -eq 0 ]; then
-        print_success "Contract verification completed successfully!"
-        
-        # Check if verification was successful
-        if grep -q "Successfully verified" "$temp_output" || grep -q "Contract is already verified" "$temp_output"; then
-            print_success "EulerEarn vault at $vault_address has been verified on chain $chain_id!"
-        else
-            print_warning "Verification command completed but success message not found in output"
-            print_info "Please check the output above for verification status"
-        fi
-    else
-        print_error "Contract verification failed with exit code $exit_code!"
-        print_info "Please check the output above for error details"
-        rm -f "$temp_output"
-        exit $exit_code
-    fi
-    
-    rm -f "$temp_output"
+    verify_contract "$vault_address" src/EulerEarn.sol:EulerEarn "$constructor_args_encoded" || exit 1
     
     print_success "Verification process completed!"
     print_info "Vault address: $vault_address"
@@ -492,5 +344,4 @@ main() {
     print_info "Transaction hash: $tx_hash"
 }
 
-# Run main function
 main "$@" 

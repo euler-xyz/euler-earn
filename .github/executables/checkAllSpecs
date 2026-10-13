@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+
+from concurrent.futures import ThreadPoolExecutor
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+from threading import Lock
+
+outputMutex = Lock()
+
+BASE_CONF = 'certora/confs/BaseConfForInheritance.conf'
+
+# Excluded from CI: the shared base conf, and confs that are not verifying
+EXCLUDE_CONFS = [BASE_CONF]
+
+# Harnesses import whole src contracts, specs import each other and every conf
+# inherits BASE_CONF, so a change to any of these can affect confs that don't
+# list the changed file.
+SHARED_PATHS = (
+    'src/',
+    'lib/',
+    'test/mocks/',
+    'certora/harnesses/',
+    'certora/mocks/',
+    'certora/scripts/',
+    'certora/specs/',
+    BASE_CONF,
+    '.github/workflows/checkrules.yml',
+    '.github/executables/checkAllSpecs',
+)
+
+def listConfigs() -> list[str]:
+    """List all config files."""
+    subdir_confs = glob.glob('certora/confs/**/*.conf', recursive=True)
+    root_confs = glob.glob('certora/confs/*.conf', recursive=True)
+    confs = sorted(set(subdir_confs + root_confs))
+    return [x for x in confs if x not in EXCLUDE_CONFS]
+
+def loadConf(filename: str) -> dict:
+    """Load a conf file, which may contain comments and trailing commas."""
+    text = open(filename).read()
+    text = re.sub(r'(^|\s)//[^\n]*', r'\1', text)
+    text = re.sub(r',(\s*[\]}])', r'\1', text)
+    return json.loads(text)
+
+def loadConfigDependencies(filename: str) -> set[str]:
+    """Load all files a config depends on."""
+    try:
+        conf = loadConf(filename)
+        base = conf.get('override_base_config')
+        if base:
+            conf = {**loadConf(base), **conf}
+        spec = re.findall(r'certora/specs/.+\.spec', conf['verify'])
+        return set([filename, *([base] if base else []), *spec, *conf['files']])
+    except Exception:
+        print(f'invalid json in {filename}!')
+        return set()
+
+def listChangedConfigs() -> list[str]:
+    """List config files that have changed w.r.t. the base branch. If we are not
+    within a PR branch, or a shared input changed, list all config files."""
+    BASEREF = os.environ.get('GITHUB_BASE_REF', '')
+    if BASEREF == '':
+        return listConfigs()
+    print('::group::Identifying changed configurations', flush=True)
+    subprocess.run(['git', 'fetch', 'origin', BASEREF])
+    diff = subprocess.run(['git', '-P', 'diff', '--name-only', f'origin/{BASEREF}', 'HEAD'], capture_output=True)
+    changed = set(diff.stdout.decode().splitlines())
+    shared = sorted(c for c in changed if c.startswith(SHARED_PATHS))
+    if shared:
+        print(f'shared inputs changed, running all configs: {shared}')
+        print('::endgroup::')
+        return listConfigs()
+    cfiles = { c: loadConfigDependencies(c) for c in listConfigs() }
+    changedConfs = [ c for c in cfiles if (not cfiles[c]) or (cfiles[c] & changed)]
+    print(f'changed configs: {changedConfs}')
+    print('::endgroup::')
+    return changedConfs
+
+def jobsFor(filename: str) -> list[tuple[str, list[str]]]:
+    """The prover runs for one config, as (filename, extra certoraRun args)."""
+    return [(filename, [])]
+
+def runConf(job):
+    """Run one prover job and return None if everything worked, or the
+    CompletedProcess when there was some error."""
+    filename, extra = job
+    label = ' '.join([filename, *extra])
+    print(f'Starting {label}')
+    try:
+        res = subprocess.run(['certoraRun', '--server', 'production', '--wait_for_results', 'all', filename, *extra],
+                             capture_output = True)
+    except Exception as e:
+        with outputMutex:
+            print(f'Failed to run {label}: {e}')
+        return None
+
+    setattr(res, 'label', label)
+    with outputMutex:
+        out = res.stdout.decode().strip()
+        m = re.search(r'https://[a-z-]+\.certora\.com/output/[0-9a-zA-Z?=/]+', out)
+        if m:
+            runurl = m.group(0)
+        else:
+            runurl = 'run not available'
+        print(f'::group::Results for {label} ({runurl})')
+        if res.stdout != b'':
+            print(out)
+        if res.stderr != b'':
+            print(f'error output:')
+            print(res.stderr.decode().strip())
+        if res.returncode != 0:
+            print(f'Failed with {res.returncode}')
+            print(f'::endgroup::')
+            return res
+        print(f'::endgroup::')
+        return None
+
+jobs = [job for conf in listChangedConfigs() for job in jobsFor(conf)]
+
+with ThreadPoolExecutor(max_workers=10) as executor:
+    results = executor.map(runConf, jobs)
+
+failed = [r for r in results if r is not None]
+
+if failed:
+    print('Some jobs failed:')
+    for r in failed:
+        print(f'\t{r.label}')
+    sys.exit(1)
+sys.exit(0)

@@ -8,6 +8,8 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  # crytic-compile cannot resolve the foundry-pp/ helper sources that dynamic test linking adds to the build info
+  FOUNDRY_DYNAMIC_TEST_LINKING: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

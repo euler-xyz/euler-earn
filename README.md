@@ -29,6 +29,14 @@ These roles are primarily responsible for enabling and disabling accepted ERC-46
 One EulerEarn vault is related to one underlying.
 The [`EulerEarnFactory`](./src/EulerEarnFactory.sol) is deploying immutable onchain instances of EulerEarn vaults.
 
+The factory and the `PublicAllocator` are normally deployed as part of the Euler stack by [evk-periphery](https://github.com/euler-xyz/evk-periphery) (option 50 of `script/interactiveDeployment.sh`; see its `script/NEW_CHAIN.md`). If explorer verification of those contracts fails, deploy them with `script/deploy.sh` instead, which builds and verifies them with this repository's own settings and makes the DAO the factory owner directly:
+
+1. Run evk-periphery option 50, answering "n" to EulerEarn.
+2. Run `script/deploy.sh --account <deployer> --rpc-url <chainId>`. It reads RPC and verifier settings from `../evk-periphery/.env` and writes the addresses to `../euler-interfaces/addresses/<chainId>/`. Verification uses the same rules as evk-periphery's `script/utils/verifyContracts.sh` (shared with `script/verify_vault.sh` in `script/verifier.sh`). If it fails, the address is still recorded and the script exits with an error.
+3. Re-run option 50, which then deploys the EulerEarn perspective and lens.
+
+`script/verify_vault.sh` verifies an already deployed vault on a block explorer. The factory is close to the contract-size limit: the Linea deployment needed a size-optimised build.
+
 Users can supply or withdraw assets at any time, depending on the available liquidity in the enabled strategies.
 A maximum of 30 strategies can be enabled on a given EulerEarn vault.
 Each strategy vault has a supply cap that guarantees lenders a maximum absolute exposure to the specific strategy. By default, the supply cap of a strategy vault is set to 0.
