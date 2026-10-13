@@ -277,28 +277,25 @@ main() {
     
     print_info "Calldata without function selector: $calldata_without_selector"
     
-    local decoded_data
-    if ! decoded_data=$(cast decode-abi --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null); then
+    local decoded_json
+    if ! decoded_json=$(cast decode-abi --json --input "createEulerEarn(address,uint256,address,string,string,bytes32)" "$calldata_without_selector" 2>/dev/null); then
         print_error "Failed to decode calldata. This might not be a createEulerEarn transaction."
         exit 1
     fi
-    
-    print_info "Decoded calldata:"
-    echo "$decoded_data"
-    
-    local decoded_array=()
-    while IFS= read -r line; do
-        if [[ -n "$line" ]]; then
-            decoded_array+=("$line")
-        fi
-    done <<< "$decoded_data"
-    
-    local initial_owner="${decoded_array[0]}"
-    local initial_timelock="${decoded_array[1]}"
-    local asset="${decoded_array[2]}"
-    local name="${decoded_array[3]}"
-    local symbol="${decoded_array[4]}"
-    local salt="${decoded_array[5]}"
+
+    # Plain decode-abi output adds a scientific-notation suffix to large uints and quotes strings, so read JSON.
+    # cast 1.8 wraps it as {"data": [...]}; older versions print the bare array.
+    local decoded_data
+    decoded_data=$(echo "$decoded_json" | jq -c '.data? // .')
+
+    print_info "Decoded calldata: $decoded_data"
+
+    local initial_owner=$(jq -r '.[0]' <<< "$decoded_data")
+    local initial_timelock=$(jq -r '.[1]' <<< "$decoded_data")
+    local asset=$(jq -r '.[2]' <<< "$decoded_data")
+    local name=$(jq -r '.[3]' <<< "$decoded_data")
+    local symbol=$(jq -r '.[4]' <<< "$decoded_data")
+    local salt=$(jq -r '.[5]' <<< "$decoded_data")
     
     if [ -z "$initial_owner" ] || [ -z "$initial_timelock" ] || [ -z "$asset" ] || [ -z "$name" ] || [ -z "$symbol" ] || [ -z "$salt" ]; then
         print_error "Failed to extract all constructor parameters from decoded data"
