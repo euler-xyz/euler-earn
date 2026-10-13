@@ -1,7 +1,18 @@
 name: checkrules
 
 on:
+  # Only PRs that can change a proof run it, so dependency and docs PRs don't
+  # wait on the certora environment's approval.
   pull_request:
+    paths:
+      - 'src/**'
+      - 'certora/**'
+      - 'lib/**'
+      - 'test/mocks/**'
+      - 'foundry.toml'
+      - 'remappings.txt'
+      - '.github/workflows/checkrules.yml'
+      - '.github/executables/checkAllSpecs'
   workflow_dispatch:
 
 permissions:
