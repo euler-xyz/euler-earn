@@ -101,7 +101,7 @@ contract Permit2Test is IntegrationTest {
         assertEq(loanToken.allowance(depositor, address(vaultWithPermit2)), 0);
         assertEq(loanToken.allowance(depositor, permit2), tokenAllowance);
 
-        // The failed Permit2 transfer must not consume its internal allowance.
+        // Permit2 is skipped, so its internal allowance is left untouched.
         (uint160 amount,,) =
             IAllowanceTransfer(permit2).allowance(depositor, address(loanToken), address(vaultWithPermit2));
         assertEq(amount, 1e18);

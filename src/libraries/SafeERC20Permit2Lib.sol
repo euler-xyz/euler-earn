@@ -35,14 +35,23 @@ library SafeERC20Permit2Lib {
     function safeTransferFromWithPermit2(IERC20 token, address from, address to, uint256 value, address permit2)
         internal
     {
-        if (permit2 != address(0) && value <= type(uint160).max) {
-            // it's safe to down-cast value to uint160
-            try IAllowanceTransfer(permit2).transferFrom(from, to, uint160(value), address(token)) {
-                return;
-            } catch {}
+        uint160 permit2Amount;
+        uint48 permit2Expiration;
+        uint256 permit2TokenAllowance;
+
+        if (permit2 != address(0)) {
+            (permit2Amount, permit2Expiration,) =
+                IAllowanceTransfer(permit2).allowance(from, address(token), address(this));
+            permit2TokenAllowance = token.allowance(from, permit2);
         }
 
-        SafeERC20.safeTransferFrom(token, from, to, value);
+        // Permit2 can only pull the tokens if the owner's ERC20 allowance to Permit2 also covers the value
+        if (permit2Amount >= value && permit2Expiration >= block.timestamp && permit2TokenAllowance >= value) {
+            // it's safe to down-cast value to uint160
+            IAllowanceTransfer(permit2).transferFrom(from, to, uint160(value), address(token));
+        } else {
+            SafeERC20.safeTransferFrom(token, from, to, value);
+        }
     }
 
     function trySafeApprove(IERC20 token, address to, uint256 value) internal returns (bool) {
