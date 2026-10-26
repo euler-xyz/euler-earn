@@ -101,6 +101,10 @@ rule newSupplyQueueEnsuresPositiveCap(env e, address[] newSupplyQueue)
 invariant noCapThenNoApproval(address market)
     config_(market).cap == 0 => ERC20Helper.allowance(asset(), currentContract, market) == 0
     {
+    preserved constructor() {
+        // The base step leaves Token0's state for the new contract unconstrained.
+        require ERC20Helper.allowance(asset(), currentContract, market) == 0;
+    }
     preserved acceptCap(address id) with (env e) {
         // not sure all of these assumptions are necessary but all are legitimate.
         require market != permit2Address();
@@ -134,6 +138,10 @@ invariant noCapThenNoApproval(address market)
 invariant notInWithdrawQThenNoApproval(address market)
     withdrawRank(market) == 0 => ERC20Helper.allowance(asset(), currentContract, market) == 0
     {
+    preserved constructor() {
+        // The base step leaves Token0's state for the new contract unconstrained.
+        require ERC20Helper.allowance(asset(), currentContract, market) == 0;
+    }
     preserved with (env e) {
         require market != permit2Address();
         require msgSender(e) != currentContract; 

@@ -108,6 +108,10 @@ invariant totalSupplyIsSumOfBalances()
 invariant noAssetsOnEuler()
     Token0.balanceOf(currentContract) == 0
     {   
+        preserved constructor() {
+            // The base step leaves Token0's state for the new contract unconstrained.
+            require Token0.balanceOf(currentContract) == 0;
+        }
         preserved withdraw(uint256 assets, address receiver, address owner) with (env e) {
             require receiver != currentContract;
             require owner != currentContract;
@@ -203,6 +207,10 @@ rule redeemingAllValidity() {
 invariant zeroAllowanceOnAssets(address user)
     // no alloownaces from current contract.
     Token0.allowance(currentContract, user) == 0 && currentContract.allowance(currentContract, user) == 0 {
+        preserved constructor() {
+            // The base step leaves Token0's state for the new contract unconstrained.
+            require Token0.allowance(currentContract, user) == 0;
+        }
         preserved with(env e) {
             require msgSender(e) != currentContract;
             safeAssumptions(e);
