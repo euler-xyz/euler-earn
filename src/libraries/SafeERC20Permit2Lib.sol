@@ -37,13 +37,16 @@ library SafeERC20Permit2Lib {
     {
         uint160 permit2Amount;
         uint48 permit2Expiration;
+        uint256 permit2TokenAllowance;
 
         if (permit2 != address(0)) {
             (permit2Amount, permit2Expiration,) =
                 IAllowanceTransfer(permit2).allowance(from, address(token), address(this));
+            permit2TokenAllowance = token.allowance(from, permit2);
         }
 
-        if (permit2Amount >= value && permit2Expiration >= block.timestamp) {
+        // Permit2 can only pull the tokens if the owner's ERC20 allowance to Permit2 also covers the value
+        if (permit2Amount >= value && permit2Expiration >= block.timestamp && permit2TokenAllowance >= value) {
             // it's safe to down-cast value to uint160
             IAllowanceTransfer(permit2).transferFrom(from, to, uint160(value), address(token));
         } else {
